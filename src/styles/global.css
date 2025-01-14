@@ -1,0 +1,49 @@
+/* 기본 라이트 모드 스타일 */
+body {
+    background-color: white;
+    color: black;
+    transition: background-color 0.3s, color 0.3s;
+}
+  
+/* 다크 모드 스타일 */
+body.dark {
+    background-color: #121212;
+    color: white;
+}
+  
+/* 다크 모드 버튼 스타일 */
+.dark-mode-toggle {
+    position: absolute;
+    bottom: 20px; /* 화면 하단에서 20px 떨어지도록 설정 */
+    right: 20px;  /* 화면 우측에서 20px 떨어지도록 설정 */
+    padding: 10px 20px;
+    font-size: 16px;
+    cursor: pointer;
+    background-color: #333;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+    transition: background-color 0.3s ease;
+}
+  
+.dark-mode-toggle:hover {
+    background-color: #555;
+}
+  
+.dark-mode-toggle:focus {
+    outline: none;
+}
+a{
+    color: unset;
+    text-decoration: none;
+}
+
+.home-container{
+    display: flex;
+    height: 100vh;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    flex-direction: column;
+}
