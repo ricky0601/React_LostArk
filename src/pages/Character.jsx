@@ -9,6 +9,7 @@ const Character = () => {
 
   const { search } = useLocation();
   const nickname = new URLSearchParams(search).get('nickname');
+  const server = "";
 
   useEffect(() => {
     const API_KEY = process.env.REACT_APP_API_KEY;
@@ -36,6 +37,7 @@ const Character = () => {
         setError(null);
         try {
           const characterData = await searchCharacter(nickname);
+          console.log(characterData);
           setCharacterData(characterData);
         } catch (err) {
           setError('캐릭터 정보를 가져오는 중 오류가 발생했습니다.');
@@ -45,11 +47,23 @@ const Character = () => {
     };
   
     fetchData();
-  }, [nickname]); // 의존성 배열을 비워두어도 됨
+  }, [nickname , server]); // 의존성 배열을 비워두어도 됨
 
   return (
     <div className="character-container">
-      <Link to="/" className="back-link">끼로아</Link>
+      <header className="navigation">
+        <nav>
+          <Link to="/" className="nav-link">🏠 홈으로</Link>
+          <Link 
+            to="/simulation" 
+            state={characterData ? { nickname: nickname, server: characterData.ServerName } : null}
+            className={`nav-link ${!characterData ? 'disabled' : ''}`}  // 데이터 없으면 비활성화
+          >
+            💰 골드 시뮬레이션
+          </Link>
+        </nav>
+      </header>
+
       <h1>캐릭터 정보</h1>
       {loading ? (
         <p>로딩 중...</p>

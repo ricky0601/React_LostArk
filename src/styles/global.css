@@ -7,13 +7,13 @@ body {
   
 /* 다크 모드 스타일 */
 body.dark {
-    background-color: #121212;
+    background-color: #15181D;
     color: white;
 }
   
 /* 다크 모드 버튼 스타일 */
 .dark-mode-toggle {
-    position: absolute;
+    position: fixed;
     bottom: 20px; /* 화면 하단에서 20px 떨어지도록 설정 */
     right: 20px;  /* 화면 우측에서 20px 떨어지도록 설정 */
     padding: 10px 20px;
