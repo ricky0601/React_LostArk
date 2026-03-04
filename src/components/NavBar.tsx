@@ -24,9 +24,6 @@ const NavBar: React.FC = () => {
           <Link to="/simulation" className={linkClass('/simulation')}>
             주간 골드 계산
           </Link>
-          <Link to="/arkgrid" className={linkClass('/arkgrid')}>
-            아크그리드
-          </Link>
           <Link to="/character" className={linkClass('/character')}>
             캐릭터
           </Link>

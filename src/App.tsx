@@ -3,7 +3,6 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Home from './pages/Home';
 import Character from './pages/Character';
 import Simulation from './pages/Simulation';
-import ArkGrid from './pages/ArkGrid';
 import Compare from './pages/Compare';
 import ThemeToggle from './components/ThemeToggle';
 
@@ -30,7 +29,6 @@ const App: React.FC = () => {
           <Route path="/" element={<Home />} />
           <Route path="/character" element={<Character />} />
           <Route path="/simulation" element={<Simulation />} />
-          <Route path="/arkgrid" element={<ArkGrid />} />
           <Route path="/compare" element={<Compare />} />
         </Routes>
         <ThemeToggle isDarkMode={isDarkMode} onToggle={toggleDarkMode} />

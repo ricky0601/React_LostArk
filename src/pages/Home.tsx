@@ -87,7 +87,7 @@ const Home: React.FC = () => {
         </section>
 
         {/* Quick Links */}
-        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 animate-fade-in">
+        <section className="grid grid-cols-1 sm:grid-cols-3 gap-4 animate-fade-in">
           <Link
             to="/simulation"
             className="glass-card p-5 text-left transition-all duration-300 group cursor-pointer hover:shadow-gold-glow hover:border-la-gold/30 dark:hover:border-la-gold/20"
@@ -128,29 +128,6 @@ const Home: React.FC = () => {
             </p>
             <div className="mt-3 flex items-center gap-1 text-sm font-medium text-blue-600 dark:text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity">
               <span>조회하기</span>
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-              </svg>
-            </div>
-          </Link>
-
-          <Link
-            to="/arkgrid"
-            className="glass-card p-5 text-left transition-all duration-300 group cursor-pointer hover:shadow-gold-glow hover:border-la-gold/30 dark:hover:border-la-gold/20"
-          >
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-lg bg-emerald-500/15 flex items-center justify-center flex-shrink-0">
-                <svg className="w-5 h-5 text-emerald-600 dark:text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-                </svg>
-              </div>
-              <h2 className="text-base font-bold text-gray-900 dark:text-white">아크그리드</h2>
-            </div>
-            <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
-              원정대 전체 캐릭터의 아크그리드 세팅을 한눈에 비교합니다
-            </p>
-            <div className="mt-3 flex items-center gap-1 text-sm font-medium text-emerald-600 dark:text-emerald-400 opacity-0 group-hover:opacity-100 transition-opacity">
-              <span>확인하기</span>
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
               </svg>
