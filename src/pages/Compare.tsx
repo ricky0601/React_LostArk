@@ -18,6 +18,7 @@ import {
   LS_NICKNAME,
   fetchSiblings,
 } from '../utils/api';
+import { type EffectSegment, stripHtml, parseBraceletLine } from '../utils/tooltipParser';
 import type { SiblingCharacter } from '../types/lostark';
 
 /* ================================================================
@@ -48,15 +49,6 @@ const GRADE_COLORS: Record<string, { border: string; bg: string; text: string }>
 
 function gradeStyle(grade: string) {
   return GRADE_COLORS[grade] || GRADE_COLORS['일반'];
-}
-
-function stripHtml(html: string): string {
-  return html
-    .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<img[^>]*>/gi, '')
-    .replace(/<[^>]+>/g, '')
-    .replace(/&nbsp;/g, ' ')
-    .trim();
 }
 
 function parseQuality(tooltip: string): number {
@@ -92,6 +84,8 @@ function parseItemLevel(str: string): number {
   return parseFloat(str.replace(/,/g, '')) || 0;
 }
 
+interface DetailLine { text: string; segments?: EffectSegment[] }
+
 /** 장비 슬롯 순서 */
 const ARMOR_SLOTS = ['무기', '투구', '상의', '하의', '장갑', '어깨'];
 const ACCESSORY_SLOTS = ['목걸이', '귀걸이', '귀걸이', '반지', '반지'];
@@ -100,10 +94,10 @@ const EXTRA_SLOTS = ['어빌리티 스톤', '팔찌'];
 /** 악세/스톤/팔찌 상세 정보 파싱 */
 const DETAIL_TYPES = new Set(['목걸이', '귀걸이', '반지', '어빌리티 스톤', '팔찌']);
 
-function parseEquipDetails(tooltip: string, type: string): string[] {
+function parseEquipDetails(tooltip: string, type: string): DetailLine[] {
   try {
     const obj = JSON.parse(tooltip);
-    const lines: string[] = [];
+    const lines: DetailLine[] = [];
 
     for (const key of Object.keys(obj)) {
       const el = obj[key];
@@ -111,11 +105,22 @@ function parseEquipDetails(tooltip: string, type: string): string[] {
 
       if (el.type === 'ItemPartBox') {
         const label = stripHtml(el.value?.Element_000 || '');
-        const content = stripHtml(el.value?.Element_001 || '');
-        // 기본 효과·세공 단계 보너스는 생략 (비교에 덜 중요)
+        const contentHtml: string = el.value?.Element_001 || '';
         if (label.includes('기본 효과') || label.includes('세공 단계')) continue;
-        if (label && content) {
-          lines.push(content);
+        if (!label || !contentHtml) continue;
+
+        // 팔찌·악세사리 연마효과: 줄별로 분리해서 인라인 색상 세그먼트로 파싱
+        const hasColoredLines =
+          label.includes('팔찌 효과') ||
+          label.includes('연마 효과') ||
+          label.includes('추가 효과');
+        if (hasColoredLines) {
+          for (const rawLine of contentHtml.split(/<br\s*\/?>/gi)) {
+            const text = stripHtml(rawLine).trim();
+            if (text) lines.push({ text, segments: parseBraceletLine(rawLine) });
+          }
+        } else {
+          lines.push({ text: stripHtml(contentHtml) });
         }
       }
 
@@ -126,7 +131,8 @@ function parseEquipDetails(tooltip: string, type: string): string[] {
           for (const gKey of Object.keys(group)) {
             const item = (group as Record<string, { contentStr?: string }>)[gKey];
             if (item?.contentStr) {
-              lines.push(stripHtml(item.contentStr));
+              const raw = item.contentStr;
+              lines.push({ text: stripHtml(raw), segments: parseBraceletLine(raw) });
             }
           }
         }
@@ -278,11 +284,25 @@ const EquipmentRow: React.FC<{
         <QualityBar quality={q} />
         {details.length > 0 && (
           <div className="mt-1.5 space-y-0.5 pl-1 border-l-2 border-gray-200/50 dark:border-white/10">
-            {details.map((line, i) => (
-              <p key={i} className="text-[10px] leading-snug text-gray-500 dark:text-gray-400 whitespace-pre-line">
-                {line}
-              </p>
-            ))}
+            {details.map((line, i) =>
+              line.segments ? (
+                <p key={i} className="text-[10px] leading-snug whitespace-pre-line">
+                  {line.segments.map((seg, j) => (
+                    <span
+                      key={j}
+                      style={seg.color ? { color: seg.color } : undefined}
+                      className={!seg.color ? 'text-gray-500 dark:text-gray-400' : ''}
+                    >
+                      {seg.text}
+                    </span>
+                  ))}
+                </p>
+              ) : (
+                <p key={i} className="text-[10px] leading-snug text-gray-500 dark:text-gray-400 whitespace-pre-line">
+                  {line.text}
+                </p>
+              )
+            )}
           </div>
         )}
       </div>

@@ -12,6 +12,7 @@ import NicknameInput from '../components/NicknameInput';
 import NicknameSearchBar from '../components/NicknameSearchBar';
 import GlassCard from '../components/GlassCard';
 import { fetchProfile, fetchEquipment, fetchGems, fetchEngravings, fetchArkGrid, LS_NICKNAME } from '../utils/api';
+import { type EffectSegment, stripHtml, htmlColorToGrade, parseBraceletLine } from '../utils/tooltipParser';
 
 /* ── 등급 색상 ── */
 const GRADE_COLORS: Record<string, { border: string; bg: string; text: string }> = {
@@ -24,7 +25,6 @@ const DEFAULT_GRADE = { border: 'border-gray-400/40', bg: 'bg-gray-400/15', text
 const gradeStyle = (grade: string) => GRADE_COLORS[grade] || DEFAULT_GRADE;
 
 /* ── 추가효과 등급 색상 ── */
-interface EffectSegment { text: string; color: string | null }
 interface EquipmentEffect { grade: string | null; text: string; segments?: EffectSegment[] }
 
 const EFFECT_GRADE_COLORS: Record<string, { bg: string; text: string }> = {
@@ -52,16 +52,6 @@ function qualityBgColor(q: number): string {
   return 'bg-gray-500';
 }
 
-/* ── HTML 제거 ── */
-function stripHtml(html: string): string {
-  return html
-    .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<img[^>]*>/gi, '')
-    .replace(/<[^>]+>/g, '')
-    .replace(/&nbsp;/g, ' ')
-    .trim();
-}
-
 /* ── 장비 툴팁 파싱 (품질 + 강화레벨 + 초월 + 추가효과) ── */
 interface ParsedEquipmentInfo {
   quality: number | null;
@@ -70,47 +60,10 @@ interface ParsedEquipmentInfo {
   effects: EquipmentEffect[];
 }
 
-/** LoA tooltip color hex → option grade
- *  색상 코드에 # 없이 쓰이는 경우도 처리 (예: CE43FC)
- */
-function htmlColorToGrade(html: string): string | null {
-  const m = html.match(/color=['"]?#?([0-9A-Fa-f]{6})['">\s]/i);
-  if (!m) return null;
-  const hex = m[1].toUpperCase();
-  const r = parseInt(hex.slice(0, 2), 16);
-  const g = parseInt(hex.slice(2, 4), 16);
-  const b = parseInt(hex.slice(4, 6), 16);
-  if (r > 200 && g < 80  && b < 80)  return '최상'; // red
-  if (r > 200 && g > 80  && b < 80)  return '상';   // orange #FE9600
-  if (r > 150 && g < 80  && b > 150) return '중';   // purple/magenta #CE43FC
-  if (r < 80  && g > 150 && b < 80)  return '중';   // green
-  return null;
-}
-
 /** item.Name 에서 강화레벨 파싱 (+20 운명의... → 20) */
 function parseEnchantFromName(name: string): number | null {
   const m = name.match(/^\+(\d+)\s/);
   return m ? parseInt(m[1], 10) : null;
-}
-
-/** 팔찌 효과 한 줄의 HTML을 파싱해서 색상 세그먼트 배열로 반환 */
-function parseBraceletLine(html: string): EffectSegment[] {
-  const segments: EffectSegment[] = [];
-  const cleaned = html.replace(/<\/?img[^>]*>\s*/gi, '').replace(/&nbsp;/g, ' ');
-  // <FONT ...>text</FONT> 단위로 분할
-  const parts = cleaned.split(/(<FONT\b[^>]*>[\s\S]*?<\/FONT>)/gi);
-  for (const part of parts) {
-    const fm = part.match(/^<FONT\b[^>]*COLOR=['"]?#?([0-9A-Fa-f]{6})/i);
-    if (fm) {
-      const color = `#${fm[1].toUpperCase()}`;
-      const innerText = part.replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ');
-      if (innerText.trim()) segments.push({ text: innerText, color });
-    } else {
-      const text = part.replace(/<br\s*\/?>/gi, '').replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ');
-      if (text.trim()) segments.push({ text, color: null });
-    }
-  }
-  return segments;
 }
 
 function parseEquipmentInfo(itemName: string, tooltip: string): ParsedEquipmentInfo {
@@ -149,10 +102,10 @@ function parseEquipmentInfo(itemName: string, tooltip: string): ParsedEquipmentI
           for (const line of lines) {
             const text = stripHtml(line).trim();
             if (!text) continue;
-            if (isBracelet) {
-              effects.push({ grade: null, text, segments: parseBraceletLine(line) });
+            if (isBracelet || withGrade) {
+              effects.push({ grade: withGrade ? htmlColorToGrade(line) : null, text, segments: parseBraceletLine(line) });
             } else {
-              effects.push({ grade: withGrade ? htmlColorToGrade(line) : null, text });
+              effects.push({ grade: null, text });
             }
           }
         }
