@@ -76,6 +76,45 @@ export interface RaidColumn {
 export const RAIDS: Raid[] = [
     // === T4 카제로스 레이드 (종막 → 서막 순서) ===
     {
+        name: '지평의 성당 (어비스)',
+        tier: 4,
+        difficulties: [
+            {
+                difficulty: '1750',
+                requiredLevel: 1750,
+                gates: [
+                    { gate: 1, gold: 20000, bonusCost: 6400, coreReward: 3 },
+                    { gate: 2, gold: 30000, bonusCost: 9600, coreReward: 3 },
+                ],
+                totalGold: 50000,
+                isBound: false,
+                boundGold: 50000,
+            },
+            {
+                difficulty: '1720',
+                requiredLevel: 1720,
+                gates: [
+                    { gate: 1, gold: 16000, bonusCost: 5120, coreReward: 2 },
+                    { gate: 2, gold: 24000, bonusCost: 7680, coreReward: 2 },
+                ],
+                totalGold: 40000,
+                isBound: false,
+                boundGold: 40000,
+            },
+            {
+                difficulty: '1700',
+                requiredLevel: 1700,
+                gates: [
+                    { gate: 1, gold: 13500, bonusCost: 4320, coreReward: 2 },
+                    { gate: 2, gold: 16500, bonusCost: 5280, coreReward: 2 },
+                ],
+                totalGold: 30000,
+                isBound: false,
+                boundGold: 30000,
+            }
+        ]
+    },
+    {
         name: '세르카 (그림자)',
         tier: 4,
         difficulties: [
