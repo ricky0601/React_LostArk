@@ -15,7 +15,7 @@ const NavBar: React.FC = () => {
     <nav className="sticky top-0 z-40 bg-white/80 dark:bg-la-dark/80 backdrop-blur-xl border-b border-gray-200/50 dark:border-white/5 transition-colors duration-300">
       <div className="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between">
         <Link to="/" className="text-lg font-bold bg-gradient-to-r from-la-gold to-la-gold-light bg-clip-text text-transparent">
-          LostArk
+          Lokki
         </Link>
         <div className="flex items-center gap-2">
           <Link to="/" className={linkClass('/')}>
