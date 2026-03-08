@@ -39,6 +39,7 @@ function getLoaWeekKey(): string {
 const LS_WEEK_KEY = 'loaGold_weekKey';
 const LS_COMPLETED = 'loaGold_completed';
 const LS_BONUS = 'loaGold_bonus';
+const LS_SELECTED = 'loaGold_selectedNames';
 
 const Simulation: React.FC = () => {
     const [searchParams, setSearchParams] = useSearchParams();
@@ -51,7 +52,10 @@ const Simulation: React.FC = () => {
     const [characterInfo, setCharacterInfo] = useState<(CharacterProfile | null)[]>([]);
     const [loading, setLoading] = useState<boolean>(false);
     const [error, setError] = useState<string | null>(null);
-    const [selectedNames, setSelectedNames] = useState<Set<string>>(new Set());
+    const [selectedNames, setSelectedNames] = useState<Set<string>>(() => {
+        const data = localStorage.getItem(LS_SELECTED);
+        return data ? new Set(JSON.parse(data)) : new Set();
+    });
     const [showMore, setShowMore] = useState(false);
     /** 캐릭터별 커스텀 레이드 3개 선택 (키: "raidName::difficulty"). 있으면 selectedRaids 대신 사용 */
     const [customRaidSelection, setCustomRaidSelection] = useState<Record<string, string[]>>({});
@@ -184,6 +188,16 @@ const Simulation: React.FC = () => {
         return [...results].sort((a, b) => b.totalGold - a.totalGold);
     }, [characterInfo]);
 
+    // allResults 로드 시 유효하지 않은 selectedNames 정리
+    useEffect(() => {
+        if (allResults.length === 0) return;
+        const validNames = new Set(allResults.map((r) => r.characterName));
+        setSelectedNames((prev) => {
+            const filtered = Array.from(prev).filter((name) => validNames.has(name));
+            return filtered.length === prev.size ? prev : new Set(filtered);
+        });
+    }, [allResults]);
+
     // 초기 선택: 골드 높은 순 6캐릭 자동 선택
     useEffect(() => {
         if (allResults.length > 0 && selectedNames.size === 0) {
@@ -270,6 +284,10 @@ const Simulation: React.FC = () => {
     }, [selectedNames]);
 
     // localStorage 동기화
+    useEffect(() => {
+        localStorage.setItem(LS_SELECTED, JSON.stringify(Array.from(selectedNames)));
+    }, [selectedNames]);
+
     useEffect(() => {
         localStorage.setItem(LS_BONUS, JSON.stringify(Array.from(bonusSelections)));
     }, [bonusSelections]);

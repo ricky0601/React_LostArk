@@ -40,6 +40,8 @@ function getTodayTimes(startTimes: string[] | null): string[] {
     });
 }
 
+const CALENDAR_CATEGORIES = ['모험 섬', '카오스게이트', '필드보스', '항해'];
+
 const Home: React.FC = () => {
   const [events, setEvents] = useState<GameEvent[]>([]);
   const [calendar, setCalendar] = useState<CalendarItem[]>([]);
@@ -64,6 +66,7 @@ const Home: React.FC = () => {
   const calendarGroups = useMemo(() => {
     const groups = new Map<string, { item: CalendarItem; times: string[] }[]>();
     for (const item of calendar) {
+      if (!CALENDAR_CATEGORIES.includes(item.CategoryName)) continue;
       const times = getTodayTimes(item.StartTimes);
       if (times.length === 0) continue;
       const group = groups.get(item.CategoryName) || [];
