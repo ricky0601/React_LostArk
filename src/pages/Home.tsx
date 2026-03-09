@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import NavBar from '../components/NavBar';
+import PullToRefresh from '../components/PullToRefresh';
 import { fetchEvents, fetchCalendar } from '../utils/api';
 import type { GameEvent, CalendarItem } from '../types/lostark';
 
@@ -53,17 +54,22 @@ const Home: React.FC = () => {
     setExpandedCategories((prev) => ({ ...prev, [category]: !prev[category] }));
   };
 
-  useEffect(() => {
+  const loadData = useCallback(() => {
+    setLoadingEvents(true);
+    setLoadingCalendar(true);
     fetchEvents()
       .then((data) => setEvents(Array.isArray(data) ? data : []))
       .catch(() => setEvents([]))
       .finally(() => setLoadingEvents(false));
-
     fetchCalendar()
       .then((data) => setCalendar(Array.isArray(data) ? data : []))
       .catch(() => setCalendar([]))
       .finally(() => setLoadingCalendar(false));
   }, []);
+
+  useEffect(() => { loadData(); }, [loadData]);
+
+  const handleRefresh = async () => { loadData(); };
 
   const activeEvents = useMemo(() => events.filter(isEventActive), [events]);
 
@@ -84,7 +90,7 @@ const Home: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-la-dark transition-colors duration-300">
       <NavBar />
-
+      <PullToRefresh onRefresh={handleRefresh}>
       <main className="max-w-7xl mx-auto px-4 py-8 space-y-8">
         {/* Hero */}
         <section className="text-center animate-fade-in">
@@ -302,6 +308,7 @@ const Home: React.FC = () => {
           )}
         </section>
       </main>
+      </PullToRefresh>
     </div>
   );
 };

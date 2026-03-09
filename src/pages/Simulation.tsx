@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import type { SiblingCharacter, CharacterProfile } from '../types/lostark';
 import NavBar from '../components/NavBar';
+import PullToRefresh from '../components/PullToRefresh';
 import NicknameInput from '../components/NicknameInput';
 import NicknameSearchBar from '../components/NicknameSearchBar';
 import { fetchSiblings, fetchProfile, LS_NICKNAME } from '../utils/api';
@@ -57,6 +58,7 @@ const Simulation: React.FC = () => {
         return data ? new Set(JSON.parse(data)) : new Set();
     });
     const [showMore, setShowMore] = useState(false);
+    const [refreshKey, setRefreshKey] = useState(0);
     /** 캐릭터별 커스텀 레이드 3개 선택 (키: "raidName::difficulty"). 있으면 selectedRaids 대신 사용 */
     const [customRaidSelection, setCustomRaidSelection] = useState<Record<string, string[]>>({});
     const [bonusSelections, setBonusSelections] = useState<Set<string>>(() => {
@@ -125,7 +127,9 @@ const Simulation: React.FC = () => {
                     setLoading(false);
                 });
         }
-    }, [nickname]);
+    }, [nickname, refreshKey]);
+
+    const handleRefresh = async () => { setRefreshKey((k) => k + 1); };
 
     const handleNicknameSubmit = (name: string): void => {
         setSearchParams({ nickname: name });
@@ -481,7 +485,7 @@ const Simulation: React.FC = () => {
     return (
         <div className="min-h-screen bg-gray-50 dark:bg-la-dark transition-colors duration-300">
             <NavBar />
-
+            <PullToRefresh onRefresh={handleRefresh}>
             <main className="max-w-7xl mx-auto px-4 py-8">
                 {/* Header */}
                 <div className="mb-6 text-center animate-fade-in">
@@ -750,6 +754,7 @@ const Simulation: React.FC = () => {
                     </div>
                 )}
             </main>
+            </PullToRefresh>
         </div>
     );
 };

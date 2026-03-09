@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
+import PullToRefresh from '../components/PullToRefresh';
 import type {
   CharacterProfile,
   EquipmentItem,
@@ -505,6 +506,9 @@ const Character: React.FC = () => {
   const [arkGrid, setArkGrid] = useState<ArkGridData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const handleRefresh = async () => { if (nickname) setRefreshKey((k) => k + 1); };
 
   useEffect(() => {
     if (!nickname) return;
@@ -531,7 +535,7 @@ const Character: React.FC = () => {
       if (engravRes.status === 'fulfilled') setEngravings(engravRes.value);
       if (arkRes.status === 'fulfilled') setArkGrid(arkRes.value);
     }).finally(() => setLoading(false));
-  }, [nickname]);
+  }, [nickname, refreshKey]);
 
   const handleSearch = (name: string) => {
     setSearchParams({ nickname: name });
@@ -555,6 +559,7 @@ const Character: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-la-dark transition-colors duration-300">
       <NavBar />
+      <PullToRefresh onRefresh={handleRefresh}>
       <main className="max-w-6xl mx-auto px-4 py-8">
         <div className="mb-6 text-center animate-fade-in">
           <NicknameSearchBar onSearch={handleSearch} placeholder="다른 캐릭터 검색" />
@@ -588,6 +593,7 @@ const Character: React.FC = () => {
           </GlassCard>
         )}
       </main>
+      </PullToRefresh>
     </div>
   );
 };
