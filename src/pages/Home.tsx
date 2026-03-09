@@ -47,6 +47,11 @@ const Home: React.FC = () => {
   const [calendar, setCalendar] = useState<CalendarItem[]>([]);
   const [loadingEvents, setLoadingEvents] = useState(true);
   const [loadingCalendar, setLoadingCalendar] = useState(true);
+  /** 카테고리별 접기 상태. 기본 모두 접힘 */
+  const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
+  const toggleCategory = (category: string) => {
+    setExpandedCategories((prev) => ({ ...prev, [category]: !prev[category] }));
+  };
 
   useEffect(() => {
     fetchEvents()
@@ -211,7 +216,7 @@ const Home: React.FC = () => {
           )}
         </section>
 
-        {/* Today's Calendar */}
+        {/* Today's Calendar - 카테고리별 접기, 기본 접힘 */}
         <section className="animate-fade-in">
           <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">오늘의 일정</h2>
           {loadingCalendar ? (
@@ -231,44 +236,64 @@ const Home: React.FC = () => {
             </div>
           ) : calendarGroups.size > 0 ? (
             <div className="space-y-4">
-              {Array.from(calendarGroups.entries()).map(([category, items]) => (
-                <div key={category} className="glass-card p-4">
-                  <h3 className="text-sm font-bold text-la-gold-dark dark:text-la-gold mb-3">{category}</h3>
-                  <div className="space-y-3">
-                    {items.map(({ item, times }, i) => (
-                      <div key={i} className="flex items-start gap-3">
-                        {item.ContentsIcon && (
-                          <img
-                            src={item.ContentsIcon}
-                            alt={item.ContentsName}
-                            className="w-10 h-10 rounded-lg flex-shrink-0 bg-gray-100 dark:bg-white/5"
-                          />
-                        )}
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                            {item.ContentsName}
-                          </p>
-                          <div className="flex items-center gap-2 mt-1 flex-wrap">
-                            {item.MinItemLevel > 0 && (
-                              <span className="text-xs text-gray-500 dark:text-gray-400">
-                                Lv.{item.MinItemLevel}
-                              </span>
+              {Array.from(calendarGroups.entries()).map(([category, items]) => {
+                const isExpanded = expandedCategories[category] ?? false;
+                return (
+                  <div key={category} className="glass-card overflow-hidden">
+                    <button
+                      type="button"
+                      onClick={() => toggleCategory(category)}
+                      className="w-full flex items-center justify-between text-left p-4 hover:bg-white/5 dark:hover:bg-white/5 transition-colors"
+                      aria-expanded={isExpanded}
+                    >
+                      <h3 className="text-sm font-bold text-la-gold-dark dark:text-la-gold">{category}</h3>
+                      <span
+                        className={`flex-shrink-0 w-7 h-7 flex items-center justify-center rounded-full text-gray-500 dark:text-gray-400 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
+                        aria-hidden
+                      >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </span>
+                    </button>
+                    {isExpanded && (
+                      <div className="px-4 pb-4 pt-3 space-y-3 border-t border-gray-200/50 dark:border-white/10">
+                        {items.map(({ item, times }, i) => (
+                          <div key={i} className="flex items-start gap-3">
+                            {item.ContentsIcon && (
+                              <img
+                                src={item.ContentsIcon}
+                                alt={item.ContentsName}
+                                className="w-10 h-10 rounded-lg flex-shrink-0 bg-gray-100 dark:bg-white/5"
+                              />
                             )}
-                            {times.map((time, j) => (
-                              <span
-                                key={j}
-                                className="text-xs px-1.5 py-0.5 rounded bg-la-gold/10 text-la-gold-dark dark:text-la-gold"
-                              >
-                                {time}
-                              </span>
-                            ))}
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                                {item.ContentsName}
+                              </p>
+                              <div className="flex items-center gap-2 mt-1 flex-wrap">
+                                {item.MinItemLevel > 0 && (
+                                  <span className="text-xs text-gray-500 dark:text-gray-400">
+                                    Lv.{item.MinItemLevel}
+                                  </span>
+                                )}
+                                {times.map((time, j) => (
+                                  <span
+                                    key={j}
+                                    className="text-xs px-1.5 py-0.5 rounded bg-la-gold/10 text-la-gold-dark dark:text-la-gold"
+                                  >
+                                    {time}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
                           </div>
-                        </div>
+                        ))}
                       </div>
-                    ))}
+                    )}
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           ) : (
             <div className="glass-card p-6 text-center">
