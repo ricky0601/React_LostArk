@@ -13,44 +13,9 @@ import NicknameSearchBar from '../components/NicknameSearchBar';
 import GlassCard from '../components/GlassCard';
 import { fetchProfile, fetchEquipment, fetchGems, fetchEngravings, fetchArkGrid, LS_NICKNAME } from '../utils/api';
 import { type EffectSegment, stripHtml, htmlColorToGrade, parseBraceletLine } from '../utils/tooltipParser';
+import { gradeStyle, EFFECT_GRADE_COLORS, qualityTextColor, qualityBgColor } from '../utils/equipmentColors';
 
-/* ── 등급 색상 ── */
-const GRADE_COLORS: Record<string, { border: string; bg: string; text: string }> = {
-  '영웅': { border: 'border-purple-500/60', bg: 'bg-purple-500/15', text: 'text-purple-400' },
-  '전설': { border: 'border-orange-500/60', bg: 'bg-orange-500/15', text: 'text-orange-400' },
-  '유물': { border: 'border-red-500/60', bg: 'bg-red-500/15', text: 'text-red-400' },
-  '고대': { border: 'border-amber-400/60', bg: 'bg-amber-400/15', text: 'text-amber-400' },
-};
-const DEFAULT_GRADE = { border: 'border-gray-400/40', bg: 'bg-gray-400/15', text: 'text-gray-400' };
-const gradeStyle = (grade: string) => GRADE_COLORS[grade] || DEFAULT_GRADE;
-
-/* ── 추가효과 등급 색상 ── */
 interface EquipmentEffect { grade: string | null; text: string; segments?: EffectSegment[] }
-
-const EFFECT_GRADE_COLORS: Record<string, { bg: string; text: string }> = {
-  '하': { bg: 'bg-gray-500/60', text: 'text-gray-200' },
-  '중': { bg: 'bg-blue-600/60', text: 'text-blue-100' },
-  '상': { bg: 'bg-orange-500/60', text: 'text-orange-100' },
-  '최상': { bg: 'bg-red-500/60', text: 'text-red-100' },
-};
-
-/* ── 품질 색상 ── */
-function qualityTextColor(q: number): string {
-  if (q >= 100) return 'text-amber-400';
-  if (q >= 90) return 'text-sky-400';
-  if (q >= 70) return 'text-emerald-400';
-  if (q >= 50) return 'text-yellow-400';
-  if (q >= 30) return 'text-orange-400';
-  return 'text-gray-400';
-}
-function qualityBgColor(q: number): string {
-  if (q >= 100) return 'bg-amber-400';
-  if (q >= 90) return 'bg-sky-400';
-  if (q >= 70) return 'bg-emerald-400';
-  if (q >= 50) return 'bg-yellow-400';
-  if (q >= 30) return 'bg-orange-400';
-  return 'bg-gray-500';
-}
 
 /* ── 장비 툴팁 파싱 (품질 + 강화레벨 + 초월 + 추가효과) ── */
 interface ParsedEquipmentInfo {

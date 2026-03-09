@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState } from 'react';
 import NavBar from '../components/NavBar';
 import GlassCard from '../components/GlassCard';
 import type {
@@ -9,17 +9,17 @@ import type {
   GemSkillEffect,
   EngravingData,
   ArkPassiveEffect,
+  ArkGridData,
 } from '../types/lostark';
 import {
   fetchProfile,
   fetchEquipment,
   fetchGems,
   fetchEngravings,
-  LS_NICKNAME,
-  fetchSiblings,
+  fetchArkGrid,
 } from '../utils/api';
 import { type EffectSegment, stripHtml, parseBraceletLine } from '../utils/tooltipParser';
-import type { SiblingCharacter } from '../types/lostark';
+import { gradeStyle, qualityTextColor, qualityBgColor } from '../utils/equipmentColors';
 
 /* ================================================================
    Types
@@ -30,26 +30,12 @@ interface CompareData {
   equipment: EquipmentItem[];
   gems: GemData | null;
   engravings: EngravingData | null;
+  arkGrid: ArkGridData | null;
 }
 
 /* ================================================================
    Utilities
    ================================================================ */
-
-const GRADE_COLORS: Record<string, { border: string; bg: string; text: string }> = {
-  일반: { border: 'border-gray-400', bg: 'bg-gray-400/20', text: 'text-gray-500' },
-  고급: { border: 'border-green-500', bg: 'bg-green-500/20', text: 'text-green-500' },
-  희귀: { border: 'border-blue-500', bg: 'bg-blue-500/20', text: 'text-blue-500' },
-  영웅: { border: 'border-purple-500', bg: 'bg-purple-500/20', text: 'text-purple-500' },
-  전설: { border: 'border-orange-500', bg: 'bg-orange-500/20', text: 'text-orange-500' },
-  유물: { border: 'border-red-500', bg: 'bg-red-500/20', text: 'text-red-500' },
-  고대: { border: 'border-amber-400', bg: 'bg-amber-400/20', text: 'text-amber-400' },
-  에스더: { border: 'border-cyan-400', bg: 'bg-cyan-400/20', text: 'text-cyan-400' },
-};
-
-function gradeStyle(grade: string) {
-  return GRADE_COLORS[grade] || GRADE_COLORS['일반'];
-}
 
 function parseQuality(tooltip: string): number {
   try {
@@ -60,28 +46,13 @@ function parseQuality(tooltip: string): number {
   }
 }
 
-function qualityColor(q: number): string {
-  if (q < 0) return 'bg-gray-400';
-  if (q < 10) return 'bg-red-500';
-  if (q < 30) return 'bg-orange-500';
-  if (q < 70) return 'bg-yellow-500';
-  if (q < 90) return 'bg-green-500';
-  if (q < 100) return 'bg-blue-500';
-  return 'bg-purple-500';
-}
-
-function qualityTextColor(q: number): string {
-  if (q < 0) return 'text-gray-400';
-  if (q < 10) return 'text-red-500';
-  if (q < 30) return 'text-orange-500';
-  if (q < 70) return 'text-yellow-500';
-  if (q < 90) return 'text-green-500';
-  if (q < 100) return 'text-blue-500';
-  return 'text-purple-500';
-}
-
 function parseItemLevel(str: string): number {
   return parseFloat(str.replace(/,/g, '')) || 0;
+}
+
+function shortCoreName(fullName: string): string {
+  const m = fullName.match(/^(.+?)\s*코어/);
+  return m ? m[1].trim() : fullName;
 }
 
 interface DetailLine { text: string; segments?: EffectSegment[] }
@@ -179,7 +150,7 @@ const QualityBar: React.FC<{ quality: number; compact?: boolean }> = ({ quality,
     <div className={`flex items-center gap-1.5 ${compact ? '' : 'mt-1'}`}>
       <div className="flex-1 h-1.5 bg-gray-200 dark:bg-white/10 rounded-full overflow-hidden">
         <div
-          className={`h-full rounded-full transition-all ${qualityColor(quality)}`}
+          className={`h-full rounded-full transition-all ${qualityBgColor(quality)}`}
           style={{ width: `${quality}%` }}
         />
       </div>
@@ -383,9 +354,7 @@ const CharacterInput: React.FC<{
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
-  siblings?: SiblingCharacter[];
-  onSelectSibling?: (name: string) => void;
-}> = ({ label, value, onChange, placeholder, siblings, onSelectSibling }) => (
+}> = ({ label, value, onChange, placeholder }) => (
   <div className="flex-1 min-w-0">
     <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">
       {label}
@@ -397,23 +366,6 @@ const CharacterInput: React.FC<{
       placeholder={placeholder || '캐릭터 닉네임'}
       className="w-full input-glass text-sm"
     />
-    {siblings && siblings.length > 0 && (
-      <div className="mt-2 flex flex-wrap gap-1">
-        {siblings.map((s) => (
-          <button
-            key={s.CharacterName}
-            onClick={() => onSelectSibling?.(s.CharacterName)}
-            className={`px-2 py-1 text-[10px] rounded-lg transition-colors ${
-              value === s.CharacterName
-                ? 'bg-la-gold/20 text-la-gold-dark dark:text-la-gold font-bold'
-                : 'bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-white/10'
-            }`}
-          >
-            {s.CharacterName}
-          </button>
-        ))}
-      </div>
-    )}
   </div>
 );
 
@@ -808,6 +760,140 @@ const EngravingSection: React.FC<{
   );
 };
 
+/** 아크 그리드 비교 */
+const ArkGridSection: React.FC<{
+  leftArkGrid: ArkGridData | null;
+  rightArkGrid: ArkGridData | null;
+}> = ({ leftArkGrid, rightArkGrid }) => {
+  const leftSlots = leftArkGrid?.Slots ?? [];
+  const rightSlots = rightArkGrid?.Slots ?? [];
+  const [expanded, setExpanded] = useState(true);
+
+  const totalPoint = (slots: typeof leftSlots) =>
+    slots.reduce((sum, s) => sum + s.Point, 0);
+  const lPoint = totalPoint(leftSlots);
+  const rPoint = totalPoint(rightSlots);
+
+  const renderSlots = (slots: typeof leftSlots) => {
+    if (slots.length === 0) {
+      return <p className="text-xs text-gray-400 dark:text-gray-500 italic py-4 text-center">아크 그리드 없음</p>;
+    }
+    return (
+      <div className="grid grid-cols-3 gap-2">
+        {slots.map((slot) => {
+          const style = gradeStyle(slot.Grade);
+          const name = shortCoreName(slot.Name);
+          return (
+            <div key={slot.Index} className="flex flex-col items-center gap-0.5 text-center">
+              <div className={`w-10 h-10 rounded-lg border-2 ${style.border} overflow-hidden flex-shrink-0`}>
+                {slot.Icon ? (
+                  <img src={slot.Icon} alt={name} className="w-full h-full object-cover" />
+                ) : (
+                  <div className={`w-full h-full ${style.bg}`} />
+                )}
+              </div>
+              <p className="text-[9px] text-gray-600 dark:text-gray-400 leading-tight line-clamp-2 w-full">{name}</p>
+              <span className="text-[9px] font-bold text-la-gold-dark dark:text-la-gold">{slot.Point}P</span>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
+  /** 옵션 총합: 항목별로 한 줄씩 위→아래, 좌 vs 우 비교 */
+  const leftEffects = leftArkGrid?.Effects ?? [];
+  const rightEffects = rightArkGrid?.Effects ?? [];
+  const effectNameToLevel = (list: { Name: string; Level: number }[]) => {
+    const m = new Map<string, number>();
+    list.forEach((e) => m.set(e.Name, e.Level));
+    return m;
+  };
+  const leftMap = effectNameToLevel(leftEffects);
+  const rightMap = effectNameToLevel(rightEffects);
+  const allOptionNames = Array.from(new Set([...Array.from(leftMap.keys()), ...Array.from(rightMap.keys())])).sort();
+
+  return (
+    <GlassCard className="p-5 animate-fade-in">
+      <SectionHeader icon="◇" title="아크 그리드" expanded={expanded} onToggle={() => setExpanded((v) => !v)} />
+
+      <div className={`overflow-hidden transition-all duration-300 ${expanded ? 'max-h-[5000px] opacity-100 mt-4' : 'max-h-0 opacity-0'}`}>
+        <div className="flex items-center justify-center gap-4 mb-4 p-3 bg-gray-50 dark:bg-white/5 rounded-xl">
+          <div className="text-center">
+            <p className="text-[10px] text-gray-400 mb-0.5">포인트 합</p>
+            <p
+              className={`text-lg font-bold tabular-nums ${
+                lPoint > rPoint ? 'text-la-gold-dark dark:text-la-gold' : 'text-gray-700 dark:text-gray-300'
+              }`}
+            >
+              {lPoint}P
+            </p>
+          </div>
+          <span className="text-gray-300 dark:text-gray-600 font-bold">vs</span>
+          <div className="text-center">
+            <p className="text-[10px] text-gray-400 mb-0.5">포인트 합</p>
+            <p
+              className={`text-lg font-bold tabular-nums ${
+                rPoint > lPoint ? 'text-la-gold-dark dark:text-la-gold' : 'text-gray-700 dark:text-gray-300'
+              }`}
+            >
+              {rPoint}P
+            </p>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="min-w-0">{renderSlots(leftSlots)}</div>
+          <div className="min-w-0">{renderSlots(rightSlots)}</div>
+        </div>
+
+        {/* 옵션 총합: 위→아래 한 줄씩 비교, 가운데 정렬 */}
+        <div className="mt-4 pt-4 border-t border-gray-200/50 dark:border-white/10">
+          <p className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2 text-center">옵션 총합</p>
+          {allOptionNames.length === 0 ? (
+            <p className="text-xs text-gray-400 dark:text-gray-500 italic text-center">옵션 없음</p>
+          ) : (
+            <div className="space-y-1.5 flex flex-col items-center">
+              {allOptionNames.map((name) => {
+                const lv = leftMap.get(name) ?? null;
+                const rv = rightMap.get(name) ?? null;
+                const lNum = lv !== null ? lv : null;
+                const rNum = rv !== null ? rv : null;
+                const lWin = lNum !== null && rNum !== null && lNum > rNum;
+                const rWin = lNum !== null && rNum !== null && rNum > lNum;
+                return (
+                  <div
+                    key={name}
+                    className="flex items-center justify-center gap-3 py-1.5 px-2 rounded-lg bg-gray-50/50 dark:bg-white/5 text-sm w-full max-w-xs"
+                  >
+                    <span className="w-24 flex-shrink-0 text-center text-gray-700 dark:text-gray-300 truncate" title={name}>
+                      {name}
+                    </span>
+                    <span
+                      className={`w-10 text-center font-bold tabular-nums ${
+                        lWin ? 'text-la-gold-dark dark:text-la-gold' : 'text-gray-600 dark:text-gray-400'
+                      }`}
+                    >
+                      {lNum !== null ? lNum : '-'}
+                    </span>
+                    <span className="flex-shrink-0 text-gray-400 dark:text-gray-500 text-xs">vs</span>
+                    <span
+                      className={`w-10 text-center font-bold tabular-nums ${
+                        rWin ? 'text-la-gold-dark dark:text-la-gold' : 'text-gray-600 dark:text-gray-400'
+                      }`}
+                    >
+                      {rNum !== null ? rNum : '-'}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+    </GlassCard>
+  );
+};
+
 /** Skeleton for loading state */
 const CompareSkeleton: React.FC = () => (
   <div className="space-y-6 animate-fade-in">
@@ -850,36 +936,16 @@ const Compare: React.FC = () => {
   const [rightData, setRightData] = useState<CompareData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [siblings, setSiblings] = useState<SiblingCharacter[]>([]);
-  const [siblingsLoaded, setSiblingsLoaded] = useState(false);
-
-  // Load expedition from localStorage on mount
-  const loadSiblings = useCallback(async () => {
-    const saved = localStorage.getItem(LS_NICKNAME);
-    if (!saved || siblingsLoaded) return;
-    try {
-      const data = await fetchSiblings(saved);
-      if (data && data.length > 0) {
-        setSiblings(data.sort((a, b) => parseItemLevel(b.ItemAvgLevel) - parseItemLevel(a.ItemAvgLevel)));
-      }
-    } catch {
-      // Silently fail
-    }
-    setSiblingsLoaded(true);
-  }, [siblingsLoaded]);
-
-  React.useEffect(() => {
-    loadSiblings();
-  }, [loadSiblings]);
 
   const fetchCharacterData = async (name: string): Promise<CompareData> => {
-    const [profile, equipment, gems, engravings] = await Promise.all([
+    const [profile, equipment, gems, engravings, arkGrid] = await Promise.all([
       fetchProfile(name),
       fetchEquipment(name),
       fetchGems(name).catch(() => null),
       fetchEngravings(name).catch(() => null),
+      fetchArkGrid(name).catch(() => null),
     ]);
-    return { profile, equipment, gems, engravings };
+    return { profile, equipment, gems, engravings, arkGrid };
   };
 
   const handleCompare = async () => {
@@ -941,8 +1007,6 @@ const Compare: React.FC = () => {
               value={leftName}
               onChange={setLeftName}
               placeholder="캐릭터 닉네임"
-              siblings={siblings}
-              onSelectSibling={setLeftName}
             />
 
             <div className="flex-shrink-0 pt-7">
@@ -981,6 +1045,7 @@ const Compare: React.FC = () => {
             <ProfileSection left={leftData.profile} right={rightData.profile} />
             <EquipmentSection leftEquip={leftData.equipment} rightEquip={rightData.equipment} />
             <GemSection leftGems={leftData.gems} rightGems={rightData.gems} />
+            <ArkGridSection leftArkGrid={leftData.arkGrid} rightArkGrid={rightData.arkGrid} />
             <EngravingSection leftEng={leftData.engravings} rightEng={rightData.engravings} />
           </div>
         )}
