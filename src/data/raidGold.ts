@@ -87,7 +87,7 @@ export const RAIDS: Raid[] = [
                     { gate: 2, gold: 30000, bonusCost: 9600, coreReward: 3 },
                 ],
                 totalGold: 50000,
-                isBound: false,
+                isBound: true,
                 boundGold: 50000,
             },
             {
@@ -98,7 +98,7 @@ export const RAIDS: Raid[] = [
                     { gate: 2, gold: 24000, bonusCost: 7680, coreReward: 2 },
                 ],
                 totalGold: 40000,
-                isBound: false,
+                isBound: true,
                 boundGold: 40000,
             },
             {
@@ -109,7 +109,7 @@ export const RAIDS: Raid[] = [
                     { gate: 2, gold: 16500, bonusCost: 5280, coreReward: 2 },
                 ],
                 totalGold: 30000,
-                isBound: false,
+                isBound: true,
                 boundGold: 30000,
             }
         ]
