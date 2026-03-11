@@ -5,6 +5,7 @@
   "dependencies": {
     "@testing-library/jest-dom": "^5.14.1",
     "@testing-library/user-event": "^13.2.1",
+    "@vercel/analytics": "^2.0.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-router-dom": "^7.1.1",

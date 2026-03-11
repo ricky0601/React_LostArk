@@ -3,7 +3,10 @@ import ReactDOM from 'react-dom/client';
 import './index.css';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
+import { inject } from '@vercel/analytics';
 import { CHUNK_ERROR_KEY, CHUNK_ERROR_EVENT } from './context/PwaChunkContext';
+
+inject();
 function isChunkLoadErrorMsg(message: string): boolean {
   const s = (message || '').toLowerCase();
   return (
