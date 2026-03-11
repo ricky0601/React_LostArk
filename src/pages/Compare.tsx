@@ -991,16 +991,10 @@ const Compare: React.FC = () => {
     if (e.key === 'Enter' && !loading) handleCompare();
   };
 
-  const handleRefresh = async () => {
-    if (leftName.trim() && rightName.trim() && (leftData || rightData)) {
-      await handleCompare();
-    }
-  };
-
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-la-dark transition-colors duration-300">
       <NavBar />
-      <PullToRefresh onRefresh={handleRefresh}>
+      <PullToRefresh>
       <main className="max-w-5xl mx-auto px-4 py-8">
         {/* Input Section */}
         <GlassCard className="p-6 mb-8 animate-fade-in">

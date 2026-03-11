@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__serena__list_dir",
+      "Bash(npm install:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npx tailwindcss init)",
+      "Bash(npx react-scripts build:*)",
+      "mcp__brave-search__brave_web_search",
+      "WebFetch(domain:sphaera.tistory.com)",
+      "WebFetch(domain:namu.wiki)",
+      "WebFetch(domain:www.inven.co.kr)",
+      "WebFetch(domain:rloa.gg)",
+      "WebFetch(domain:cam-loa.com)",
+      "WebFetch(domain:developer-lostark.game.onstove.com)",
+      "WebFetch(domain:pepperminttt.tistory.com)",
+      "WebFetch(domain:ohg0219.github.io)",
+      "WebFetch(domain:loawa.com)",
+      "WebFetch(domain:ryus-story.tistory.com)",
+      "Bash(node -e:*)",
+      "WebFetch(domain:lo4.app)",
+      "mcp__context7__resolve-library-id"
+    ]
+  }
+}

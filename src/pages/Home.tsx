@@ -69,8 +69,6 @@ const Home: React.FC = () => {
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  const handleRefresh = async () => { loadData(); };
-
   const activeEvents = useMemo(() => events.filter(isEventActive), [events]);
 
   /** 오늘 일정이 있는 캘린더 아이템을 카테고리별로 그룹핑 */
@@ -90,7 +88,7 @@ const Home: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-la-dark transition-colors duration-300">
       <NavBar />
-      <PullToRefresh onRefresh={handleRefresh}>
+      <PullToRefresh>
       <main className="max-w-7xl mx-auto px-4 py-8 space-y-8">
         {/* Hero */}
         <section className="text-center animate-fade-in">

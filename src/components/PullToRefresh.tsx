@@ -1,18 +1,15 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
+import { CHUNK_ERROR_KEY } from '../context/PwaChunkContext';
 
 interface Props {
-  onRefresh: () => Promise<void>;
   children: React.ReactNode;
 }
 
 const THRESHOLD = 72;
 const MAX_PULL = 96;
 
-const PullToRefresh: React.FC<Props> = ({ onRefresh, children }) => {
-  const [refreshing, setRefreshing] = useState(false);
+const PullToRefresh: React.FC<Props> = ({ children }) => {
   const refreshingRef = useRef(false);
-  const onRefreshRef = useRef(onRefresh);
-  onRefreshRef.current = onRefresh;
 
   const contentRef = useRef<HTMLDivElement>(null);
   const indicatorRef = useRef<HTMLDivElement>(null);
@@ -63,7 +60,7 @@ const PullToRefresh: React.FC<Props> = ({ onRefresh, children }) => {
       }
     };
 
-    const onTouchEnd = async () => {
+    const onTouchEnd = () => {
       if (!pulling) return;
       pulling = false;
       const dist = pullDistRef.current;
@@ -73,10 +70,12 @@ const PullToRefresh: React.FC<Props> = ({ onRefresh, children }) => {
         applyContent(THRESHOLD, true);
         applyIndicator(THRESHOLD, true);
         refreshingRef.current = true;
-        setRefreshing(true);
-        await onRefreshRef.current();
-        refreshingRef.current = false;
-        setRefreshing(false);
+        try {
+          sessionStorage.removeItem(CHUNK_ERROR_KEY);
+        } catch {
+          /* ignore */
+        }
+        window.location.reload();
       }
 
       applyContent(0, true);
@@ -103,18 +102,11 @@ const PullToRefresh: React.FC<Props> = ({ onRefresh, children }) => {
         style={{ top: 0, height: '48px', alignItems: 'center', display: 'flex', transform: 'translateY(-48px)', opacity: 0 }}
       >
         <div className="w-8 h-8 rounded-full bg-white dark:bg-gray-800 shadow-lg flex items-center justify-center">
-          {refreshing ? (
-            <svg className="w-5 h-5 text-la-gold animate-spin" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+          <div ref={arrowRef}>
+            <svg className="w-5 h-5 text-la-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
             </svg>
-          ) : (
-            <div ref={arrowRef}>
-              <svg className="w-5 h-5 text-la-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </div>
-          )}
+          </div>
         </div>
       </div>
 
