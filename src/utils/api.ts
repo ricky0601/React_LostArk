@@ -8,8 +8,14 @@ const headers: HeadersInit = {
   authorization: `bearer ${API_KEY}`,
 };
 
-async function apiFetch<T>(path: string): Promise<T> {
-  const response = await fetch(`${BASE_URL}${path}`, { headers });
+async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
+  const response = await fetch(`${BASE_URL}${path}`, {
+    headers: {
+      ...headers,
+      ...(options?.body != null ? { 'content-type': 'application/json' } : {}),
+    },
+    ...options,
+  });
   if (!response.ok) {
     throw new Error(`API error: ${response.status}`);
   }
@@ -41,6 +47,57 @@ export const fetchEvents = (): Promise<GameEvent[]> =>
 
 export const fetchCalendar = (): Promise<CalendarItem[]> =>
   apiFetch('/gamecontents/calendar');
+
+// --- 거래소 API ---
+
+export interface MarketCategory {
+  Code: number;
+  CodeName: string;
+  Subs?: MarketCategory[];
+}
+
+export interface MarketOptionsResponse {
+  Categories: MarketCategory[];
+}
+
+export const fetchMarketOptions = (): Promise<MarketOptionsResponse> =>
+  apiFetch<MarketOptionsResponse>('/markets/options');
+
+export interface MarketItem {
+  Id: number;
+  Name: string;
+  Grade: string;
+  Icon: string;
+  BundleCount: number;
+  TradeRemainCount: number | null;
+  YDayAvgPrice: number;
+  RecentPrice: number;
+  CurrentMinPrice: number;
+}
+
+export interface MarketSearchResponse {
+  PageNo: number;
+  PageSize: number;
+  TotalCount: number;
+  Items: MarketItem[];
+}
+
+export const fetchMarketItems = (
+  itemName: string,
+  categoryCode: number,
+  extraParams?: Record<string, unknown>,
+): Promise<MarketSearchResponse> =>
+  apiFetch<MarketSearchResponse>('/markets/items', {
+    method: 'POST',
+    body: JSON.stringify({
+      Sort: 'CURRENT_MIN_PRICE',
+      CategoryCode: categoryCode,
+      ItemName: itemName,
+      PageNo: 0,
+      SortCondition: 'ASC',
+      ...extraParams,
+    }),
+  });
 
 // --- Shared constants ---
 export const LS_NICKNAME = 'loaGold_nickname';

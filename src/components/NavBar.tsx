@@ -30,6 +30,9 @@ const NavBar: React.FC = () => {
           <Link to="/compare" className={linkClass('/compare')}>
             비교
           </Link>
+          <Link to="/enhancement" className={linkClass('/enhancement')}>
+            재련
+          </Link>
         </div>
       </div>
     </nav>

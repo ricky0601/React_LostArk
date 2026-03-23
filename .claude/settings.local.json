@@ -19,7 +19,9 @@
       "WebFetch(domain:ryus-story.tistory.com)",
       "Bash(node -e:*)",
       "WebFetch(domain:lo4.app)",
-      "mcp__context7__resolve-library-id"
+      "mcp__context7__resolve-library-id",
+      "WebFetch(domain:lostark-mark-001.vercel.app)",
+      "Read(//tmp/**)"
     ]
   }
 }
