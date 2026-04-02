@@ -324,6 +324,10 @@ const Enhancement: React.FC = () => {
   const autoApplied = useRef(false);
   const autoAppliedAdv = useRef(false);
 
+  // ── 보유 재료 ────────────────────────────────
+  const [ownedMaterials, setOwnedMaterials] = useState<Partial<Record<MaterialType, number>>>({});
+  const [showOwnedSection, setShowOwnedSection] = useState(false);
+
   // ── 거래소 가격 조회 (마운트 시 1회) ──────────
   useEffect(() => {
     const load = async () => {
@@ -696,6 +700,35 @@ const Enhancement: React.FC = () => {
     return map;
   }, [advSlotData]);
 
+  // ── 보유 재료 기반 부족분 계산 ─────────────────
+  const shortfallData = useMemo(() => {
+    const map = new Map<MaterialType, { needed: number; shortfall: number }>();
+    const allActiveTypes = new Set<MaterialType>([...Array.from(totalMaterials.keys()), ...Array.from(advTotalMaterials.keys())]);
+    allActiveTypes.forEach((type) => {
+      const needed = (totalMaterials.get(type) ?? 0) + (advTotalMaterials.get(type) ?? 0);
+      const owned = (ownedMaterials as Record<MaterialType, number>)[type] ?? 0;
+      map.set(type, { needed, shortfall: Math.max(0, needed - owned) });
+    });
+    return map;
+  }, [totalMaterials, advTotalMaterials, ownedMaterials]);
+
+  const shortfallMatGold = useMemo(() => {
+    let total = 0;
+    shortfallData.forEach(({ shortfall }, type) => {
+      total += shortfall * (prices[type] ?? 0);
+    });
+    return total;
+  }, [shortfallData, prices]);
+
+  const normalShortfallMatGold = useMemo(() => {
+    let total = 0;
+    totalMaterials.forEach((_, type) => {
+      const shortfall = shortfallData.get(type)?.shortfall ?? 0;
+      total += shortfall * (prices[type] ?? 0);
+    });
+    return total;
+  }, [shortfallData, totalMaterials, prices]);
+
   // ── 상급 재련 목표 변경 ───────────────────────
   const handleAdvTargetChange = (slot: SlotName, val: number | undefined) => {
     setAdvTargetMap((prev) => {
@@ -720,6 +753,7 @@ const Enhancement: React.FC = () => {
   const hasResult = activeSlots.length > 0;
   const hasAdvResult = activeAdvSlots.length > 0;
   const hasAnyResult = hasResult || hasAdvResult;
+  const hasOwnedInput = Object.values(ownedMaterials).some((v) => (v ?? 0) > 0);
   // 상급 재련 가능한 슬롯이 1개 이상 존재 (에기르이고 40단계 미만)
   const hasAnyAdvSlotAvailable = ALL_SLOTS.some(
     (s) => slotHasData[s] && !slotInheritedMap[s] && (advLevelMap[s] ?? 0) < 40,
@@ -1025,14 +1059,16 @@ const Enhancement: React.FC = () => {
             {/* ── 합산 견적 ── */}
             <GlassCard className="p-4 border border-la-gold/20">
               <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-3">
-                강화 견적 합계
+                강화 견적 합계{hasOwnedInput && hasPrices && <span className="ml-1 font-normal text-orange-500 dark:text-orange-400">(추가 구매 기준)</span>}
               </p>
               <div className={`grid gap-4 ${hasResult && hasAdvResult ? 'grid-cols-3' : 'grid-cols-2'}`}>
                 {hasResult && (
                   <div>
                     <p className="text-xs text-gray-400 mb-0.5">일반 재련</p>
                     <p className="text-lg font-bold text-la-gold-dark dark:text-la-gold">
-                      {hasPrices ? formatGold(totals.totalGold) : formatGold(totals.directGold)}
+                      {hasPrices
+                        ? formatGold(totals.directGold + (hasOwnedInput ? normalShortfallMatGold : totals.matGold))
+                        : formatGold(totals.directGold)}
                     </p>
                   </div>
                 )}
@@ -1040,7 +1076,9 @@ const Enhancement: React.FC = () => {
                   <div>
                     <p className="text-xs text-gray-400 mb-0.5">상급 재련</p>
                     <p className="text-lg font-bold text-purple-600 dark:text-purple-400">
-                      {hasPrices ? formatGold(advTotals.totalGold) : formatGold(advTotals.totalDirectGold)}
+                      {hasPrices
+                        ? formatGold(advTotals.totalDirectGold + (hasOwnedInput ? shortfallMatGold - normalShortfallMatGold : advTotals.totalMatGold))
+                        : formatGold(advTotals.totalDirectGold)}
                     </p>
                   </div>
                 )}
@@ -1048,7 +1086,7 @@ const Enhancement: React.FC = () => {
                   <p className="text-xs text-gray-400 mb-0.5">{hasResult && hasAdvResult ? '총합' : '합계'}</p>
                   <p className="text-lg font-bold text-green-600 dark:text-green-400">
                     {hasPrices
-                      ? formatGold(totals.totalGold + advTotals.totalGold)
+                      ? formatGold(totals.directGold + advTotals.totalDirectGold + (hasOwnedInput ? shortfallMatGold : totals.matGold + advTotals.totalMatGold))
                       : formatGold(totals.directGold + advTotals.totalDirectGold)}
                   </p>
                   {totals.silver > 0 && (
@@ -1130,15 +1168,17 @@ const Enhancement: React.FC = () => {
                   </p>
                 </div>
                 <div>
-                  <p className="text-xs text-gray-400 mb-0.5">재료 비용</p>
+                  <p className="text-xs text-gray-400 mb-0.5">
+                    {hasOwnedInput ? '추가 재료비' : '재료 비용'}
+                  </p>
                   <p className="text-xl font-bold text-la-gold-dark dark:text-la-gold">
-                    {hasPrices ? formatGold(totals.matGold) : '—'}
+                    {hasPrices ? formatGold(hasOwnedInput ? normalShortfallMatGold : totals.matGold) : '—'}
                   </p>
                 </div>
                 <div>
                   <p className="text-xs text-gray-400 mb-0.5">합계</p>
                   <p className="text-xl font-bold text-la-gold-dark dark:text-la-gold">
-                    {hasPrices ? formatGold(totals.totalGold) : '—'}
+                    {hasPrices ? formatGold(totals.directGold + (hasOwnedInput ? normalShortfallMatGold : totals.matGold)) : '—'}
                   </p>
                   {totals.silver > 0 && (
                     <p className="text-[11px] text-gray-400 mt-0.5">
@@ -1281,6 +1321,64 @@ const Enhancement: React.FC = () => {
           </>
         )}
 
+        {/* ── 보유 재료 입력 ── */}
+        {hasAnyResult && (
+          <GlassCard className="p-4">
+            <button
+              onClick={() => setShowOwnedSection((v) => !v)}
+              className="flex items-center justify-between w-full"
+            >
+              <p className="text-xs font-semibold text-gray-500 dark:text-gray-400">
+                보유 재료 입력
+                <span className="ml-1.5 font-normal text-gray-400 dark:text-gray-500">(선택 사항)</span>
+              </p>
+              <span className="text-xs text-gray-400 dark:text-gray-500">
+                {showOwnedSection ? '▲' : '▼'}
+              </span>
+            </button>
+            {showOwnedSection && (
+              <>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-2 mt-3">
+                  {Array.from(shortfallData.keys()).map((type) => (
+                    <div key={type} className="flex items-center gap-2">
+                      {icons[type] && (
+                        <img src={icons[type]} alt={type} className="w-6 h-6 rounded shrink-0" />
+                      )}
+                      <span className="text-xs text-gray-600 dark:text-gray-400 truncate flex-1 min-w-0">
+                        {type}
+                      </span>
+                      <input
+                        type="number"
+                        min={0}
+                        value={ownedMaterials[type] ?? ''}
+                        onChange={(e) => {
+                          const val = e.target.value === '' ? undefined : Math.max(0, Number(e.target.value));
+                          setOwnedMaterials((prev) => {
+                            const next = { ...prev };
+                            if (val === undefined) delete next[type];
+                            else next[type] = val;
+                            return next;
+                          });
+                        }}
+                        placeholder="0"
+                        className="w-20 text-xs text-right bg-gray-100 dark:bg-white/10 text-gray-900 dark:text-white rounded px-2 py-1 outline-none focus:ring-1 focus:ring-la-gold/40 shrink-0"
+                      />
+                    </div>
+                  ))}
+                </div>
+                {hasOwnedInput && (
+                  <button
+                    onClick={() => setOwnedMaterials({})}
+                    className="mt-3 text-xs text-gray-400 hover:text-red-400 dark:hover:text-red-400 transition-colors underline underline-offset-2"
+                  >
+                    전체 초기화
+                  </button>
+                )}
+              </>
+            )}
+          </GlassCard>
+        )}
+
         {/* ── 재료 시세 ── */}
         <GlassCard className="p-4">
           <div className="flex items-center justify-between mb-3">
@@ -1296,8 +1394,16 @@ const Enhancement: React.FC = () => {
                 <tr className="border-b border-gray-200/40 dark:border-white/8">
                   <th className="text-left py-2 text-xs font-medium text-gray-400">재료</th>
                   <th className="text-right py-2 text-xs font-medium text-gray-400">예상 수량</th>
+                  {hasOwnedInput && (
+                    <>
+                      <th className="text-right py-2 text-xs font-medium text-gray-400">보유</th>
+                      <th className="text-right py-2 text-xs font-medium text-gray-400">부족</th>
+                    </>
+                  )}
                   <th className="text-right py-2 text-xs font-medium text-gray-400">단가</th>
-                  <th className="text-right py-2 text-xs font-medium text-gray-400">재료비</th>
+                  <th className="text-right py-2 text-xs font-medium text-gray-400">
+                    {hasOwnedInput ? '추가 구매비' : '재료비'}
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -1308,7 +1414,7 @@ const Enhancement: React.FC = () => {
                   if (combinedTypes.length === 0) {
                     return (
                       <tr>
-                        <td colSpan={4} className="py-4 text-center text-xs text-gray-400 dark:text-gray-500">
+                        <td colSpan={hasOwnedInput ? 6 : 4} className="py-4 text-center text-xs text-gray-400 dark:text-gray-500">
                           장비를 선택하고 목표 강을 설정하면 재료가 표시됩니다
                         </td>
                       </tr>
@@ -1323,7 +1429,10 @@ const Enhancement: React.FC = () => {
                     const isUntradeable = MARKET_SEARCH[type]?.untradeable;
                     const price = prices[type];
                     const hasPrice = price !== undefined && price > 0;
-                    const totalCost = isActive && hasPrice ? displayQty * price : null;
+                    const owned = ownedMaterials[type] ?? 0;
+                    const shortfall = shortfallData.get(type)?.shortfall ?? activeQty;
+                    const costQty = hasOwnedInput ? shortfall : displayQty;
+                    const totalCost = isActive && hasPrice ? costQty * price : null;
                     const priceStr = isUntradeable
                       ? '거래불가'
                       : priceLoading
@@ -1342,6 +1451,16 @@ const Enhancement: React.FC = () => {
                         <td className="py-2 text-right tabular-nums text-gray-700 dark:text-gray-300">
                           {Math.ceil(displayQty).toLocaleString()}
                         </td>
+                        {hasOwnedInput && (
+                          <>
+                            <td className="py-2 text-right tabular-nums text-green-600 dark:text-green-400">
+                              {isActive ? Math.min(owned, Math.ceil(activeQty)).toLocaleString() : '—'}
+                            </td>
+                            <td className="py-2 text-right tabular-nums text-orange-500 dark:text-orange-400">
+                              {isActive ? Math.ceil(shortfall).toLocaleString() : '—'}
+                            </td>
+                          </>
+                        )}
                         <td className="py-2 text-right tabular-nums text-gray-500 dark:text-gray-400">
                           {priceStr}
                         </td>
