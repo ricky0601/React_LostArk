@@ -5,6 +5,7 @@ import Character from './pages/Character';
 import Simulation from './pages/Simulation';
 import Compare from './pages/Compare';
 import Enhancement from './pages/Enhancement';
+import Spending from './pages/Spending';
 import ThemeToggle from './components/ThemeToggle';
 import { PwaChunkProvider, usePwaChunk } from './context/PwaChunkContext';
 
@@ -44,6 +45,7 @@ const AppContent: React.FC = () => {
           <Route path="/simulation" element={<Simulation />} />
           <Route path="/compare" element={<Compare />} />
           <Route path="/enhancement" element={<Enhancement />} />
+          <Route path="/spending" element={<Spending />} />
         </Routes>
         <ThemeToggle isDarkMode={isDarkMode} onToggle={toggleDarkMode} />
       </div>

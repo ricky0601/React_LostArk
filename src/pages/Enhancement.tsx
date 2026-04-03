@@ -706,27 +706,21 @@ const Enhancement: React.FC = () => {
     const allActiveTypes = new Set<MaterialType>([...Array.from(totalMaterials.keys()), ...Array.from(advTotalMaterials.keys())]);
     allActiveTypes.forEach((type) => {
       const needed = (totalMaterials.get(type) ?? 0) + (advTotalMaterials.get(type) ?? 0);
-      const owned = (ownedMaterials as Record<MaterialType, number>)[type] ?? 0;
+      const owned = ownedMaterials[type] ?? 0;
       map.set(type, { needed, shortfall: Math.max(0, needed - owned) });
     });
     return map;
   }, [totalMaterials, advTotalMaterials, ownedMaterials]);
 
-  const shortfallMatGold = useMemo(() => {
-    let total = 0;
+  const { shortfallMatGold, normalShortfallMatGold } = useMemo(() => {
+    let shortfallMatGold = 0;
+    let normalShortfallMatGold = 0;
     shortfallData.forEach(({ shortfall }, type) => {
-      total += shortfall * (prices[type] ?? 0);
+      const cost = shortfall * (prices[type] ?? 0);
+      shortfallMatGold += cost;
+      if (totalMaterials.has(type)) normalShortfallMatGold += cost;
     });
-    return total;
-  }, [shortfallData, prices]);
-
-  const normalShortfallMatGold = useMemo(() => {
-    let total = 0;
-    totalMaterials.forEach((_, type) => {
-      const shortfall = shortfallData.get(type)?.shortfall ?? 0;
-      total += shortfall * (prices[type] ?? 0);
-    });
-    return total;
+    return { shortfallMatGold, normalShortfallMatGold };
   }, [shortfallData, totalMaterials, prices]);
 
   // ── 상급 재련 목표 변경 ───────────────────────

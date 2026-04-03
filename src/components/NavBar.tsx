@@ -33,6 +33,9 @@ const NavBar: React.FC = () => {
           <Link to="/enhancement" className={linkClass('/enhancement')}>
             재련
           </Link>
+          <Link to="/spending" className={linkClass('/spending')}>
+            결제 내역
+          </Link>
         </div>
       </div>
     </nav>
