@@ -43,3 +43,16 @@
            dark:from-white/5 dark:via-white/10 dark:to-white/5;
   }
 }
+
+@media (hover: none), (pointer: coarse) {
+  .hover\:shadow-gold-glow:hover,
+  .hover\:shadow-xl:hover {
+    box-shadow: inherit;
+  }
+
+  .hover\:-translate-y-1:hover,
+  .hover\:scale-105:hover,
+  .group:hover .group-hover\:scale-105 {
+    transform: none;
+  }
+}

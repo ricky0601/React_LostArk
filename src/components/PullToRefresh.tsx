@@ -94,7 +94,7 @@ const PullToRefresh: React.FC<Props> = ({ children }) => {
   }, []);
 
   return (
-    <div className="relative">
+    <div className="relative overflow-hidden">
       {/* Pull indicator */}
       <div
         ref={indicatorRef}

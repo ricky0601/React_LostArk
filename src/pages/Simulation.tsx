@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import type { SiblingCharacter, CharacterProfile } from '../types/lostark';
 import NavBar from '../components/NavBar';
 import PullToRefresh from '../components/PullToRefresh';
@@ -527,24 +527,33 @@ const Simulation: React.FC = () => {
                             {/* 선택된 캐릭터 */}
                             <div className="flex flex-wrap gap-2">
                                 {selectedResults.map((r) => (
-                                    <button
+                                    <div
                                         key={r.characterName}
-                                        onClick={() => toggleCharacter(r.characterName)}
-                                        className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm transition-all duration-200 cursor-pointer border bg-la-gold/20 border-la-gold/50 text-la-gold-dark dark:text-la-gold"
+                                        className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm transition-all duration-200 border bg-la-gold/20 border-la-gold/50 text-la-gold-dark dark:text-la-gold"
                                     >
-                                        <div className="w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 bg-la-gold border-la-gold text-la-dark">
+                                        <button
+                                            type="button"
+                                            onClick={() => toggleCharacter(r.characterName)}
+                                            className="w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 bg-la-gold border-la-gold text-la-dark"
+                                            aria-label={`${r.characterName} 골드 캐릭터 선택 해제`}
+                                        >
                                             <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
                                                 <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                                             </svg>
-                                        </div>
-                                        <img
-                                            src={r.characterImage}
-                                            alt=""
-                                            className="w-6 h-6 rounded-md object-cover object-top"
-                                        />
-                                        <span className="font-medium">{r.characterName}</span>
-                                        <span className="text-xs opacity-60">Lv.{r.itemLevel.toFixed(0)}</span>
-                                    </button>
+                                        </button>
+                                        <Link
+                                            to={`/character?nickname=${encodeURIComponent(r.characterName)}`}
+                                            className="flex items-center gap-2 min-w-0 hover:opacity-80 transition-opacity"
+                                        >
+                                            <img
+                                                src={r.characterImage}
+                                                alt={r.characterName}
+                                                className="w-6 h-6 rounded-md object-cover object-top"
+                                            />
+                                            <span className="font-medium truncate">{r.characterName}</span>
+                                            <span className="text-xs opacity-60 flex-shrink-0">Lv.{r.itemLevel.toFixed(0)}</span>
+                                        </Link>
+                                    </div>
                                 ))}
                             </div>
 
@@ -568,25 +577,36 @@ const Simulation: React.FC = () => {
                                             {unselectedResults.map((r) => {
                                                 const isFull = selectedNames.size >= MAX_GOLD_CHARACTERS;
                                                 return (
-                                                    <button
+                                                    <div
                                                         key={r.characterName}
-                                                        onClick={() => toggleCharacter(r.characterName)}
-                                                        disabled={isFull}
-                                                        className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm transition-all duration-200 cursor-pointer border ${
+                                                        className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm transition-all duration-200 border ${
                                                             isFull
-                                                                ? 'bg-gray-50 border-gray-200 text-gray-400 dark:bg-white/5 dark:border-white/5 dark:text-gray-600 cursor-not-allowed'
+                                                                ? 'bg-gray-50 border-gray-200 text-gray-400 dark:bg-white/5 dark:border-white/5 dark:text-gray-600'
                                                                 : 'bg-gray-50 border-gray-200 text-gray-600 hover:border-la-gold/30 dark:bg-white/5 dark:border-white/10 dark:text-gray-400 dark:hover:border-la-gold/30'
                                                         }`}
                                                     >
-                                                        <div className="w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 border-gray-300 dark:border-gray-600" />
-                                                        <img
-                                                            src={r.characterImage}
-                                                            alt=""
-                                                            className="w-6 h-6 rounded-md object-cover object-top"
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => toggleCharacter(r.characterName)}
+                                                            disabled={isFull}
+                                                            className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 ${
+                                                                isFull ? 'border-gray-200 dark:border-white/10 cursor-not-allowed' : 'border-gray-300 dark:border-gray-600'
+                                                            }`}
+                                                            aria-label={`${r.characterName} 골드 캐릭터 선택`}
                                                         />
-                                                        <span className="font-medium">{r.characterName}</span>
-                                                        <span className="text-xs opacity-60">Lv.{r.itemLevel.toFixed(0)}</span>
-                                                    </button>
+                                                        <Link
+                                                            to={`/character?nickname=${encodeURIComponent(r.characterName)}`}
+                                                            className="flex items-center gap-2 min-w-0 hover:opacity-80 transition-opacity"
+                                                        >
+                                                            <img
+                                                                src={r.characterImage}
+                                                                alt={r.characterName}
+                                                                className="w-6 h-6 rounded-md object-cover object-top"
+                                                            />
+                                                            <span className="font-medium truncate">{r.characterName}</span>
+                                                            <span className="text-xs opacity-60 flex-shrink-0">Lv.{r.itemLevel.toFixed(0)}</span>
+                                                        </Link>
+                                                    </div>
                                                 );
                                             })}
                                         </div>
@@ -822,12 +842,17 @@ const CharacterRaidCard: React.FC<CharacterRaidCardProps> = ({
                         />
                     </div>
                     <div className="min-w-0">
-                        <h3 className="font-bold text-gray-900 dark:text-white truncate">
-                            {result.characterName}
-                        </h3>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">
-                            {result.characterClass}
-                        </p>
+                        <Link
+                            to={`/character?nickname=${encodeURIComponent(result.characterName)}`}
+                            className="block hover:opacity-80 transition-opacity"
+                        >
+                            <h3 className="font-bold text-gray-900 dark:text-white truncate">
+                                {result.characterName}
+                            </h3>
+                            <p className="text-sm text-gray-500 dark:text-gray-400">
+                                {result.characterClass}
+                            </p>
+                        </Link>
                         <div className="flex flex-col items-start gap-1 mt-1">
                             <span className="text-xs bg-la-gold/20 text-la-gold-dark dark:text-la-gold px-2 py-0.5 rounded font-medium">
                                 Lv.{result.itemLevel.toFixed(2)}

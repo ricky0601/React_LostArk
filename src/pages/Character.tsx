@@ -160,7 +160,7 @@ const ProfileCard: React.FC<{ profile: CharacterProfile; nickname: string }> = (
     </div>
 
     {/* 주간 골드 계산 버튼 */}
-    <div className="px-4 pb-4">
+    <div className="px-4 pb-4 grid grid-cols-1 sm:grid-cols-2 gap-2">
       <Link
         to={`/simulation?nickname=${encodeURIComponent(nickname)}`}
         className="flex items-center justify-center gap-2 w-full py-2 rounded-lg text-sm font-medium
@@ -170,6 +170,16 @@ const ProfileCard: React.FC<{ profile: CharacterProfile; nickname: string }> = (
           <path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
         주간 골드 계산
+      </Link>
+      <Link
+        to={`/expedition?nickname=${encodeURIComponent(nickname)}`}
+        className="flex items-center justify-center gap-2 w-full py-2 rounded-lg text-sm font-medium
+                   bg-blue-500/15 text-blue-600 dark:text-blue-400 hover:bg-blue-500/25 transition-colors"
+      >
+        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5V4H2v16h5m10 0v-2a4 4 0 00-4-4H11a4 4 0 00-4 4v2m10 0H7m10-10a4 4 0 11-8 0 4 4 0 018 0z" />
+        </svg>
+        원정대 조회
       </Link>
     </div>
   </GlassCard>

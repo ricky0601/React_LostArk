@@ -1,7 +1,8 @@
 /**
- * 로스트아크 레이드 골드 데이터 (2025년 12월 패치 기준)
+ * 로스트아크 레이드 골드 데이터 (2026-04 귀속 골드 조정 반영)
  *
- * - T4 레이드: 거래 가능 골드 (일부 싱글/노말은 귀속)
+ * - T4 레이드: 대부분 절반 귀속 (거래가능 50% + 귀속 50%)
+ * - 4막/종막/세르카: 노말만 절반 귀속, 하드 이상은 기존대로 전액 거래가능
  * - 주당 캐릭터당 최대 3개 레이드 골드 획득 가능
  * - 계정당 최대 6캐릭터 골드 획득 가능
  * - 아크 그리드 코어: 4막(아르모체) 이상 레이드에서 획득, 더보기 시 동일 수량 추가
@@ -147,6 +148,7 @@ export const RAIDS: Raid[] = [
                 ],
                 totalGold: 35000,
                 isBound: false,
+                boundGold: 17500,
             },
         ],
     },
@@ -173,6 +175,7 @@ export const RAIDS: Raid[] = [
                 ],
                 totalGold: 40000,
                 isBound: false,
+                boundGold: 20000,
             },
         ],
     },
@@ -199,6 +202,7 @@ export const RAIDS: Raid[] = [
                 ],
                 totalGold: 33000,
                 isBound: false,
+                boundGold: 16500,
             },
         ],
     },
@@ -216,6 +220,7 @@ export const RAIDS: Raid[] = [
                 ],
                 totalGold: 27000,
                 isBound: false,
+                boundGold: 13500,
             },
             {
                 difficulty: '노말',
@@ -227,6 +232,7 @@ export const RAIDS: Raid[] = [
                 ],
                 totalGold: 21000,
                 isBound: false,
+                boundGold: 10500,
             },
             {
                 difficulty: '싱글',
@@ -255,6 +261,7 @@ export const RAIDS: Raid[] = [
                 ],
                 totalGold: 23000,
                 isBound: false,
+                boundGold: 11500,
             },
             {
                 difficulty: '노말',
@@ -265,6 +272,7 @@ export const RAIDS: Raid[] = [
                 ],
                 totalGold: 16500,
                 isBound: false,
+                boundGold: 8250,
             },
             {
                 difficulty: '싱글',
@@ -292,6 +300,7 @@ export const RAIDS: Raid[] = [
                 ],
                 totalGold: 18000,
                 isBound: false,
+                boundGold: 9000,
             },
             {
                 difficulty: '노말',
@@ -302,6 +311,7 @@ export const RAIDS: Raid[] = [
                 ],
                 totalGold: 11500,
                 isBound: false,
+                boundGold: 5750,
             },
             {
                 difficulty: '싱글',
@@ -329,6 +339,7 @@ export const RAIDS: Raid[] = [
                 ],
                 totalGold: 7200,
                 isBound: false,
+                boundGold: 3600,
             },
             {
                 difficulty: '노말',
@@ -366,6 +377,7 @@ export const RAIDS: Raid[] = [
                 ],
                 totalGold: 7200,
                 isBound: false,
+                boundGold: 3600,
             },
         ],
     },

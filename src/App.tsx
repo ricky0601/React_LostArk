@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Home from './pages/Home';
 import Character from './pages/Character';
 import Simulation from './pages/Simulation';
+import Expedition from './pages/Expedition';
 import Compare from './pages/Compare';
 import Enhancement from './pages/Enhancement';
 import Spending from './pages/Spending';
@@ -43,6 +44,7 @@ const AppContent: React.FC = () => {
           <Route path="/" element={<Home />} />
           <Route path="/character" element={<Character />} />
           <Route path="/simulation" element={<Simulation />} />
+          <Route path="/expedition" element={<Expedition />} />
           <Route path="/compare" element={<Compare />} />
           <Route path="/enhancement" element={<Enhancement />} />
           <Route path="/spending" element={<Spending />} />

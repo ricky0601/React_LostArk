@@ -1055,7 +1055,7 @@ const Enhancement: React.FC = () => {
               <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-3">
                 강화 견적 합계{hasOwnedInput && hasPrices && <span className="ml-1 font-normal text-orange-500 dark:text-orange-400">(추가 구매 기준)</span>}
               </p>
-              <div className={`grid gap-4 ${hasResult && hasAdvResult ? 'grid-cols-3' : 'grid-cols-2'}`}>
+              <div className={`grid gap-4 ${hasResult && hasAdvResult ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3' : 'grid-cols-1 sm:grid-cols-2'}`}>
                 {hasResult && (
                   <div>
                     <p className="text-xs text-gray-400 mb-0.5">일반 재련</p>
