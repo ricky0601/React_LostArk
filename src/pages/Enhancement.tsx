@@ -17,6 +17,7 @@ import {
   ADV_WEAPON_STAGES,
   ADV_STAGE_XP,
   calcExpectedAttempts,
+  getCeiling,
   getAttemptMaterials,
   calcAdvExpectedAttempts,
   getAdvAttemptMaterials,
@@ -246,11 +247,21 @@ const calcStepData = (
 ) => steps.map((step) => {
   const effBook = book && !!step.bookMaterial;
   const exp = calcExpectedAttempts(step, effBook, breath);
+  const ceiling = getCeiling(step, effBook, breath);
   const mats = getAttemptMaterials(step, effBook, breath);
-  const matGold = mats.reduce((s, m) => s + m.amount * (priceMap[m.type] ?? 0), 0) * exp;
+  const matGoldPerAttempt = mats.reduce((s, m) => s + m.amount * (priceMap[m.type] ?? 0), 0);
+  const matGold = matGoldPerAttempt * exp;
   const directGold = step.gold * exp;
   const silver = step.silver * exp;
-  return { step, exp, mats, matGold, directGold, silver, totalGold: directGold + matGold };
+  // 천장(장기백) 케이스: 천장 시도수까지 모두 실패 후 마지막에 성공
+  const ceilingMatGold = matGoldPerAttempt * ceiling;
+  const ceilingDirectGold = step.gold * ceiling;
+  const ceilingSilver = step.silver * ceiling;
+  return {
+    step,
+    exp, mats, matGold, directGold, silver, totalGold: directGold + matGold,
+    ceiling, ceilingMatGold, ceilingDirectGold, ceilingSilver, ceilingTotalGold: ceilingDirectGold + ceilingMatGold,
+  };
 });
 
 // ─────────────────────────────────────────────
@@ -310,6 +321,7 @@ const Enhancement: React.FC = () => {
   // ── 일반 재련 부스터 ──────────────────────────
   const [useBook, setUseBook] = useState(false);
   const [useBreath, setUseBreath] = useState(false);
+  const [costMode, setCostMode] = useState<'average' | 'ceiling'>('average');
 
   // ── 상급 재련 턴별 설정 ───────────────────────
   const [advNormalOpt,   setAdvNormalOpt]   = useState<AdvTurnOption>('none');
@@ -498,25 +510,50 @@ const Enhancement: React.FC = () => {
   };
 
   // ── 슬롯별 단계 계산 ─────────────────────────
+  // costMode가 'ceiling'이면 평균(exp/totalGold/...) 필드를 천장 값으로 덮어쓴 view를 노출 →
+  // 하위(slotTotals/totals/totalMaterials)가 자동으로 천장 기준으로 재계산됨
   const perSlotStepData = useMemo(() => {
     const result = new Map<SlotName, ReturnType<typeof calcStepData>>();
     slotFilteredSteps.forEach((steps, slot) => {
-      result.set(slot, calcStepData(steps, useBook, useBreath, prices));
+      const data = calcStepData(steps, useBook, useBreath, prices);
+      if (costMode === 'ceiling') {
+        result.set(slot, data.map((d) => ({
+          ...d,
+          exp: d.ceiling,
+          directGold: d.ceilingDirectGold,
+          matGold: d.ceilingMatGold,
+          silver: d.ceilingSilver,
+          totalGold: d.ceilingTotalGold,
+        })));
+      } else {
+        result.set(slot, data);
+      }
     });
     return result;
-  }, [slotFilteredSteps, useBook, useBreath, prices]);
+  }, [slotFilteredSteps, useBook, useBreath, prices, costMode]);
 
   // ── 슬롯별 소계 ──────────────────────────────
   const slotTotals = useMemo(() => {
-    const map = new Map<SlotName, { exp: number; directGold: number; matGold: number; silver: number; totalGold: number }>();
+    const map = new Map<SlotName, {
+      exp: number; directGold: number; matGold: number; silver: number; totalGold: number;
+      ceiling: number; ceilingDirectGold: number; ceilingMatGold: number; ceilingSilver: number; ceilingTotalGold: number;
+    }>();
     perSlotStepData.forEach((data, slot) => {
-      const acc = { exp: 0, directGold: 0, matGold: 0, silver: 0, totalGold: 0 };
+      const acc = {
+        exp: 0, directGold: 0, matGold: 0, silver: 0, totalGold: 0,
+        ceiling: 0, ceilingDirectGold: 0, ceilingMatGold: 0, ceilingSilver: 0, ceilingTotalGold: 0,
+      };
       for (const d of data) {
         acc.exp        += d.exp;
         acc.directGold += d.directGold;
         acc.matGold    += d.matGold;
         acc.silver     += d.silver;
         acc.totalGold  += d.totalGold;
+        acc.ceiling           += d.ceiling;
+        acc.ceilingDirectGold += d.ceilingDirectGold;
+        acc.ceilingMatGold    += d.ceilingMatGold;
+        acc.ceilingSilver     += d.ceilingSilver;
+        acc.ceilingTotalGold  += d.ceilingTotalGold;
       }
       map.set(slot, acc);
     });
@@ -525,13 +562,21 @@ const Enhancement: React.FC = () => {
 
   // ── 전체 합계 ────────────────────────────────
   const totals = useMemo(() => {
-    const acc = { exp: 0, directGold: 0, matGold: 0, silver: 0, totalGold: 0 };
+    const acc = {
+      exp: 0, directGold: 0, matGold: 0, silver: 0, totalGold: 0,
+      ceiling: 0, ceilingDirectGold: 0, ceilingMatGold: 0, ceilingSilver: 0, ceilingTotalGold: 0,
+    };
     slotTotals.forEach((v) => {
       acc.exp        += v.exp;
       acc.directGold += v.directGold;
       acc.matGold    += v.matGold;
       acc.silver     += v.silver;
       acc.totalGold  += v.totalGold;
+      acc.ceiling           += v.ceiling;
+      acc.ceilingDirectGold += v.ceilingDirectGold;
+      acc.ceilingMatGold    += v.ceilingMatGold;
+      acc.ceilingSilver     += v.ceilingSilver;
+      acc.ceilingTotalGold  += v.ceilingTotalGold;
     });
     return acc;
   }, [slotTotals]);
@@ -994,6 +1039,28 @@ const Enhancement: React.FC = () => {
                   최적 세팅 (책 {cheapest.useBook ? 'ON' : 'OFF'} / 숨결 {cheapest.useBreath ? 'ON' : 'OFF'})
                 </button>
               )}
+              <div className="ml-auto inline-flex rounded-full border border-gray-200 dark:border-white/10 overflow-hidden text-xs font-medium">
+                <button
+                  onClick={() => setCostMode('average')}
+                  className={`px-3 py-1.5 transition-colors ${
+                    costMode === 'average'
+                      ? 'bg-la-gold/20 text-la-gold-dark dark:text-la-gold'
+                      : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5'
+                  }`}
+                >
+                  평균
+                </button>
+                <button
+                  onClick={() => setCostMode('ceiling')}
+                  className={`px-3 py-1.5 transition-colors ${
+                    costMode === 'ceiling'
+                      ? 'bg-red-500/20 text-red-600 dark:text-red-400'
+                      : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5'
+                  }`}
+                >
+                  장기백
+                </button>
+              </div>
             </div>
           </GlassCard>
         )}
