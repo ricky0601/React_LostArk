@@ -20,7 +20,7 @@ import {
   fetchArkGrid,
 } from '../utils/api';
 import { type EffectSegment, stripHtml, parseBraceletLine } from '../utils/tooltipParser';
-import { gradeStyle, qualityTextColor, qualityBgColor } from '../utils/equipmentColors';
+import { gradeFrame, gradeText, gradeStyles, qualityTextColor, qualityBgColor } from '../utils/equipmentColors';
 
 /* ================================================================
    Types
@@ -132,12 +132,13 @@ function findEquipBySlots(items: EquipmentItem[], slots: string[]): (EquipmentIt
 
 /** 등급 뱃지 */
 const GradeTag: React.FC<{ grade: string; small?: boolean }> = ({ grade, small }) => {
-  const s = gradeStyle(grade);
+  const tag = gradeStyles(grade, 'subtle');
   return (
     <span
-      className={`inline-block rounded font-bold ${s.bg} ${s.text} ${
+      className={`inline-block rounded font-bold border ${tag.className} ${
         small ? 'px-1.5 py-0.5 text-[10px]' : 'px-2 py-0.5 text-xs'
       }`}
+      style={tag.style}
     >
       {grade}
     </span>
@@ -236,7 +237,7 @@ const EquipmentRow: React.FC<{
     if (!item) {
       return <div className="text-xs text-gray-400 dark:text-gray-500 italic">미장착</div>;
     }
-    const s = gradeStyle(item.Grade);
+    const frame = gradeFrame(item.Grade, 'border');
     const details = showDetail ? parseEquipDetails(item.Tooltip, item.Type) : [];
     return (
       <div className="min-w-0">
@@ -244,7 +245,8 @@ const EquipmentRow: React.FC<{
           <img
             src={item.Icon}
             alt=""
-            className={`w-8 h-8 rounded border ${s.border} flex-shrink-0`}
+            className={`w-8 h-8 rounded border flex-shrink-0 ${frame.className}`}
+            style={frame.style}
           />
           <div className="min-w-0 flex-1">
             <p className="text-xs font-medium text-gray-900 dark:text-white truncate">
@@ -294,11 +296,17 @@ const EquipmentRow: React.FC<{
 
 /** 보석 1개 */
 const GemBadge: React.FC<{ gem: GemItem; skill?: GemSkillEffect }> = ({ gem, skill }) => {
-  const s = gradeStyle(gem.Grade);
+  const frame = gradeFrame(gem.Grade, 'border');
+  const t = gradeText(gem.Grade);
   return (
     <div className="py-1.5">
       <div className="flex items-center gap-2">
-        <img src={gem.Icon} alt="" className={`w-7 h-7 rounded border ${s.border} flex-shrink-0`} />
+        <img
+          src={gem.Icon}
+          alt=""
+          className={`w-7 h-7 rounded border flex-shrink-0 ${frame.className}`}
+          style={frame.style}
+        />
         <div className="min-w-0 flex-1">
           {skill ? (
             <p className="text-xs font-medium text-gray-800 dark:text-gray-200 truncate">{skill.Name}</p>
@@ -306,7 +314,7 @@ const GemBadge: React.FC<{ gem: GemItem; skill?: GemSkillEffect }> = ({ gem, ski
             <p className="text-xs text-gray-800 dark:text-gray-200 truncate">{stripHtml(gem.Name)}</p>
           )}
         </div>
-        <span className={`text-xs font-bold ${s.text}`}>Lv.{gem.Level}</span>
+        <span className={`text-xs font-bold ${t.className}`} style={t.style}>Lv.{gem.Level}</span>
       </div>
       {skill && (
         <div className="ml-9 mt-0.5 space-y-0">
@@ -703,7 +711,7 @@ const LevelDots: React.FC<{ level: number }> = ({ level }) => (
 
 /** 각인 1개 카드 */
 const EngravingCard: React.FC<{ effect: ArkPassiveEffect }> = ({ effect }) => {
-  const s = gradeStyle(effect.Grade);
+  const t = gradeText(effect.Grade);
   return (
     <div className="py-2 border-b border-gray-100 dark:border-white/5 last:border-0">
       <div className="flex items-center gap-2 mb-1">
@@ -713,7 +721,7 @@ const EngravingCard: React.FC<{ effect: ArkPassiveEffect }> = ({ effect }) => {
         </span>
         <div className="flex items-center gap-1.5 flex-shrink-0">
           <LevelDots level={effect.Level} />
-          <span className={`text-[10px] font-bold ${s.text}`}>Lv.{effect.Level}</span>
+          <span className={`text-[10px] font-bold ${t.className}`} style={t.style}>Lv.{effect.Level}</span>
         </div>
       </div>
       <p className="text-[10px] text-gray-500 dark:text-gray-400 leading-relaxed">
@@ -782,15 +790,18 @@ const ArkGridSection: React.FC<{
     return (
       <div className="grid grid-cols-3 gap-2">
         {slots.map((slot) => {
-          const style = gradeStyle(slot.Grade);
+          const frame = gradeFrame(slot.Grade, 'bg');
           const name = shortCoreName(slot.Name);
           return (
             <div key={slot.Index} className="flex flex-col items-center gap-0.5 text-center">
-              <div className={`w-10 h-10 rounded-lg border-2 ${style.border} overflow-hidden flex-shrink-0`}>
+              <div
+                className={`w-10 h-10 rounded-lg border-2 overflow-hidden flex-shrink-0 ${frame.className}`}
+                style={frame.style}
+              >
                 {slot.Icon ? (
                   <img src={slot.Icon} alt={name} className="w-full h-full object-cover" />
                 ) : (
-                  <div className={`w-full h-full ${style.bg}`} />
+                  <div className="w-full h-full" />
                 )}
               </div>
               <p className="text-[9px] text-gray-600 dark:text-gray-400 leading-tight line-clamp-2 w-full">{name}</p>

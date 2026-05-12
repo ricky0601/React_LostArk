@@ -14,7 +14,7 @@ import NicknameSearchBar from '../components/NicknameSearchBar';
 import GlassCard from '../components/GlassCard';
 import { fetchProfile, fetchEquipment, fetchGems, fetchEngravings, fetchArkGrid, LS_NICKNAME } from '../utils/api';
 import { type EffectSegment, stripHtml, htmlColorToGrade, parseBraceletLine } from '../utils/tooltipParser';
-import { gradeStyle, EFFECT_GRADE_COLORS, qualityTextColor, qualityBgColor } from '../utils/equipmentColors';
+import { gradeFrame, gradeStyles, EFFECT_GRADE_COLORS, qualityTextColor, qualityBgColor } from '../utils/equipmentColors';
 
 interface EquipmentEffect { grade: string | null; text: string; segments?: EffectSegment[] }
 
@@ -193,11 +193,15 @@ const ArkPassiveCard: React.FC<{ data: EngravingData }> = ({ data }) => {
       <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">아크 패시브</p>
       <div className="flex flex-wrap gap-2">
         {passives.map((effect, i) => {
-          const style = gradeStyle(effect.Grade);
+          const frame = gradeStyles(effect.Grade, 'subtle');
           return (
-            <div key={i} className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border ${style.border} ${style.bg}`}>
-              <span className={`text-sm font-medium ${style.text}`}>{effect.Name}</span>
-              <span className={`text-xs font-bold px-1 py-0.5 rounded bg-white/10 ${style.text}`}>
+            <div
+              key={i}
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border ${frame.className}`}
+              style={frame.style}
+            >
+              <span className="text-sm font-medium">{effect.Name}</span>
+              <span className="text-xs font-bold px-1 py-0.5 rounded bg-white/10">
                 Lv.{effect.Level}
               </span>
             </div>
@@ -215,14 +219,17 @@ const ArkGridCard: React.FC<{ data: ArkGridData }> = ({ data }) => {
       <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">아크 그리드</p>
       <div className="grid grid-cols-3 gap-3">
         {data.Slots.map((slot) => {
-          const style = gradeStyle(slot.Grade);
+          const frame = gradeFrame(slot.Grade, 'bg');
           const name = shortCoreName(slot.Name);
           return (
             <div key={slot.Index} className="flex flex-col items-center gap-1 text-center">
-              <div className={`w-12 h-12 rounded-xl border-2 ${style.border} overflow-hidden`}>
+              <div
+                className={`w-12 h-12 rounded-xl border-2 overflow-hidden ${frame.className}`}
+                style={frame.style}
+              >
                 {slot.Icon
                   ? <img src={slot.Icon} alt={name} className="w-full h-full object-cover" />
-                  : <div className={`w-full h-full ${style.bg}`} />
+                  : <div className="w-full h-full" />
                 }
               </div>
               <p className="text-[10px] text-gray-600 dark:text-gray-400 leading-tight line-clamp-2 w-full">{name}</p>
@@ -294,15 +301,16 @@ const GemsCard: React.FC<{ data: GemData }> = ({ data }) => {
       </p>
       <div className="flex flex-wrap gap-1.5">
         {data.Gems.map((gem) => {
-          const style = gradeStyle(gem.Grade);
+          const frame = gradeStyles(gem.Grade, 'border');
           return (
             <div
               key={gem.Slot}
-              className={`flex flex-col items-center gap-0.5 p-1.5 rounded-xl border-2 ${style.border} cursor-default`}
+              className={`flex flex-col items-center gap-0.5 p-1.5 rounded-xl border-2 cursor-default ${frame.className}`}
+              style={frame.style}
               title={gem.Name}
             >
               <img src={gem.Icon} alt={gem.Name} className="w-9 h-9 rounded-lg" />
-              <span className={`text-[10px] font-bold ${style.text}`}>Lv.{gem.Level}</span>
+              <span className="text-[10px] font-bold">Lv.{gem.Level}</span>
             </div>
           );
         })}
@@ -313,16 +321,24 @@ const GemsCard: React.FC<{ data: GemData }> = ({ data }) => {
 
 const EquipmentItemCard: React.FC<{ item: EquipmentItem }> = ({ item }) => {
   const { quality, enchantLevel, transcendenceLevel, effects } = parseEquipmentInfo(item.Name, item.Tooltip);
-  const style = gradeStyle(item.Grade);
+  const frame = gradeFrame(item.Grade, 'border');
   // +N 강화레벨 뱃지로 별도 표시하므로 아이템명에서 prefix 제거
   const displayName = enchantLevel != null ? item.Name.replace(/^\+\d+\s/, '') : item.Name;
   return (
-    <div className={`flex items-start gap-2.5 p-2.5 rounded-xl border ${style.border} bg-white/[0.02] hover:bg-white/5 transition-colors`}>
+    <div
+      className={`flex items-start gap-2.5 p-2.5 rounded-xl border bg-white/[0.02] hover:bg-white/5 transition-colors ${frame.className}`}
+      style={frame.style}
+    >
       {/* 아이콘 + 강화레벨 뱃지 + 품질 숫자 */}
       <div className="flex flex-col items-center gap-0.5 flex-shrink-0">
         <div className="relative">
           {item.Icon && (
-            <img src={item.Icon} alt={item.Name} className={`w-11 h-11 rounded-lg border-2 ${style.border}`} />
+            <img
+              src={item.Icon}
+              alt={item.Name}
+              className={`w-11 h-11 rounded-lg border-2 ${frame.className}`}
+              style={frame.style}
+            />
           )}
           {enchantLevel != null && (
             <span className="absolute -top-1.5 -right-1.5 text-[9px] font-bold text-white bg-gray-900 border border-gray-600 rounded px-0.5 leading-tight">

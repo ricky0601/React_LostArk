@@ -38,7 +38,10 @@ export function parseBraceletLine(html: string): EffectSegment[] {
   for (const part of parts) {
     const fm = part.match(/^<FONT\b[^>]*COLOR=['"]?#?([0-9A-Fa-f]{6})/i);
     if (fm) {
-      const color = `#${fm[1].toUpperCase()}`;
+      const hex = `#${fm[1].toUpperCase()}`;
+      // 게임 툴팁은 다크 배경 가정이라 흰색을 그대로 박으면 라이트 모드에서 안 보임.
+      // 흰색은 색 정보가 아니라 "기본 텍스트"라 null로 두어 라이트/다크 fallback 색이 적용되게 한다.
+      const color = hex === '#FFFFFF' ? null : hex;
       const innerText = part.replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ');
       if (innerText.trim()) segments.push({ text: innerText, color });
     } else {

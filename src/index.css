@@ -42,6 +42,55 @@
     @apply bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 bg-[length:200%_100%] animate-shimmer rounded-lg
            dark:from-white/5 dark:via-white/10 dark:to-white/5;
   }
+
+  /* 등급 프레임 — CSS variable(--grade-c1, --grade-c2)로 색을 받음.
+     클래스 이름이 가리키는 속성만 사용한다(border는 border-color로, bg는 background-image로).
+     라운드 코너와 호환되는 그라데이션 보더는 표준 CSS로 불가능해 보더는 단색만 사용한다.
+     단색 등급은 c1=c2라 보더 색이 같고, 그라데이션 등급은 라이트/다크 모드에 맞는 쪽을 선택한다. */
+
+  /* 보더 색 규칙
+     - 라이트: c1과 c2의 mid-tone (50/50 mix) — c1 단색은 흰 배경에 너무 강해서 옅게
+     - 다크:   c2 단색 — 어두운 배경에 밝은 쪽이 잘 보임 */
+
+  /* 보더만 — 일반 아이템 (장비/장신구/스톤/보석 등) */
+  .grade-frame-border {
+    border-color: color-mix(in srgb, var(--grade-c1), var(--grade-c2));
+  }
+  html.dark .grade-frame-border {
+    border-color: var(--grade-c2);
+  }
+
+  /* 보더 + 옅은(25%) 배경 — 패시브/뱃지 같이 약한 강조가 필요한 영역
+     border-color: 단색 / background-image: 옅은 그라데이션 — 속성별 분리 */
+  .grade-frame-subtle {
+    border-color: color-mix(in srgb, var(--grade-c1), var(--grade-c2));
+    background-image: linear-gradient(135deg,
+      color-mix(in srgb, var(--grade-c1) 25%, transparent),
+      color-mix(in srgb, var(--grade-c2) 25%, transparent));
+  }
+  html.dark .grade-frame-subtle {
+    border-color: var(--grade-c2);
+  }
+
+  /* 보더 + 그라데이션 배경 + padding — 코어처럼 아이콘 주위에 그라데이션 띠가 보여야 하는 영역.
+     border-color: 단색 / background-image: 실제 로아 정의 그대로(c1 → c2 alpha 없음).
+     라이트/다크 분기 없이 단일 정의 — 보더 색만 모드별 분기. */
+  .grade-frame-bg {
+    border-color: color-mix(in srgb, var(--grade-c1), var(--grade-c2));
+    background-image: linear-gradient(135deg, var(--grade-c1), var(--grade-c2));
+    padding: 2px;
+  }
+  html.dark .grade-frame-bg {
+    border-color: var(--grade-c2);
+  }
+
+  /* 등급 텍스트 색상 — 라이트/다크 모드별 분기 */
+  .grade-frame-text {
+    color: var(--grade-text-light);
+  }
+  html.dark .grade-frame-text {
+    color: var(--grade-text-dark);
+  }
 }
 
 @media (hover: none), (pointer: coarse) {
