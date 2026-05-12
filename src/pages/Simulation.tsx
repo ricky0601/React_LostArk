@@ -335,12 +335,6 @@ const Simulation: React.FC = () => {
         return selectedResults.reduce((sum, r) => sum + r.totalGold, 0);
     }, [selectedResults]);
 
-    const boundGold = useMemo(() => {
-        return selectedResults.reduce((sum, r) => {
-            return sum + r.selectedRaids.reduce((s, raid) => s + raid.boundGold, 0);
-        }, 0);
-    }, [selectedResults]);
-
     const totalBonusCost = useMemo(() => {
         let cost = 0;
         for (const result of selectedResults) {
@@ -359,10 +353,6 @@ const Simulation: React.FC = () => {
     // 실수령 골드 = 주간 총 골드 - 더보기 비용
     const netWeeklyGold = totalWeeklyGold - totalBonusCost;
 
-    // 거래 가능 (실수령) = 실수령 골드 - 귀속 골드  /  귀속은 레이드 기준 고정
-    const netTradeableGold = netWeeklyGold - boundGold;
-    const netBoundGold = boundGold;
-
     const characterBonusCosts = useMemo(() => {
         const map = new Map<string, number>();
         for (const result of selectedResults) {
@@ -379,6 +369,16 @@ const Simulation: React.FC = () => {
         }
         return map;
     }, [selectedResults, bonusSelections]);
+
+    // 실수령 분리: 더보기 비용은 귀속 골드부터 우선 차감 (캐릭터 단위로 차감 후 합산)
+    const netBoundGold = useMemo(() => {
+        return selectedResults.reduce((acc, r) => {
+            const charBound = r.selectedRaids.reduce((s, raid) => s + raid.boundGold, 0);
+            const charBonus = characterBonusCosts.get(r.characterName) ?? 0;
+            return acc + Math.max(0, charBound - charBonus);
+        }, 0);
+    }, [selectedResults, characterBonusCosts]);
+    const netTradeableGold = netWeeklyGold - netBoundGold;
 
     // 코어 계산: 캐릭터별 (기본 코어 + 더보기 보너스 코어)
     const characterCores = useMemo(() => {
@@ -412,41 +412,39 @@ const Simulation: React.FC = () => {
         return { base, bonus, total: base + bonus };
     }, [characterCores]);
 
-    // 완료 진행 계산 (더보기 비용 반영한 실수령 기준)
-    const { earnedGold, earnedTradeableRaw, earnedBoundRaw } = useMemo(() => {
-        let gold = 0;
-        let bonus = 0;
-        let tradeable = 0;
-        let bound = 0;
+    // 완료 진행 계산: 더보기 비용은 캐릭터 단위로 귀속부터 차감 후 합산 (글로벌 분리표기와 일치)
+    const { earnedGold, earnedNetTradeable, earnedNetBound } = useMemo(() => {
+        let totalNet = 0;
+        let netTradeable = 0;
+        let netBound = 0;
         for (const r of selectedResults) {
+            let charGold = 0;
+            let charBound = 0;
+            let charBonus = 0;
             for (const raid of r.selectedRaids) {
                 if (completedRaids.has(completedKey(r.characterName, raid.raidName, raid.difficulty))) {
-                    gold += raid.totalGold;
-                    tradeable += raid.totalGold - raid.boundGold;
-                    bound += raid.boundGold;
+                    charGold += raid.totalGold;
+                    charBound += raid.boundGold;
                     for (const gate of raid.gates) {
                         const key = bonusKey(r.characterName, raid.raidName, raid.difficulty, gate.gate);
                         if (bonusSelections.has(key)) {
-                            bonus += gate.bonusCost;
+                            charBonus += gate.bonusCost;
                         }
                     }
                 }
             }
+            const charNet = charGold - charBonus;
+            const charNetBound = Math.max(0, charBound - charBonus);
+            totalNet += charNet;
+            netTradeable += charNet - charNetBound;
+            netBound += charNetBound;
         }
-        return { earnedGold: gold - bonus, earnedTradeableRaw: tradeable, earnedBoundRaw: bound };
+        return { earnedGold: totalNet, earnedNetTradeable: netTradeable, earnedNetBound: netBound };
     }, [selectedResults, completedRaids, bonusSelections]);
 
     const remainingGold = netWeeklyGold - earnedGold;
-
-    // 진행률 바용: 획득 골드 중 거래가능/귀속 비율 (귀속은 회색 세그먼트)
-    const earnedGoldSplit = useMemo(() => {
-        const totalRaw = earnedTradeableRaw + earnedBoundRaw;
-        if (totalRaw <= 0) return { tradeableRatio: 1, boundRatio: 0 };
-        return {
-            tradeableRatio: earnedTradeableRaw / totalRaw,
-            boundRatio: earnedBoundRaw / totalRaw,
-        };
-    }, [earnedTradeableRaw, earnedBoundRaw]);
+    const remainingTradeable = Math.max(0, netTradeableGold - earnedNetTradeable);
+    const remainingBound = Math.max(0, netBoundGold - earnedNetBound);
 
     // 일괄 더보기 상태: 모든 관문이 선택되어 있는지
     const isAllBonusSelected = useMemo(() => {
@@ -618,30 +616,30 @@ const Simulation: React.FC = () => {
                         {/* Gold Summary */}
                         <div className="glass-card p-6 mb-8 animate-fade-in">
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
-                                <div className="text-center">
+                                <div className="text-center min-w-0">
                                     <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">주간 총 골드</p>
                                     <p className="text-3xl font-bold bg-gradient-to-r from-la-gold to-la-gold-light bg-clip-text text-transparent">
                                         {formatGold(totalWeeklyGold)}G
                                     </p>
                                 </div>
-                                <div className="text-center">
+                                <div className="text-center min-w-0">
                                     <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">더보기 비용</p>
                                     <p className={`text-2xl font-bold ${totalBonusCost > 0 ? 'text-red-500 dark:text-red-400' : 'text-gray-400 dark:text-gray-600'}`}>
                                         {totalBonusCost > 0 ? '-' : ''}{formatGold(totalBonusCost)}G
                                     </p>
                                 </div>
-                                <div className="text-center">
+                                <div className="text-center min-w-0">
                                     <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">실수령 골드</p>
                                     <p className="text-2xl font-bold text-green-600 dark:text-green-400">
                                         {formatGold(netWeeklyGold)}G
                                     </p>
                                 </div>
-                                <div className="text-center">
-                                    <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">거래 가능 / 귀속 (실수령)</p>
-                                    <p className="text-lg font-bold text-yellow-600 dark:text-yellow-400">
-                                        {formatGold(netTradeableGold)}G
-                                        <span className="text-gray-400 dark:text-gray-500 mx-1">/</span>
-                                        <span className="text-gray-500 dark:text-gray-400">{formatGold(netBoundGold)}G</span>
+                                <div className="text-center min-w-0">
+                                    <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">거래 가능 + 귀속</p>
+                                    <p className="text-base md:text-lg font-bold leading-tight">
+                                        <span className="inline-block whitespace-nowrap text-la-gold-dark dark:text-la-gold">{formatGold(netTradeableGold)}G</span>
+                                        <span className="text-gray-400 dark:text-gray-500 mx-1">+</span>
+                                        <span className="inline-block whitespace-nowrap text-sky-600 dark:text-sky-400">{formatGold(netBoundGold)}G</span>
                                     </p>
                                 </div>
                             </div>
@@ -655,25 +653,30 @@ const Simulation: React.FC = () => {
                                 </div>
                                 <div className="h-3 bg-gray-200/70 dark:bg-white/5 rounded-full overflow-hidden flex">
                                     <div
-                                        className={`h-full bg-gradient-to-r from-la-gold to-la-gold-light transition-all duration-500 flex-shrink-0 ${earnedGoldSplit.boundRatio > 0 ? 'rounded-l-full' : 'rounded-full'}`}
-                                        style={{ width: `${netWeeklyGold > 0 ? Math.min((earnedGold * earnedGoldSplit.tradeableRatio / netWeeklyGold) * 100, 100) : 0}%` }}
+                                        className={`h-full bg-gradient-to-r from-la-gold to-la-gold-light transition-all duration-500 flex-shrink-0 ${earnedNetBound > 0 ? 'rounded-l-full' : 'rounded-full'}`}
+                                        style={{ width: `${netWeeklyGold > 0 ? Math.min((earnedNetTradeable / netWeeklyGold) * 100, 100) : 0}%` }}
                                     />
                                     <div
-                                        className="h-full bg-gray-400 dark:bg-gray-500 rounded-r-full transition-all duration-500 flex-shrink-0"
-                                        style={{ width: `${netWeeklyGold > 0 ? Math.min((earnedGold * earnedGoldSplit.boundRatio / netWeeklyGold) * 100, 100) : 0}%` }}
+                                        className="h-full bg-sky-500 dark:bg-sky-400 rounded-r-full transition-all duration-500 flex-shrink-0"
+                                        style={{ width: `${netWeeklyGold > 0 ? Math.min((earnedNetBound / netWeeklyGold) * 100, 100) : 0}%` }}
                                     />
                                 </div>
-                                <div className="flex items-center justify-between mt-2 text-sm">
-                                    <span className="text-green-600 dark:text-green-400 font-medium">
+                                <div className="flex items-center justify-between mt-2 text-sm gap-2">
+                                    <span className="text-green-600 dark:text-green-400 font-medium min-w-0">
                                         획득: {formatGold(earnedGold)}G
-                                        {earnedBoundRaw > 0 && (
+                                        {earnedNetBound > 0 && (
                                             <span className="text-gray-500 dark:text-gray-400 font-normal ml-1">
-                                                (거래가능 {formatGold(earnedTradeableRaw)} / 귀속 {formatGold(earnedBoundRaw)})
+                                                (<span className="text-la-gold-dark dark:text-la-gold">{formatGold(earnedNetTradeable)}</span> + <span className="text-sky-600 dark:text-sky-400">{formatGold(earnedNetBound)}</span>)
                                             </span>
                                         )}
                                     </span>
-                                    <span className="text-gray-500 dark:text-gray-400">
+                                    <span className="text-gray-500 dark:text-gray-400 min-w-0 text-right">
                                         남은 숙제: {formatGold(remainingGold)}G
+                                        {remainingBound > 0 && (
+                                            <span className="font-normal ml-1">
+                                                (<span className="text-la-gold-dark dark:text-la-gold">{formatGold(remainingTradeable)}</span> + <span className="text-sky-600 dark:text-sky-400">{formatGold(remainingBound)}</span>)
+                                            </span>
+                                        )}
                                     </span>
                                 </div>
                             </div>
@@ -826,12 +829,19 @@ const CharacterRaidCard: React.FC<CharacterRaidCardProps> = ({
         }, 0);
     };
 
+    // 캐릭터별 거래가능/귀속 분리 (더보기 비용은 귀속부터 차감)
+    const characterBoundGold = result.selectedRaids.reduce((sum, r) => sum + r.boundGold, 0);
+    const characterTradeableGold = result.totalGold - characterBoundGold;
+    const netTotal = result.totalGold - characterBonusCost;
+    const netBound = Math.max(0, characterBoundGold - characterBonusCost);
+    const netTradeable = netTotal - netBound;
+
     return (
         <div
-            className={`glass-card p-4 md:p-5 animate-slide-up ${dimmed ? 'opacity-50' : ''}`}
+            className={`glass-card p-4 md:p-5 animate-slide-up overflow-x-hidden ${dimmed ? 'opacity-50' : ''}`}
             style={{ animationDelay: `${index * 0.05}s`, animationFillMode: 'both' }}
         >
-            <div className="flex flex-col md:flex-row md:items-start gap-4">
+            <div className="flex flex-col md:flex-row md:items-start gap-4 min-w-0">
                 {/* Character Info */}
                 <div className="flex items-center gap-3 md:w-56 flex-shrink-0">
                     <div className="w-14 h-14 rounded-xl overflow-hidden bg-gray-100 dark:bg-white/5 flex-shrink-0">
@@ -888,7 +898,7 @@ const CharacterRaidCard: React.FC<CharacterRaidCardProps> = ({
                 </div>
 
                 {/* Raid List */}
-                <div className="flex-1 space-y-1.5">
+                <div className="flex-1 min-w-0 space-y-1.5">
                     {result.selectedRaids.map((raid) => {
                         const raidKey = `${raid.raidName}::${raid.difficulty}`;
                         const isRaidAvailable = result.availableRaids.some((r) => r.raidName === raid.raidName && r.difficulty === raid.difficulty);
@@ -904,7 +914,7 @@ const CharacterRaidCard: React.FC<CharacterRaidCardProps> = ({
                                         dimmed ? 'cursor-default' : 'cursor-pointer'
                                     } ${isCompleted ? 'opacity-60' : ''} ${
                                         raid.isBound
-                                            ? 'bg-gray-100 text-gray-600 dark:bg-white/5 dark:text-gray-400'
+                                            ? 'bg-sky-50 text-sky-700 dark:bg-sky-900/20 dark:text-sky-300'
                                             : 'bg-yellow-50 text-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-400'
                                     }`}
                                 >
@@ -950,7 +960,16 @@ const CharacterRaidCard: React.FC<CharacterRaidCardProps> = ({
                                                 -{formatGold(raidBonusCost)}
                                             </span>
                                         )}
-                                        <span className={`font-bold ${isCompleted ? 'line-through' : ''}`}>{formatGold(raid.totalGold)}G</span>
+                                        <div className={`flex flex-col items-end leading-tight ${isCompleted ? 'line-through' : ''}`}>
+                                            <span className="font-bold">{formatGold(raid.totalGold)}G</span>
+                                            {raid.boundGold > 0 && raid.boundGold < raid.totalGold && (
+                                                <span className="text-[10px]">
+                                                    <span className="text-la-gold-dark dark:text-la-gold">{formatGold(raid.totalGold - raid.boundGold)}</span>
+                                                    <span className="text-gray-400 dark:text-gray-500"> + </span>
+                                                    <span className="text-sky-600 dark:text-sky-400">{formatGold(raid.boundGold)}</span>
+                                                </span>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
 
@@ -1073,23 +1092,43 @@ const CharacterRaidCard: React.FC<CharacterRaidCardProps> = ({
                 </div>
 
                 {/* Total Gold */}
-                <div className="md:w-36 text-right flex-shrink-0">
+                <div className="md:w-40 text-right flex-shrink-0 min-w-0">
                     <p className="text-xs text-gray-400 dark:text-gray-500">주간 골드</p>
-                    <p className={`text-xl font-bold ${
-                        dimmed
-                            ? 'text-gray-400 dark:text-gray-600'
-                            : 'text-la-gold-dark dark:text-la-gold'
-                    }`}>
-                        {formatGold(result.totalGold)}G
-                    </p>
+                    {characterBoundGold > 0 ? (
+                        <p className="text-base md:text-lg font-bold leading-tight">
+                            <span className={`inline-block whitespace-nowrap ${dimmed ? 'text-gray-400 dark:text-gray-600' : 'text-la-gold-dark dark:text-la-gold'}`}>
+                                {formatGold(characterTradeableGold)}
+                            </span>
+                            <span className="text-gray-400 dark:text-gray-500"> + </span>
+                            <span className={`inline-block whitespace-nowrap ${dimmed ? 'text-gray-400 dark:text-gray-600' : 'text-sky-600 dark:text-sky-400'}`}>
+                                {formatGold(characterBoundGold)}
+                            </span>
+                        </p>
+                    ) : (
+                        <p className={`text-xl font-bold ${
+                            dimmed
+                                ? 'text-gray-400 dark:text-gray-600'
+                                : 'text-la-gold-dark dark:text-la-gold'
+                        }`}>
+                            {formatGold(result.totalGold)}G
+                        </p>
+                    )}
                     {characterBonusCost > 0 && (
                         <>
                             <p className="text-xs text-red-500 dark:text-red-400 mt-0.5">
                                 더보기 -{formatGold(characterBonusCost)}G
                             </p>
-                            <p className="text-sm font-bold text-green-600 dark:text-green-400 border-t border-gray-200 dark:border-white/10 mt-1 pt-1">
-                                {formatGold(result.totalGold - characterBonusCost)}G
-                            </p>
+                            {characterBoundGold > 0 ? (
+                                <p className="text-xs md:text-sm font-bold border-t border-gray-200 dark:border-white/10 mt-1 pt-1 leading-tight">
+                                    <span className="inline-block whitespace-nowrap text-la-gold-dark dark:text-la-gold">{formatGold(netTradeable)}</span>
+                                    <span className="text-gray-400 dark:text-gray-500"> + </span>
+                                    <span className="inline-block whitespace-nowrap text-sky-600 dark:text-sky-400">{formatGold(netBound)}</span>
+                                </p>
+                            ) : (
+                                <p className="text-sm font-bold text-la-gold-dark dark:text-la-gold border-t border-gray-200 dark:border-white/10 mt-1 pt-1">
+                                    {formatGold(netTotal)}G
+                                </p>
+                            )}
                         </>
                     )}
                 </div>
