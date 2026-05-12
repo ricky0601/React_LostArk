@@ -5,14 +5,25 @@ import PullToRefresh from '../components/PullToRefresh';
 import { fetchEvents, fetchCalendar } from '../utils/api';
 import type { GameEvent, CalendarItem } from '../types/lostark';
 
-/** KST 기준 오늘 날짜 문자열 (YYYY-MM-DD) */
-function getTodayKST(): string {
+/** YYYY-MM-DD 포맷터 (Date 객체 기준) */
+function formatYMD(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+/** 게임 일일 리셋(06:00 KST) 기준으로 "오늘"에 해당하는 KST 날짜 두 개 반환
+ *  - today: 게임 하루의 시작일 (06:00 ~ 23:59가 속한 날짜)
+ *  - tomorrow: 다음 날 (00:00 ~ 06:00 새벽이 속한 날짜)
+ *  현재 KST 06시 이전이면 today는 어제 날짜가 됨 (게임 하루는 어제 06시에 시작) */
+function getGameDayKST(): { today: string; tomorrow: string } {
   const now = new Date();
   const kst = new Date(now.getTime() + (now.getTimezoneOffset() + 540) * 60000);
-  const y = kst.getFullYear();
-  const m = String(kst.getMonth() + 1).padStart(2, '0');
-  const d = String(kst.getDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
+  if (kst.getHours() < 6) kst.setDate(kst.getDate() - 1);
+  const today = formatYMD(kst);
+  const tomorrow = formatYMD(new Date(kst.getTime() + 86400000));
+  return { today, tomorrow };
 }
 
 /** 날짜 문자열에서 MM.DD 형식 추출 */
@@ -28,12 +39,19 @@ function isEventActive(event: GameEvent): boolean {
   return end >= now;
 }
 
-/** 캘린더 아이템에서 오늘 시작 시간만 필터 */
+/** 캘린더 아이템에서 게임 일일(오늘 06:00 ~ 익일 06:00) 범위의 시작 시간만 필터 */
 function getTodayTimes(startTimes: string[] | null): string[] {
   if (!startTimes) return [];
-  const today = getTodayKST();
+  const { today, tomorrow } = getGameDayKST();
   return startTimes
-    .filter((t) => t.startsWith(today))
+    .filter((t) => {
+      // t = "YYYY-MM-DDTHH:MM:SS" (KST 가정)
+      const datePart = t.substring(0, 10);
+      const hour = parseInt(t.substring(11, 13), 10);
+      if (datePart === today && hour >= 6) return true;
+      if (datePart === tomorrow && hour < 6) return true;
+      return false;
+    })
     .map((t) => {
       const d = new Date(t);
       const kst = new Date(d.getTime() + (d.getTimezoneOffset() + 540) * 60000);
