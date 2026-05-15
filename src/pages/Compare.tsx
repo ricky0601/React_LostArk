@@ -958,6 +958,15 @@ const Compare: React.FC = () => {
       fetchEngravings(name).catch(() => null),
       fetchArkGrid(name).catch(() => null),
     ]);
+
+    if (!profile?.CharacterName) {
+      throw new Error('Invalid character profile payload');
+    }
+
+    if (!Array.isArray(equipment)) {
+      throw new Error('Invalid character equipment payload');
+    }
+
     return { profile, equipment, gems, engravings, arkGrid };
   };
 
