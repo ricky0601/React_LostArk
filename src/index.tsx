@@ -32,13 +32,6 @@ window.addEventListener('unhandledrejection', (e: PromiseRejectionEvent) => {
   if (isChunkLoadErrorMsg(msg)) setChunkErrorFlag();
 });
 
-if (process.env.NODE_ENV !== 'development') {
-  console.log = () => {};
-  console.warn = () => {};
-  console.error = () => {};
-  console.info = () => {};
-  console.debug = () => {};
-}
 
 const root = ReactDOM.createRoot(
   document.getElementById('root') as HTMLElement
