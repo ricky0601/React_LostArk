@@ -38,6 +38,25 @@ const LS_COMPLETED = 'loaGold_completed';
 const LS_BONUS = 'loaGold_bonus';
 const LS_SELECTED = 'loaGold_selectedNames';
 
+function readPersistedStringArray(storageKey: string): string[] {
+    const rawValue = localStorage.getItem(storageKey);
+    if (!rawValue) return [];
+
+    try {
+        const parsed: unknown = JSON.parse(rawValue);
+        if (Array.isArray(parsed)) {
+            return parsed as string[];
+        }
+    } catch (error: unknown) {
+        void error;
+        localStorage.removeItem(storageKey);
+        return [];
+    }
+
+    localStorage.removeItem(storageKey);
+    return [];
+}
+
 const Simulation: React.FC = () => {
     const [searchParams, setSearchParams] = useSearchParams();
     const urlNickname = searchParams.get('nickname');
@@ -50,8 +69,7 @@ const Simulation: React.FC = () => {
     const [loading, setLoading] = useState<boolean>(false);
     const [error, setError] = useState<string | null>(null);
     const [selectedNames, setSelectedNames] = useState<Set<string>>(() => {
-        const data = localStorage.getItem(LS_SELECTED);
-        return data ? new Set(JSON.parse(data)) : new Set();
+        return new Set(readPersistedStringArray(LS_SELECTED));
     });
     const [showMore, setShowMore] = useState(false);
     /** 캐릭터별 커스텀 레이드 3개 선택 (키: "raidName::difficulty"). 있으면 selectedRaids 대신 사용 */
@@ -65,15 +83,13 @@ const Simulation: React.FC = () => {
             localStorage.removeItem(LS_BONUS);
             return new Set();
         }
-        const data = localStorage.getItem(LS_BONUS);
-        return data ? new Set(migrateLegacyKeys(JSON.parse(data))) : new Set();
+        return new Set(migrateLegacyKeys(readPersistedStringArray(LS_BONUS)));
     });
     const [completedRaids, setCompletedRaids] = useState<Set<string>>(() => {
         const weekKey = getLoaWeekKey();
         const stored = localStorage.getItem(LS_WEEK_KEY);
         if (stored !== weekKey) return new Set();
-        const data = localStorage.getItem(LS_COMPLETED);
-        return data ? new Set(migrateLegacyKeys(JSON.parse(data))) : new Set();
+        return new Set(migrateLegacyKeys(readPersistedStringArray(LS_COMPLETED)));
     });
     // URL 쿼리 파라미터 변경 시 닉네임 동기화
     useEffect(() => {
