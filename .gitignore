@@ -26,3 +26,9 @@ yarn-debug.log*
 yarn-error.log*
 
 .tmp/
+
+# AI tooling
+.claude/
+.serena/
+.agent/
+.sisyphus/
