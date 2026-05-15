@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import NavBar from '../components/NavBar';
 import PullToRefresh from '../components/PullToRefresh';
@@ -16,7 +16,12 @@ function formatYMD(d: Date): string {
 /** 게임 일일 리셋(06:00 KST) 기준으로 "오늘"에 해당하는 KST 날짜 두 개 반환
  *  - today: 게임 하루의 시작일 (06:00 ~ 23:59가 속한 날짜)
  *  - tomorrow: 다음 날 (00:00 ~ 06:00 새벽이 속한 날짜)
- *  현재 KST 06시 이전이면 today는 어제 날짜가 됨 (게임 하루는 어제 06시에 시작) */
+ *  현재 KST 06시 이전이면 today는 어제 날짜가 됨 (게임 하루는 어제 06시에 시작)
+ *
+ *  타임존 보정 노트: 입력이 epoch ms(`new Date()`)이므로 모든 로컬 TZ에서 동작.
+ *  `kst`의 epoch ms를 "로컬 TZ로 읽을 때 KST 값이 나오는 ms"로 시프트해
+ *  `getHours()`/`getDate()`가 KST 컴포넌트를 반환하게 함.
+ *  (getTodayTimes는 입력이 KST 문자열이라 슬라이싱이 더 직관적이라 다른 방식을 씀) */
 function getGameDayKST(): { today: string; tomorrow: string } {
   const now = new Date();
   const kst = new Date(now.getTime() + (now.getTimezoneOffset() + 540) * 60000);
@@ -39,24 +44,21 @@ function isEventActive(event: GameEvent): boolean {
   return end >= now;
 }
 
-/** 캘린더 아이템에서 게임 일일(오늘 06:00 ~ 익일 06:00) 범위의 시작 시간만 필터 */
+/** 캘린더 아이템에서 게임 일일(오늘 06:00 ~ 익일 06:00) 범위의 시작 시간만 필터.
+ *  API는 타임존 표기 없는 KST 문자열(YYYY-MM-DDTHH:MM:SS)을 내려줌. 문자열 슬라이싱만으로 처리해
+ *  로컬 타임존 영향을 받지 않게 한다 (필터·표시 모두 입력 문자열의 KST 시·분을 그대로 사용). */
 function getTodayTimes(startTimes: string[] | null): string[] {
   if (!startTimes) return [];
   const { today, tomorrow } = getGameDayKST();
   return startTimes
     .filter((t) => {
-      // t = "YYYY-MM-DDTHH:MM:SS" (KST 가정)
       const datePart = t.substring(0, 10);
       const hour = parseInt(t.substring(11, 13), 10);
       if (datePart === today && hour >= 6) return true;
       if (datePart === tomorrow && hour < 6) return true;
       return false;
     })
-    .map((t) => {
-      const d = new Date(t);
-      const kst = new Date(d.getTime() + (d.getTimezoneOffset() + 540) * 60000);
-      return `${String(kst.getHours()).padStart(2, '0')}:${String(kst.getMinutes()).padStart(2, '0')}`;
-    });
+    .map((t) => t.substring(11, 16));
 }
 
 const CALENDAR_CATEGORIES = ['모험 섬', '카오스게이트', '필드보스', '항해'];
@@ -72,20 +74,24 @@ const Home: React.FC = () => {
     setExpandedCategories((prev) => ({ ...prev, [category]: !prev[category] }));
   };
 
-  const loadData = useCallback(() => {
+  // race 가드: 마운트 직후 빠르게 라우트가 바뀌어 unmount 되어도 setState 경고가 나지 않도록 cancelled 체크.
+  useEffect(() => {
+    let cancelled = false;
     setLoadingEvents(true);
     setLoadingCalendar(true);
-    fetchEvents()
-      .then((data) => setEvents(Array.isArray(data) ? data : []))
-      .catch(() => setEvents([]))
-      .finally(() => setLoadingEvents(false));
-    fetchCalendar()
-      .then((data) => setCalendar(Array.isArray(data) ? data : []))
-      .catch(() => setCalendar([]))
-      .finally(() => setLoadingCalendar(false));
-  }, []);
 
-  useEffect(() => { loadData(); }, [loadData]);
+    fetchEvents()
+      .then((data) => { if (!cancelled) setEvents(Array.isArray(data) ? data : []); })
+      .catch(() => { if (!cancelled) setEvents([]); })
+      .finally(() => { if (!cancelled) setLoadingEvents(false); });
+
+    fetchCalendar()
+      .then((data) => { if (!cancelled) setCalendar(Array.isArray(data) ? data : []); })
+      .catch(() => { if (!cancelled) setCalendar([]); })
+      .finally(() => { if (!cancelled) setLoadingCalendar(false); });
+
+    return () => { cancelled = true; };
+  }, []);
 
   const activeEvents = useMemo(() => events.filter(isEventActive), [events]);
 

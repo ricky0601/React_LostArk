@@ -948,6 +948,7 @@ const Compare: React.FC = () => {
   const [rightData, setRightData] = useState<CompareData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [partialFailMsg, setPartialFailMsg] = useState<string | null>(null);
 
   const fetchCharacterData = async (name: string): Promise<CompareData> => {
     const [profile, equipment, gems, engravings, arkGrid] = await Promise.all([
@@ -960,22 +961,29 @@ const Compare: React.FC = () => {
     return { profile, equipment, gems, engravings, arkGrid };
   };
 
+  const resetResults = (): void => {
+    setLeftData(null);
+    setRightData(null);
+    setPartialFailMsg(null);
+  };
+
   const handleCompare = async () => {
     const lName = leftName.trim();
     const rName = rightName.trim();
     if (!lName || !rName) {
       setError('두 캐릭터의 닉네임을 모두 입력해주세요.');
+      resetResults();
       return;
     }
     if (lName === rName) {
       setError('서로 다른 캐릭터를 입력해주세요.');
+      resetResults();
       return;
     }
 
     setLoading(true);
     setError(null);
-    setLeftData(null);
-    setRightData(null);
+    resetResults();
 
     try {
       const [lResult, rResult] = await Promise.allSettled([
@@ -985,11 +993,17 @@ const Compare: React.FC = () => {
 
       if (lResult.status === 'rejected' && rResult.status === 'rejected') {
         setError('두 캐릭터 모두 조회에 실패했습니다. 닉네임을 확인해주세요.');
-      } else {
-        if (lResult.status === 'fulfilled') setLeftData(lResult.value);
-        if (rResult.status === 'fulfilled') setRightData(rResult.value);
-        if (lResult.status === 'rejected') setError(`"${lName}" 조회 실패`);
-        if (rResult.status === 'rejected') setError(`"${rName}" 조회 실패`);
+        return;
+      }
+
+      if (lResult.status === 'fulfilled') setLeftData(lResult.value);
+      if (rResult.status === 'fulfilled') setRightData(rResult.value);
+
+      const failedName =
+        lResult.status === 'rejected' ? lName :
+        rResult.status === 'rejected' ? rName : null;
+      if (failedName) {
+        setPartialFailMsg(`"${failedName}" 캐릭터를 조회하지 못해 비교할 수 없습니다. 닉네임을 확인해주세요.`);
       }
     } catch {
       setError('조회 중 오류가 발생했습니다.');
@@ -1066,8 +1080,8 @@ const Compare: React.FC = () => {
         {!loading && ((leftData && !rightData) || (!leftData && rightData)) && (
           <div className="space-y-6">
             <GlassCard className="p-5 animate-fade-in">
-              <p className="text-sm text-gray-500 dark:text-gray-400 text-center">
-                한쪽 캐릭터만 조회되었습니다. 비교하려면 양쪽 모두 유효한 닉네임이 필요합니다.
+              <p className="text-sm text-amber-600 dark:text-amber-400 text-center">
+                {partialFailMsg ?? '한쪽 캐릭터만 조회되었습니다. 비교하려면 양쪽 모두 유효한 닉네임이 필요합니다.'}
               </p>
             </GlassCard>
           </div>

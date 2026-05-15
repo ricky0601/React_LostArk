@@ -49,16 +49,19 @@ const Expedition: React.FC = () => {
     }
   }, []);
 
+  // cancelled 플래그로 race 방지: 닉네임을 빠르게 바꿔도 늦게 도착한 응답은 무시.
   useEffect(() => {
-    const loadExpedition = async (): Promise<void> => {
-      if (!nickname) return;
+    if (!nickname) return;
+    let cancelled = false;
 
+    const loadExpedition = async (): Promise<void> => {
       localStorage.setItem(LS_NICKNAME, nickname);
       setLoading(true);
       setError(null);
 
       try {
         const data = await fetchSiblings(nickname);
+        if (cancelled) return;
 
         if (!Array.isArray(data) || data.length === 0) {
           setSiblings([]);
@@ -87,22 +90,26 @@ const Expedition: React.FC = () => {
         setSiblings(filteredSiblings);
 
         const result = await Promise.all(filteredSiblings.map((character) => fetchCharacterProfile(character.CharacterName)));
+        if (cancelled) return;
+
         const validProfiles = result
           .filter((profile): profile is CharacterProfile => profile !== null)
           .sort((a, b) => parseItemLevel(b.ItemAvgLevel) - parseItemLevel(a.ItemAvgLevel));
 
         setProfiles(validProfiles);
       } catch {
+        if (cancelled) return;
         setSiblings([]);
         setProfiles([]);
         setServer(null);
         setError('원정대 조회에 실패했습니다.');
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
 
     loadExpedition();
+    return () => { cancelled = true; };
   }, [fetchCharacterProfile, nickname]);
 
   const summary = useMemo(() => {

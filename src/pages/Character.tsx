@@ -533,8 +533,27 @@ const Character: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // URL 쿼리 → state 동기화 (Simulation/Expedition과 동일 패턴).
+  // 같은 라우트에 머문 상태에서 URL이 바뀔 때(다른 페이지에서 /character?nickname=X 링크 클릭 등) 재조회 트리거.
+  useEffect(() => {
+    if (urlNickname && urlNickname !== nickname) {
+      setNickname(urlNickname);
+      setProfile(null);
+      setEquipment(null);
+      setGems(null);
+      setEngravings(null);
+      setArkGrid(null);
+      setError(null);
+    }
+  }, [urlNickname]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // AbortController로 이전 요청을 취소해 늦게 도착한 응답이 최신 상태를 덮지 않게 한다.
   useEffect(() => {
     if (!nickname) return;
+
+    const controller = new AbortController();
+    let active = true;
+
     localStorage.setItem(LS_NICKNAME, nickname);
     setLoading(true);
     setError(null);
@@ -545,19 +564,27 @@ const Character: React.FC = () => {
     setArkGrid(null);
 
     Promise.allSettled([
-      fetchProfile(nickname),
-      fetchEquipment(nickname),
-      fetchGems(nickname),
-      fetchEngravings(nickname),
-      fetchArkGrid(nickname),
+      fetchProfile(nickname, { signal: controller.signal }),
+      fetchEquipment(nickname, { signal: controller.signal }),
+      fetchGems(nickname, { signal: controller.signal }),
+      fetchEngravings(nickname, { signal: controller.signal }),
+      fetchArkGrid(nickname, { signal: controller.signal }),
     ]).then(([profileRes, equipRes, gemsRes, engravRes, arkRes]) => {
+      if (!active || controller.signal.aborted) return;
       if (profileRes.status === 'fulfilled') setProfile(profileRes.value);
       else setError('캐릭터 정보를 가져오는 중 오류가 발생했습니다.');
       if (equipRes.status === 'fulfilled') setEquipment(equipRes.value);
       if (gemsRes.status === 'fulfilled') setGems(gemsRes.value);
       if (engravRes.status === 'fulfilled') setEngravings(engravRes.value);
       if (arkRes.status === 'fulfilled') setArkGrid(arkRes.value);
-    }).finally(() => setLoading(false));
+    }).finally(() => {
+      if (active && !controller.signal.aborted) setLoading(false);
+    });
+
+    return () => {
+      active = false;
+      controller.abort();
+    };
   }, [nickname]);
 
   const handleSearch = (name: string) => {

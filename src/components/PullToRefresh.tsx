@@ -67,6 +67,9 @@ const PullToRefresh: React.FC<Props> = ({ children }) => {
       pullDistRef.current = 0;
 
       if (dist >= THRESHOLD) {
+        // 임계점 도달 — 인디케이터를 임계 위치에 고정한 채 reload 트리거.
+        // reload가 화면을 교체하므로 reset은 호출하지 않음 (reload 실패 시에도 인디케이터가
+        // 임계 위치에 남아 사용자에게 시도 흔적이 보이도록 둠).
         applyContent(THRESHOLD, true);
         applyIndicator(THRESHOLD, true);
         refreshingRef.current = true;
@@ -76,6 +79,7 @@ const PullToRefresh: React.FC<Props> = ({ children }) => {
           /* ignore */
         }
         window.location.reload();
+        return;
       }
 
       applyContent(0, true);

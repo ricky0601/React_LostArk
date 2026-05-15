@@ -23,23 +23,23 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
 }
 
 // --- Character APIs ---
-export const fetchSiblings = (nickname: string): Promise<SiblingCharacter[] | null> =>
-  apiFetch(`/characters/${encodeURIComponent(nickname)}/siblings`);
+export const fetchSiblings = (nickname: string, options?: RequestInit): Promise<SiblingCharacter[] | null> =>
+  apiFetch(`/characters/${encodeURIComponent(nickname)}/siblings`, options);
 
-export const fetchProfile = (characterName: string): Promise<CharacterProfile> =>
-  apiFetch(`/armories/characters/${encodeURIComponent(characterName)}/profiles`);
+export const fetchProfile = (characterName: string, options?: RequestInit): Promise<CharacterProfile> =>
+  apiFetch(`/armories/characters/${encodeURIComponent(characterName)}/profiles`, options);
 
-export const fetchArkGrid = (characterName: string): Promise<ArkGridData> =>
-  apiFetch(`/armories/characters/${encodeURIComponent(characterName)}/arkgrid`);
+export const fetchArkGrid = (characterName: string, options?: RequestInit): Promise<ArkGridData> =>
+  apiFetch(`/armories/characters/${encodeURIComponent(characterName)}/arkgrid`, options);
 
-export const fetchEquipment = (characterName: string): Promise<EquipmentItem[]> =>
-  apiFetch(`/armories/characters/${encodeURIComponent(characterName)}/equipment`);
+export const fetchEquipment = (characterName: string, options?: RequestInit): Promise<EquipmentItem[]> =>
+  apiFetch(`/armories/characters/${encodeURIComponent(characterName)}/equipment`, options);
 
-export const fetchGems = (characterName: string): Promise<GemData> =>
-  apiFetch(`/armories/characters/${encodeURIComponent(characterName)}/gems`);
+export const fetchGems = (characterName: string, options?: RequestInit): Promise<GemData> =>
+  apiFetch(`/armories/characters/${encodeURIComponent(characterName)}/gems`, options);
 
-export const fetchEngravings = (characterName: string): Promise<EngravingData> =>
-  apiFetch(`/armories/characters/${encodeURIComponent(characterName)}/engravings`);
+export const fetchEngravings = (characterName: string, options?: RequestInit): Promise<EngravingData> =>
+  apiFetch(`/armories/characters/${encodeURIComponent(characterName)}/engravings`, options);
 
 // --- Public content APIs ---
 export const fetchEvents = (): Promise<GameEvent[]> =>
