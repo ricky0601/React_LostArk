@@ -373,8 +373,8 @@ export const RAIDS: Raid[] = [
                 difficulty: '노말',
                 requiredLevel: 1640,
                 gates: [
-                    { gate: 1, gold: 2200, bonusCost: 3100, coreReward: 0 },
-                    { gate: 2, gold: 5000, bonusCost: 4900, coreReward: 0 },
+                    { gate: 1, gold: 2200, bonusCost: 1480, coreReward: 0 },
+                    { gate: 2, gold: 5000, bonusCost: 3370, coreReward: 0 },
                 ],
                 totalGold: 7200,
                 isBound: false,
