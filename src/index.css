@@ -9,6 +9,22 @@
   html.dark {
     @apply bg-la-dark text-gray-100;
   }
+
+  /* Native <select> 가독성 보정 — translucent 배경 위에서 option 텍스트가 흐려지는 문제 해결.
+     option 요소는 select className을 상속받지 못해 명시적 설정 필요. */
+  select option {
+    background-color: #ffffff;
+    color: #1f2937;
+  }
+  html.dark select option {
+    background-color: #1f2937;
+    color: #f3f4f6;
+  }
+  /* 선택된 option 강조 — 브라우저 기본 highlight와 충돌 방지 */
+  html.dark select option:checked {
+    background: linear-gradient(0deg, #374151 0%, #374151 100%);
+    color: #fbbf24; /* la-gold 톤 */
+  }
 }
 
 @layer components {
