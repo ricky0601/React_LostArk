@@ -152,3 +152,59 @@ export interface ArkPassiveEffect {
   Name: string;
   Description: string;
 }
+
+/** GET /armories/characters/{name}/arkpassive 응답 — 직업 깨달음 포함 */
+export interface ArkPassiveData {
+  IsArkPassive: boolean;
+  Points: ArkPassivePoint[] | null;
+  Effects: ArkPassiveDataEffect[] | null;
+}
+
+export interface ArkPassivePoint {
+  Name: string;
+  Value: number;
+  Tooltip: string;
+}
+
+export interface ArkPassiveDataEffect {
+  /** 진화/깨달음/도약 중 하나 */
+  Name: string;
+  Level: number;
+  /** 노드 이름. 예: '빛의 기사', '광기' */
+  Description: string;
+  Icon?: string;
+}
+
+/** GET /armories/characters/{name}/cards 응답 */
+export interface CardData {
+  Cards: CardItem[] | null;
+  Effects: CardSetEntry[] | null;
+}
+
+export interface CardItem {
+  Slot: number;
+  Name: string;
+  Icon: string;
+  AwakeCount: number;
+  AwakeTotal: number;
+  Grade: string;
+  Tooltip: string;
+}
+
+export interface CardSetEntry {
+  Index: number;
+  CardEffects: CardSetEffect[];
+  Items: CardSetItem[];
+}
+
+export interface CardSetEffect {
+  Index: number;
+  /** 예: '세상을 구하는 빛 6세트 (30각성합계)' */
+  Name: string;
+  Description: string;
+}
+
+export interface CardSetItem {
+  Name: string;
+  Icon: string;
+}

@@ -1,4 +1,15 @@
-import type { SiblingCharacter, CharacterProfile, GameEvent, CalendarItem, ArkGridData, EquipmentItem, GemData, EngravingData } from '../types/lostark';
+import type {
+  SiblingCharacter,
+  CharacterProfile,
+  GameEvent,
+  CalendarItem,
+  ArkGridData,
+  EquipmentItem,
+  GemData,
+  EngravingData,
+  ArkPassiveData,
+  CardData,
+} from '../types/lostark';
 
 const BASE_URL = 'https://developer-lostark.game.onstove.com';
 const API_KEY = process.env.REACT_APP_API_KEY;
@@ -40,6 +51,12 @@ export const fetchGems = (characterName: string, options?: RequestInit): Promise
 
 export const fetchEngravings = (characterName: string, options?: RequestInit): Promise<EngravingData> =>
   apiFetch(`/armories/characters/${encodeURIComponent(characterName)}/engravings`, options);
+
+export const fetchArkPassive = (characterName: string, options?: RequestInit): Promise<ArkPassiveData> =>
+  apiFetch(`/armories/characters/${encodeURIComponent(characterName)}/arkpassive`, options);
+
+export const fetchCards = (characterName: string, options?: RequestInit): Promise<CardData> =>
+  apiFetch(`/armories/characters/${encodeURIComponent(characterName)}/cards`, options);
 
 // --- Public content APIs ---
 export const fetchEvents = (): Promise<GameEvent[]> =>
