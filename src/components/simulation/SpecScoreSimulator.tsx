@@ -16,7 +16,6 @@ import {
 import type { EquipSlot } from '../../data/specScore/lopecCoefficients';
 import {
   ACCESSORY_SLOTS,
-  ACCESSORY_LABELS,
   POLISH_OPTIONS,
   findPolishOption,
   type AccessorySlot,
@@ -149,7 +148,7 @@ const SpecScoreSimulator: React.FC<Props> = ({ profile }) => {
     return () => {
       cancelled = true;
     };
-  }, [profile.CharacterName]);
+  }, [profile.CharacterName, profile.Stats]);
 
   const modifiedRaw = useMemo(() => {
     if (!raw) return null;
@@ -260,17 +259,6 @@ const SpecScoreSimulator: React.FC<Props> = ({ profile }) => {
     return calcSpecScore(profile, raw.engravings, raw.gems, raw.arkPassive, raw.cards);
   }, [profile, raw]);
 
-  const modifiedResult = useMemo(() => {
-    if (!modifiedRaw) return null;
-    return calcSpecScore(
-      profile,
-      modifiedRaw.engravings,
-      modifiedRaw.gems,
-      modifiedRaw.arkPassive,
-      modifiedRaw.cards,
-    );
-  }, [profile, modifiedRaw]);
-
   const sim = useMemo(() => {
     if (!currentResult || !raw || !modifiedRaw) return null;
     // lopec 추출 계수만 사용 (정확). 카드/깨달음 변경은 별도 lopec 측정 후 추가 예정.
@@ -294,19 +282,6 @@ const SpecScoreSimulator: React.FC<Props> = ({ profile }) => {
       delta: round2(lopecSimulated - currentResult.score),
     };
   }, [currentResult, raw, modifiedRaw]);
-
-  // 현재 카드 세트 추출 — early return 이전에 호출 (Rules of Hooks)
-  const detectedCardSets = useMemo(() => {
-    const sets = new Set<string>();
-    raw?.cards?.Effects?.forEach((setEntry) => {
-      const items = (setEntry as { Items?: Array<{ Name: string }> }).Items;
-      items?.forEach((it) => {
-        const m = it.Name.match(/^(.+?)\s+\d+세트/);
-        if (m) sets.add(m[1]);
-      });
-    });
-    return Array.from(sets);
-  }, [raw]);
 
   const hasMods =
     Object.keys(mods.gems).length > 0 ||
@@ -342,20 +317,6 @@ const SpecScoreSimulator: React.FC<Props> = ({ profile }) => {
     setMods((prev) => ({
       ...prev,
       engs: { ...prev.engs, [name]: { ...prev.engs[name], ...patch } },
-    }));
-  };
-
-  const updateCardMod = (name: string, patch: CardMod): void => {
-    setMods((prev) => ({
-      ...prev,
-      cards: { ...prev.cards, [name]: { ...prev.cards[name], ...patch } },
-    }));
-  };
-
-  const updateAwakeningMod = (name: string, patch: AwakeningMod): void => {
-    setMods((prev) => ({
-      ...prev,
-      awakenings: { ...prev.awakenings, [name]: { ...prev.awakenings[name], ...patch } },
     }));
   };
 

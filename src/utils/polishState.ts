@@ -45,7 +45,7 @@ const parsePolishEffects = (tooltipJson: string): [PolishOption, PolishOption, P
         const clean = line.trim();
         if (!clean) continue;
         // line: "적에게 주는 피해 +1.20%" 또는 "공격력 +390"
-        const m = clean.match(/^(.+?)\s*([+\-]?\d+(?:\.\d+)?)(%?)\s*$/);
+        const m = clean.match(/^(.+?)\s*([+-]?\d+(?:\.\d+)?)(%?)\s*$/);
         if (!m) continue;
         const [, rawType, valStr, pctMark] = m;
         const value = parseFloat(valStr);
