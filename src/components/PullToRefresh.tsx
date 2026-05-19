@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { CHUNK_ERROR_KEY } from '../context/PwaChunkContext';
+import { safeSessionStorage } from '../utils/safeStorage';
 
 interface Props {
   children: React.ReactNode;
@@ -73,11 +74,7 @@ const PullToRefresh: React.FC<Props> = ({ children }) => {
         applyContent(THRESHOLD, true);
         applyIndicator(THRESHOLD, true);
         refreshingRef.current = true;
-        try {
-          sessionStorage.removeItem(CHUNK_ERROR_KEY);
-        } catch {
-          /* ignore */
-        }
+        safeSessionStorage.removeItem(CHUNK_ERROR_KEY);
         window.location.reload();
         return;
       }

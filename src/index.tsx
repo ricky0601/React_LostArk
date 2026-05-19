@@ -5,6 +5,7 @@ import App from './App';
 import reportWebVitals from './reportWebVitals';
 import { inject } from '@vercel/analytics';
 import { CHUNK_ERROR_KEY, CHUNK_ERROR_EVENT } from './context/PwaChunkContext';
+import { safeSessionStorage } from './utils/safeStorage';
 
 inject();
 function isChunkLoadErrorMsg(message: string): boolean {
@@ -16,12 +17,8 @@ function isChunkLoadErrorMsg(message: string): boolean {
   );
 }
 function setChunkErrorFlag(): void {
-  try {
-    sessionStorage.setItem(CHUNK_ERROR_KEY, '1');
-    window.dispatchEvent(new CustomEvent(CHUNK_ERROR_EVENT));
-  } catch {
-    /* ignore */
-  }
+  safeSessionStorage.setItem(CHUNK_ERROR_KEY, '1');
+  window.dispatchEvent(new CustomEvent(CHUNK_ERROR_EVENT));
 }
 window.addEventListener('error', (e: ErrorEvent) => {
   if (e.message && isChunkLoadErrorMsg(e.message)) setChunkErrorFlag();

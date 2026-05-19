@@ -21,3 +21,8 @@ export const migrateLegacyKeys = (keys: unknown): string[] => {
     .map((k) => (typeof k === 'string' ? k.split(LEGACY_KEY_SEP).join(KEY_SEP) : ''))
     .filter((k) => k.length > 0);
 };
+
+export const filterPersistedStringArray = (value: unknown): string[] => {
+  if (!Array.isArray(value)) return [];
+  return value.filter((entry): entry is string => typeof entry === 'string' && entry.length > 0);
+};

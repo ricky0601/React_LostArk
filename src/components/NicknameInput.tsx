@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { LS_NICKNAME } from '../utils/api';
+import { safeLocalStorage } from '../utils/safeStorage';
 
 interface NicknameInputProps {
   title: string;
@@ -10,14 +11,14 @@ interface NicknameInputProps {
 
 const NicknameInput: React.FC<NicknameInputProps> = ({ title, description, buttonText, onSubmit }) => {
   const [input, setInput] = useState<string>(() => {
-    return localStorage.getItem(LS_NICKNAME) || '';
+    return safeLocalStorage.getItem(LS_NICKNAME) || '';
   });
 
   const handleSubmit = (e: React.FormEvent): void => {
     e.preventDefault();
     const trimmed = input.trim();
     if (trimmed) {
-      localStorage.setItem(LS_NICKNAME, trimmed);
+      safeLocalStorage.setItem(LS_NICKNAME, trimmed);
       onSubmit(trimmed);
     }
   };

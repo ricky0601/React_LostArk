@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
+import { safeSessionStorage } from '../utils/safeStorage';
 
 export const CHUNK_ERROR_KEY = 'loa_chunk_error';
 export const CHUNK_ERROR_EVENT = 'loa-chunk-error';
@@ -12,11 +13,7 @@ const PwaChunkContext = createContext<PwaChunkContextValue | null>(null);
 
 export function PwaChunkProvider({ children }: { children: React.ReactNode }) {
   const [chunkErrorOccurred, setChunkErrorOccurred] = useState<boolean>(() => {
-    try {
-      return sessionStorage.getItem(CHUNK_ERROR_KEY) === '1';
-    } catch {
-      return false;
-    }
+    return safeSessionStorage.getItem(CHUNK_ERROR_KEY) === '1';
   });
 
   useEffect(() => {

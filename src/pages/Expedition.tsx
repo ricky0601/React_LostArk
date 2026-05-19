@@ -7,6 +7,7 @@ import NicknameSearchBar from '../components/NicknameSearchBar';
 import GlassCard from '../components/GlassCard';
 import type { CharacterProfile, SiblingCharacter } from '../types/lostark';
 import { fetchProfile, fetchSiblings, LS_NICKNAME } from '../utils/api';
+import { safeLocalStorage } from '../utils/safeStorage';
 
 function parseItemLevel(level: string): number {
   return parseFloat(level.replace(/,/g, '')) || 0;
@@ -15,7 +16,7 @@ function parseItemLevel(level: string): number {
 const Expedition: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const urlNickname = searchParams.get('nickname');
-  const [nickname, setNickname] = useState<string | null>(() => urlNickname || localStorage.getItem(LS_NICKNAME));
+  const [nickname, setNickname] = useState<string | null>(() => urlNickname || safeLocalStorage.getItem(LS_NICKNAME));
   const [server, setServer] = useState<string | null>(null);
   const [siblings, setSiblings] = useState<SiblingCharacter[]>([]);
   const [profiles, setProfiles] = useState<CharacterProfile[]>([]);
@@ -55,7 +56,7 @@ const Expedition: React.FC = () => {
     let cancelled = false;
 
     const loadExpedition = async (): Promise<void> => {
-      localStorage.setItem(LS_NICKNAME, nickname);
+      safeLocalStorage.setItem(LS_NICKNAME, nickname);
       setLoading(true);
       setError(null);
 

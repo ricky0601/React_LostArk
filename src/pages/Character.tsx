@@ -16,6 +16,7 @@ import { fetchProfile, fetchEquipment, fetchGems, fetchEngravings, fetchArkGrid,
 import SpecScoreSimulator from '../components/simulation/SpecScoreSimulator';
 import { type EffectSegment, stripHtml, htmlColorToGrade, parseBraceletLine } from '../utils/tooltipParser';
 import { gradeFrame, gradeStyles, EFFECT_GRADE_COLORS, qualityTextColor, qualityBgColor } from '../utils/equipmentColors';
+import { safeLocalStorage } from '../utils/safeStorage';
 
 interface EquipmentEffect { grade: string | null; text: string; segments?: EffectSegment[] }
 
@@ -523,7 +524,7 @@ const Character: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const urlNickname = searchParams.get('nickname');
   const [nickname, setNickname] = useState<string | null>(
-    () => urlNickname || localStorage.getItem(LS_NICKNAME)
+    () => urlNickname || safeLocalStorage.getItem(LS_NICKNAME)
   );
 
   const [profile, setProfile] = useState<CharacterProfile | null>(null);
@@ -556,7 +557,7 @@ const Character: React.FC = () => {
     const controller = new AbortController();
     let active = true;
 
-    localStorage.setItem(LS_NICKNAME, nickname);
+    safeLocalStorage.setItem(LS_NICKNAME, nickname);
     setLoading(true);
     setError(null);
     setProfile(null);

@@ -1,4 +1,4 @@
-import { KEY_SEP, bonusKey, completedKey, migrateLegacyKeys } from './simulationKeys';
+import { KEY_SEP, bonusKey, completedKey, filterPersistedStringArray, migrateLegacyKeys } from './simulationKeys';
 
 describe('simulationKeys', () => {
   describe('bonusKey / completedKey', () => {
@@ -65,6 +65,19 @@ describe('simulationKeys', () => {
       expect(migrated).toEqual([
         `치코리${KEY_SEP}베히모스${KEY_SEP}노말`,
       ]);
+    });
+  });
+
+  describe('filterPersistedStringArray', () => {
+    it('문자열 배열의 비어 있지 않은 문자열만 유지', () => {
+      expect(filterPersistedStringArray(['A', '', 'B', 0, null, undefined, {}, 'C'])).toEqual(['A', 'B', 'C']);
+    });
+
+    it('배열이 아닌 입력은 빈 배열 반환', () => {
+      expect(filterPersistedStringArray(null)).toEqual([]);
+      expect(filterPersistedStringArray(undefined)).toEqual([]);
+      expect(filterPersistedStringArray('not an array')).toEqual([]);
+      expect(filterPersistedStringArray({ 0: 'A' })).toEqual([]);
     });
   });
 });

@@ -9,6 +9,7 @@ import Enhancement from './pages/Enhancement';
 import Spending from './pages/Spending';
 import ThemeToggle from './components/ThemeToggle';
 import { PwaChunkProvider, usePwaChunk } from './context/PwaChunkContext';
+import { safeLocalStorage } from './utils/safeStorage';
 
 const ChunkErrorBanner: React.FC = () => {
   const { chunkErrorOccurred } = usePwaChunk();
@@ -22,14 +23,14 @@ const ChunkErrorBanner: React.FC = () => {
 
 const AppContent: React.FC = () => {
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
-    const stored = localStorage.getItem('isDarkMode');
+    const stored = safeLocalStorage.getItem('isDarkMode');
     return stored === null ? true : stored === 'true';
   });
 
   useEffect(() => {
     const root = document.documentElement;
     root.classList.toggle('dark', isDarkMode);
-    localStorage.setItem('isDarkMode', String(isDarkMode));
+    safeLocalStorage.setItem('isDarkMode', String(isDarkMode));
   }, [isDarkMode]);
 
   const toggleDarkMode = (): void => {

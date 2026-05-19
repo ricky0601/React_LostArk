@@ -8,7 +8,8 @@ import NicknameSearchBar from '../components/NicknameSearchBar';
 import CharacterRaidCard from '../components/simulation/CharacterRaidCard';
 import GoldLoadingSkeleton from '../components/simulation/GoldLoadingSkeleton';
 import { fetchSiblings, fetchProfile, LS_NICKNAME } from '../utils/api';
-import { KEY_SEP, bonusKey, completedKey, migrateLegacyKeys } from '../utils/simulationKeys';
+import { KEY_SEP, bonusKey, completedKey, filterPersistedStringArray, migrateLegacyKeys } from '../utils/simulationKeys';
+import { safeLocalStorage } from '../utils/safeStorage';
 import {
     calculateCharacterGold,
     getRaidDataByKey,
@@ -39,21 +40,29 @@ const LS_BONUS = 'loaGold_bonus';
 const LS_SELECTED = 'loaGold_selectedNames';
 
 function readPersistedStringArray(storageKey: string): string[] {
-    const rawValue = localStorage.getItem(storageKey);
+    const rawValue = safeLocalStorage.getItem(storageKey);
     if (!rawValue) return [];
 
     try {
         const parsed: unknown = JSON.parse(rawValue);
         if (Array.isArray(parsed)) {
-            return parsed as string[];
+            const filtered = filterPersistedStringArray(parsed);
+            if (filtered.length !== parsed.length) {
+                if (filtered.length > 0) {
+                    safeLocalStorage.setItem(storageKey, JSON.stringify(filtered));
+                } else {
+                    safeLocalStorage.removeItem(storageKey);
+                }
+            }
+            return filtered;
         }
     } catch (error: unknown) {
         void error;
-        localStorage.removeItem(storageKey);
+        safeLocalStorage.removeItem(storageKey);
         return [];
     }
 
-    localStorage.removeItem(storageKey);
+    safeLocalStorage.removeItem(storageKey);
     return [];
 }
 
@@ -61,7 +70,7 @@ const Simulation: React.FC = () => {
     const [searchParams, setSearchParams] = useSearchParams();
     const urlNickname = searchParams.get('nickname');
     const [nickname, setNickname] = useState<string | null>(() => {
-        return urlNickname || localStorage.getItem(LS_NICKNAME);
+        return urlNickname || safeLocalStorage.getItem(LS_NICKNAME);
     });
     const [server, setServer] = useState<string | null>(null);
     const [characterNames, setCharacterNames] = useState<SiblingCharacter[]>([]);
@@ -76,18 +85,18 @@ const Simulation: React.FC = () => {
     const [customRaidSelection, setCustomRaidSelection] = useState<Record<string, string[]>>({});
     const [bonusSelections, setBonusSelections] = useState<Set<string>>(() => {
         const weekKey = getLoaWeekKey();
-        const stored = localStorage.getItem(LS_WEEK_KEY);
+        const stored = safeLocalStorage.getItem(LS_WEEK_KEY);
         if (stored !== weekKey) {
-            localStorage.setItem(LS_WEEK_KEY, weekKey);
-            localStorage.removeItem(LS_COMPLETED);
-            localStorage.removeItem(LS_BONUS);
+            safeLocalStorage.setItem(LS_WEEK_KEY, weekKey);
+            safeLocalStorage.removeItem(LS_COMPLETED);
+            safeLocalStorage.removeItem(LS_BONUS);
             return new Set();
         }
         return new Set(migrateLegacyKeys(readPersistedStringArray(LS_BONUS)));
     });
     const [completedRaids, setCompletedRaids] = useState<Set<string>>(() => {
         const weekKey = getLoaWeekKey();
-        const stored = localStorage.getItem(LS_WEEK_KEY);
+        const stored = safeLocalStorage.getItem(LS_WEEK_KEY);
         if (stored !== weekKey) return new Set();
         return new Set(migrateLegacyKeys(readPersistedStringArray(LS_COMPLETED)));
     });
@@ -108,7 +117,7 @@ const Simulation: React.FC = () => {
     useEffect(() => {
         if (!nickname) return;
         let cancelled = false;
-        localStorage.setItem(LS_NICKNAME, nickname);
+        safeLocalStorage.setItem(LS_NICKNAME, nickname);
         setLoading(true);
         setError(null);
 
@@ -309,17 +318,17 @@ const Simulation: React.FC = () => {
         });
     }, [selectedNames]);
 
-    // localStorage 동기화
+    // storage 동기화
     useEffect(() => {
-        localStorage.setItem(LS_SELECTED, JSON.stringify(Array.from(selectedNames)));
+        safeLocalStorage.setItem(LS_SELECTED, JSON.stringify(Array.from(selectedNames)));
     }, [selectedNames]);
 
     useEffect(() => {
-        localStorage.setItem(LS_BONUS, JSON.stringify(Array.from(bonusSelections)));
+        safeLocalStorage.setItem(LS_BONUS, JSON.stringify(Array.from(bonusSelections)));
     }, [bonusSelections]);
 
     useEffect(() => {
-        localStorage.setItem(LS_COMPLETED, JSON.stringify(Array.from(completedRaids)));
+        safeLocalStorage.setItem(LS_COMPLETED, JSON.stringify(Array.from(completedRaids)));
     }, [completedRaids]);
 
     const goldResults: CharacterGoldResult[] = useMemo(() => {
