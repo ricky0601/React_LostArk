@@ -67,7 +67,7 @@ const Spending: React.FC = () => {
   return (
     <div>
       <NavBar />
-      <div className="max-w-2xl mx-auto px-4 py-6 space-y-5">
+      <main className="max-w-2xl mx-auto px-4 py-6 space-y-5">
 
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
@@ -121,7 +121,10 @@ const Spending: React.FC = () => {
         {/* 스크립트 미리보기 */}
         <GlassCard className="p-4">
           <button
+            type="button"
             onClick={() => setShowScript((v) => !v)}
+            aria-expanded={showScript}
+            aria-controls="spending-script-preview"
             className="flex items-center justify-between w-full"
           >
             <p className="text-xs font-semibold text-gray-500 dark:text-gray-400">
@@ -132,7 +135,7 @@ const Spending: React.FC = () => {
             </span>
           </button>
           {showScript && (
-            <div className="mt-3 rounded-lg overflow-hidden">
+            <div id="spending-script-preview" className="mt-3 rounded-lg overflow-hidden">
               <pre className="p-4 bg-gray-900 text-gray-300 text-xs leading-relaxed overflow-x-auto whitespace-pre-wrap break-all">
                 {STOVE_SCRIPT}
               </pre>
@@ -140,7 +143,7 @@ const Spending: React.FC = () => {
           )}
         </GlassCard>
 
-      </div>
+      </main>
     </div>
   );
 };

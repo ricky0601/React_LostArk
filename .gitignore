@@ -32,3 +32,6 @@ yarn-error.log*
 .serena/
 .agent/
 .sisyphus/
+.playwright-mcp/
+*mobile*.png
+compare-mobile.png

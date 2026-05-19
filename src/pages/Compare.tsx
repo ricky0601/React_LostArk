@@ -405,7 +405,8 @@ const ProfileSection: React.FC<{ left: CharacterProfile; right: CharacterProfile
 
       <div className={`overflow-hidden transition-all duration-300 ${expanded ? 'max-h-[2000px] opacity-100 mt-4' : 'max-h-0 opacity-0'}`}>
       {/* Character images + basic info */}
-      <div className="grid grid-cols-2 gap-4 mb-6">
+      <div className="relative grid grid-cols-2 gap-3 sm:gap-4 mb-6">
+        <div aria-hidden className="pointer-events-none absolute inset-y-0 left-1/2 -translate-x-1/2 w-px bg-gray-200/70 dark:bg-white/15" />
         {[left, right].map((p, i) => {
           const isWin = i === 0 ? lWin : rWin;
           return (
@@ -664,8 +665,9 @@ const GemSection: React.FC<{
       </div>
 
       {/* Gem lists side by side */}
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-0">
+      <div className="relative grid grid-cols-2 gap-3 sm:gap-4">
+        <div aria-hidden className="pointer-events-none absolute inset-y-0 left-1/2 -translate-x-1/2 w-px bg-gray-200/70 dark:bg-white/15" />
+        <div className="space-y-0 min-w-0">
           {leftSorted.length > 0 ? (
             leftSorted.map((g, i) => (
               <GemBadge key={i} gem={g} skill={leftSkillMap.get(g.Slot)} />
@@ -674,7 +676,7 @@ const GemSection: React.FC<{
             <p className="text-xs text-gray-400 italic">보석 없음</p>
           )}
         </div>
-        <div className="space-y-0">
+        <div className="space-y-0 min-w-0">
           {rightSorted.length > 0 ? (
             rightSorted.map((g, i) => (
               <GemBadge key={i} gem={g} skill={rightSkillMap.get(g.Slot)} />
@@ -747,15 +749,16 @@ const EngravingSection: React.FC<{
       {leftEffects.length === 0 && rightEffects.length === 0 ? (
         <p className="text-sm text-gray-400 text-center py-4">각인 정보가 없습니다</p>
       ) : (
-        <div className="grid grid-cols-2 gap-4">
-          <div>
+        <div className="relative grid grid-cols-2 gap-3 sm:gap-4">
+          <div aria-hidden className="pointer-events-none absolute inset-y-0 left-1/2 -translate-x-1/2 w-px bg-gray-200/70 dark:bg-white/15" />
+          <div className="min-w-0">
             {leftEffects.length > 0 ? (
               leftEffects.map((e, i) => <EngravingCard key={i} effect={e} />)
             ) : (
               <p className="text-xs text-gray-400 italic py-2">정보 없음</p>
             )}
           </div>
-          <div>
+          <div className="min-w-0">
             {rightEffects.length > 0 ? (
               rightEffects.map((e, i) => <EngravingCard key={i} effect={e} />)
             ) : (
@@ -823,7 +826,23 @@ const ArkGridSection: React.FC<{
   };
   const leftMap = effectNameToLevel(leftEffects);
   const rightMap = effectNameToLevel(rightEffects);
-  const allOptionNames = Array.from(new Set([...Array.from(leftMap.keys()), ...Array.from(rightMap.keys())])).sort();
+  const optionOrder = ['공격력', '추가피해', '보스피해', '낙인력', '아공강', '아피강'];
+  const normalizeOption = (name: string) => name.replace(/\s+/g, '');
+  const toOrderKey = (name: string) => {
+    const normalized = normalizeOption(name);
+    if (normalized === '아군공격강화') return '아공강';
+    if (normalized === '아군피해강화') return '아피강';
+    return normalized;
+  };
+
+  const allOptionNames = Array.from(new Set([...Array.from(leftMap.keys()), ...Array.from(rightMap.keys())])).sort((a, b) => {
+    const aIdx = optionOrder.indexOf(toOrderKey(a));
+    const bIdx = optionOrder.indexOf(toOrderKey(b));
+    if (aIdx !== -1 && bIdx !== -1) return aIdx - bIdx;
+    if (aIdx !== -1) return -1;
+    if (bIdx !== -1) return 1;
+    return a.localeCompare(b, 'ko');
+  });
 
   return (
     <GlassCard className="p-5 animate-fade-in">
@@ -853,7 +872,8 @@ const ArkGridSection: React.FC<{
             </p>
           </div>
         </div>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="relative grid grid-cols-2 gap-3 sm:gap-4">
+          <div aria-hidden className="pointer-events-none absolute inset-y-0 left-1/2 -translate-x-1/2 w-px bg-gray-200/70 dark:bg-white/15" />
           <div className="min-w-0">{renderSlots(leftSlots)}</div>
           <div className="min-w-0">{renderSlots(rightSlots)}</div>
         </div>
@@ -911,7 +931,7 @@ const CompareSkeleton: React.FC = () => (
   <div className="space-y-6 animate-fade-in">
     <GlassCard className="p-5">
       <div className="skeleton h-6 w-32 mb-4" />
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4">
         <div className="space-y-3">
           <div className="skeleton h-48 rounded-xl" />
           <div className="skeleton h-4 w-24 mx-auto" />
@@ -1032,11 +1052,11 @@ const Compare: React.FC = () => {
       <main className="max-w-5xl mx-auto px-4 py-8">
         {/* Input Section */}
         <GlassCard className="p-6 mb-8 animate-fade-in">
-          <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4 text-center">
+          <h1 className="text-lg font-bold text-gray-900 dark:text-white mb-4 text-center">
             캐릭터 비교
-          </h2>
+          </h1>
 
-          <div className="flex items-start gap-4" onKeyDown={handleKeyDown}>
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-start gap-3 sm:gap-4" onKeyDown={handleKeyDown}>
             <CharacterInput
               label="캐릭터 A"
               value={leftName}
@@ -1044,7 +1064,7 @@ const Compare: React.FC = () => {
               placeholder="캐릭터 닉네임"
             />
 
-            <div className="flex-shrink-0 pt-7">
+            <div className="flex-shrink-0 self-center sm:self-auto sm:pt-7">
               <div className="w-10 h-10 rounded-full bg-la-gold/10 flex items-center justify-center">
                 <span className="text-la-gold-dark dark:text-la-gold font-bold text-sm">VS</span>
               </div>

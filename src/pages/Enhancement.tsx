@@ -804,7 +804,7 @@ const Enhancement: React.FC = () => {
   return (
     <div>
       <NavBar />
-      <div className="max-w-4xl mx-auto px-4 py-6 space-y-5">
+      <main className="max-w-4xl mx-auto px-4 py-6 space-y-5">
 
         {/* ── 헤더 ── */}
         <div>
@@ -844,7 +844,7 @@ const Enhancement: React.FC = () => {
           )}
 
           {/* 슬롯 카드 - 현재 강화 수치 표시 */}
-          <div className="grid grid-cols-6 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-6 gap-2">
             {ALL_SLOTS.map((slot) => {
               const hasData = slotHasData[slot];
               const level = slotCurrentLevel[slot];
@@ -919,7 +919,7 @@ const Enhancement: React.FC = () => {
               ))}
             </select>
           </div>
-          <div className="grid grid-cols-6 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-6 gap-2">
             {ALL_SLOTS.map((slot) => {
               const currentLvl = slotCurrentLevel[slot];
               return (
@@ -962,7 +962,7 @@ const Enhancement: React.FC = () => {
                   ))}
                 </select>
               </div>
-              <div className="grid grid-cols-6 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-6 gap-2">
                 {ALL_SLOTS.map((slot) => {
                   if (slotInheritedMap[slot]) {
                     return <div key={slot} />;
@@ -1537,7 +1537,7 @@ const Enhancement: React.FC = () => {
           </div>
         </GlassCard>
 
-      </div>
+      </main>
     </div>
   );
 };

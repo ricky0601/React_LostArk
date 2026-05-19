@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useSearchParams, Link } from 'react-router-dom';
 import PullToRefresh from '../components/PullToRefresh';
 import type {
@@ -121,7 +122,7 @@ const ProfileCard: React.FC<{ profile: CharacterProfile; nickname: string }> = (
       <img
         src={profile.CharacterImage}
         alt={profile.CharacterName}
-        className="w-full h-auto object-cover object-top"
+        className="w-full h-auto max-h-[240px] sm:max-h-[340px] md:max-h-none object-cover object-top"
       />
       <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
       <div className="absolute bottom-0 left-0 right-0 p-4">
@@ -131,7 +132,7 @@ const ProfileCard: React.FC<{ profile: CharacterProfile; nickname: string }> = (
     </div>
 
     {/* 아이템레벨 + 전투력 */}
-    <div className="flex gap-6 px-4 py-3 border-b border-gray-200/30 dark:border-white/5">
+    <div className="flex gap-5 px-4 py-2.5 sm:py-3 border-b border-gray-200/30 dark:border-white/5">
       <div>
         <p className="text-[10px] text-gray-400 uppercase tracking-wider">아이템</p>
         <p className="text-lg font-bold text-la-gold-dark dark:text-la-gold">{profile.ItemAvgLevel}</p>
@@ -145,7 +146,7 @@ const ProfileCard: React.FC<{ profile: CharacterProfile; nickname: string }> = (
     </div>
 
     {/* 캐릭터 정보 */}
-    <div className="px-4 py-3 space-y-2 text-sm">
+    <div className="px-4 py-2.5 sm:py-3 space-y-1.5 sm:space-y-2 text-[13px] sm:text-sm">
       {[
         { label: '캐릭터 레벨', value: `Lv.${profile.CharacterLevel}` },
         { label: '원정대 레벨', value: `Lv.${profile.ExpeditionLevel}` },
@@ -189,28 +190,120 @@ const ProfileCard: React.FC<{ profile: CharacterProfile; nickname: string }> = (
 
 const ArkPassiveCard: React.FC<{ data: EngravingData }> = ({ data }) => {
   const passives = data.ArkPassiveEffects ?? [];
+  const isCoarsePointer = typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches;
+  const [activeTooltip, setActiveTooltip] = useState<{
+    key: string;
+    x: number;
+    y: number;
+    placeAbove: boolean;
+    segments: EffectSegment[];
+  } | null>(null);
+  const wrapperRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target as Node | null;
+      if (!target) return;
+      if (wrapperRef.current?.contains(target)) return;
+      if ((target as Element).closest?.('[data-engraving-tooltip="true"]')) return;
+      setActiveTooltip(null);
+    };
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setActiveTooltip(null);
+    };
+
+    window.addEventListener('pointerdown', handlePointerDown);
+    window.addEventListener('keydown', handleEscape);
+    return () => {
+      window.removeEventListener('pointerdown', handlePointerDown);
+      window.removeEventListener('keydown', handleEscape);
+    };
+  }, []);
+
   if (passives.length === 0) return null;
+
+  const showTooltip = (key: string, target: HTMLDivElement, segments: EffectSegment[], plainText: string) => {
+    if (!plainText) return;
+    const rect = target.getBoundingClientRect();
+    const width = 320;
+    const padding = 12;
+    const half = width / 2;
+    const x = Math.min(Math.max(rect.left + rect.width / 2, padding + half), window.innerWidth - padding - half);
+    const placeAbove = window.innerHeight - rect.bottom < 180;
+    const y = placeAbove ? rect.top - 8 : rect.bottom + 8;
+    setActiveTooltip({ key, x, y, placeAbove, segments });
+  };
+
   return (
-    <GlassCard className="p-4 animate-fade-in">
-      <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">아크 패시브</p>
-      <div className="flex flex-wrap gap-2">
-        {passives.map((effect, i) => {
-          const frame = gradeStyles(effect.Grade, 'subtle');
-          return (
-            <div
-              key={i}
-              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border ${frame.className}`}
-              style={frame.style}
-            >
-              <span className="text-sm font-medium">{effect.Name}</span>
-              <span className="text-xs font-bold px-1 py-0.5 rounded bg-white/10">
-                Lv.{effect.Level}
-              </span>
-            </div>
-          );
-        })}
-      </div>
-    </GlassCard>
+    <>
+      <GlassCard className="p-4 animate-fade-in">
+        <p className="mb-3 flex items-center gap-2 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+          <span className="h-3 w-0.5 rounded-full bg-la-gold/80" />
+          <span>각인</span>
+        </p>
+        <div ref={wrapperRef} className="flex flex-wrap gap-2">
+          {passives.map((effect, i) => {
+            const frame = gradeStyles(effect.Grade, 'subtle');
+            const key = `${effect.Name}-${effect.Level}-${i}`;
+            const segments = parseBraceletLine(effect.Description || '');
+            const plainText = stripHtml(effect.Description || '').replace(/\s+/g, ' ').trim();
+            const tooltipSegments = segments.length > 0 ? segments : [{ text: plainText, color: null }];
+
+            return (
+              <div
+                key={key}
+                className={`group flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border cursor-default ${frame.className}`}
+                style={frame.style}
+                onMouseEnter={(e) => {
+                  if (isCoarsePointer) return;
+                  showTooltip(key, e.currentTarget, tooltipSegments, plainText);
+                }}
+                onMouseLeave={() => {
+                  if (isCoarsePointer) return;
+                  setActiveTooltip((prev) => (prev?.key === key ? null : prev));
+                }}
+                onFocus={(e) => showTooltip(key, e.currentTarget as HTMLDivElement, tooltipSegments, plainText)}
+                onBlur={() => setActiveTooltip((prev) => (prev?.key === key ? null : prev))}
+                onClick={(e) => {
+                  if (!isCoarsePointer) return;
+                  if (activeTooltip?.key === key) {
+                    setActiveTooltip(null);
+                    return;
+                  }
+                  showTooltip(key, e.currentTarget as HTMLDivElement, tooltipSegments, plainText);
+                }}
+                tabIndex={0}
+              >
+                <span className="text-sm font-medium">{effect.Name}</span>
+                <span className="text-xs font-bold px-1 py-0.5 rounded bg-white/10">
+                  Lv.{effect.Level}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </GlassCard>
+      {activeTooltip && createPortal(
+        <div
+          data-engraving-tooltip="true"
+          role="tooltip"
+          className="pointer-events-none fixed z-[9999] w-80 rounded-lg border border-gray-200 bg-white/95 px-3 py-2 text-xs leading-relaxed text-gray-800 shadow-lg dark:border-white/10 dark:bg-la-dark/95 dark:text-gray-100"
+          style={{
+            left: `${activeTooltip.x}px`,
+            top: `${activeTooltip.y}px`,
+            transform: activeTooltip.placeAbove ? 'translate(-50%, -100%)' : 'translateX(-50%)',
+          }}
+        >
+          {activeTooltip.segments.map((seg, idx) => (
+            <span key={idx} style={{ color: seg.color || undefined }}>
+              {seg.text}
+            </span>
+          ))}
+        </div>,
+        document.body,
+      )}
+    </>
   );
 };
 
@@ -218,7 +311,7 @@ const ArkGridCard: React.FC<{ data: ArkGridData }> = ({ data }) => {
   if (!data.Slots || data.Slots.length === 0) return null;
   return (
     <GlassCard className="p-4 animate-fade-in">
-      <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">아크 그리드</p>
+      <p className="mb-3 flex items-center gap-2 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider"><span className="h-3 w-0.5 rounded-full bg-la-gold/80" /><span>아크 그리드</span></p>
       <div className="grid grid-cols-3 gap-3">
         {data.Slots.map((slot) => {
           const frame = gradeFrame(slot.Grade, 'bg');
@@ -277,7 +370,7 @@ const StatsCard: React.FC<{ profile: CharacterProfile }> = ({ profile }) => {
   if (stats.length === 0) return null;
   return (
     <GlassCard className="p-4 animate-fade-in">
-      <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">전투 스탯</p>
+      <p className="mb-3 flex items-center gap-2 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider"><span className="h-3 w-0.5 rounded-full bg-la-gold/80" /><span>전투 스탯</span></p>
       <div className="grid grid-cols-2 gap-x-4 gap-y-2">
         {stats.map((stat) => (
           <div key={stat.Type} className="flex justify-between text-sm">
@@ -298,8 +391,11 @@ const GemsCard: React.FC<{ data: GemData }> = ({ data }) => {
   if (!data.Gems || data.Gems.length === 0) return null;
   return (
     <GlassCard className="p-4 animate-fade-in">
-      <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">
-        보석 <span className="normal-case font-normal text-gray-400">{data.Gems.length}개</span>
+      <p className="mb-3 flex items-center gap-2 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+        <span className="h-3 w-0.5 rounded-full bg-la-gold/80" />
+        <span>
+          보석 <span className="normal-case font-normal text-gray-400">{data.Gems.length}개</span>
+        </span>
       </p>
       <div className="flex flex-wrap gap-1.5">
         {data.Gems.map((gem) => {
@@ -403,7 +499,10 @@ const EquipmentItemCard: React.FC<{ item: EquipmentItem }> = ({ item }) => {
 };
 
 const SectionLabel: React.FC<{ label: string }> = ({ label }) => (
-  <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2">{label}</p>
+  <p className="mb-2 flex items-center gap-1.5 text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
+    <span className="h-2.5 w-0.5 rounded-full bg-la-gold/60" />
+    <span>{label}</span>
+  </p>
 );
 
 const EquipmentCard: React.FC<{ items: EquipmentItem[] }> = ({ items }) => {
@@ -423,7 +522,10 @@ const EquipmentCard: React.FC<{ items: EquipmentItem[] }> = ({ items }) => {
 
   return (
     <GlassCard className="p-4 animate-fade-in">
-      <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">장비</p>
+      <p className="mb-3 flex items-center gap-2 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+        <span className="h-3 w-0.5 rounded-full bg-la-gold/80" />
+        <span>장비</span>
+      </p>
 
       {/* ① 전투 장비 + 장신구 */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -642,14 +744,14 @@ const Character: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setActiveTab('specScore')}
-                className={`px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 border ${
+                className={`relative px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 border ${
                   activeTab === 'specScore'
                     ? 'bg-la-gold/20 border-la-gold/50 text-la-gold-dark dark:text-la-gold'
                     : 'bg-gray-100 border-gray-200 text-gray-600 hover:border-la-gold/30 dark:bg-white/5 dark:border-white/10 dark:text-gray-400 dark:hover:border-la-gold/30'
                 }`}
               >
                 점수 시뮬레이터
-                <span className="ml-1.5 px-1.5 py-0.5 text-[10px] rounded bg-amber-500/15 text-amber-600 dark:text-amber-400 font-medium">
+                <span className="absolute -top-1.5 -right-1.5 px-1.5 py-0.5 text-[9px] leading-none rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-600 dark:text-amber-400 font-semibold">
                   TEST
                 </span>
               </button>

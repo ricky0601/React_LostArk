@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useId, useState } from 'react';
 import { LS_NICKNAME } from '../utils/api';
 import { safeLocalStorage } from '../utils/safeStorage';
 
@@ -13,6 +13,7 @@ const NicknameInput: React.FC<NicknameInputProps> = ({ title, description, butto
   const [input, setInput] = useState<string>(() => {
     return safeLocalStorage.getItem(LS_NICKNAME) || '';
   });
+  const nicknameInputId = useId();
 
   const handleSubmit = (e: React.FormEvent): void => {
     e.preventDefault();
@@ -33,12 +34,16 @@ const NicknameInput: React.FC<NicknameInputProps> = ({ title, description, butto
           <p className="text-gray-500 dark:text-gray-400 text-sm">{description}</p>
         </div>
         <form onSubmit={handleSubmit} className="space-y-3">
+          <label htmlFor={nicknameInputId} className="sr-only">캐릭터 닉네임</label>
           <input
+            id={nicknameInputId}
             type="text"
             placeholder="캐릭터 닉네임"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             className="input-glass text-center text-lg"
+            autoComplete="off"
+            enterKeyHint="search"
             autoFocus
           />
           <button type="submit" className="btn-gold w-full text-lg">
