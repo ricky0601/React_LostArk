@@ -1,70 +1,81 @@
-# Getting Started with Create React App
+# React LostArk
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+로스트아크 관련 데이터를 바탕으로 캐릭터/원정대/강화/소모 내역 등을 확인하고 비교할 수 있는 React 웹 프로젝트입니다.
 
-## Available Scripts
+## 주요 기능
 
-In the project directory, you can run:
+- 캐릭터 정보 조회
+- 시뮬레이션 페이지
+- 원정대 단위 확인
+- 캐릭터 비교 기능
+- 강화/소모(Spending) 관련 페이지
+- 다크 모드 토글
+- PWA 청크 오류 감지 배너
 
-### `yarn start`
+## 기술 스택
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+- React 19
+- TypeScript
+- React Router DOM
+- Tailwind CSS
+- Create React App (react-scripts)
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+## 시작하기
 
-### `yarn test`
+### 1) 의존성 설치
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+```bash
+yarn install
+```
 
-### `yarn build`
+### 2) 개발 서버 실행
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+```bash
+yarn start
+```
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+브라우저에서 `http://localhost:3000` 접속
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+## 스크립트
 
-### `yarn eject`
+```bash
+yarn start   # 개발 서버 실행
+yarn test    # 테스트 실행
+yarn build   # 프로덕션 빌드
+yarn eject   # CRA 설정 분리(되돌릴 수 없음)
+```
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+## 프로젝트 구조
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+```text
+src/
+├─ components/     # 공통 UI 컴포넌트
+├─ context/        # 전역 상태/컨텍스트
+├─ data/           # 정적 데이터
+├─ pages/          # 라우팅 페이지
+├─ styles/         # 스타일 리소스
+├─ types/          # 타입 정의
+└─ utils/          # 유틸리티 함수
+```
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+## 라우트
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+- `/` - 홈
+- `/character` - 캐릭터
+- `/simulation` - 시뮬레이션
+- `/expedition` - 원정대
+- `/compare` - 비교
+- `/enhancement` - 강화
+- `/spending` - 소모
 
-## Learn More
+## 배포
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+```bash
+yarn build
+```
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+빌드 결과물은 `build/` 폴더에 생성됩니다.
 
-### Code Splitting
+---
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
-
-### Analyzing the Bundle Size
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `yarn build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+원하시면 다음 단계로 README에 **스크린샷, 기능 GIF, 배포 URL, 사용 데이터 출처, 기여 가이드(CONTRIBUTING)** 까지 포함해 더 완성도 있게 다듬어드릴게요.
