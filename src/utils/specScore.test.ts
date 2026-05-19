@@ -1,5 +1,7 @@
 import { calcSpecScore, extractComponents, combineSpecScore } from './specScore';
-import type { CharacterProfile, EngravingData, GemData, ArkPassiveEffect, GemItem, EngravingEffect } from '../types/lostark';
+import { classifyGem } from '../data/specScore/gems';
+import { findCardSet } from '../data/specScore/cardSets';
+import type { CharacterProfile, EngravingData, GemData, ArkPassiveEffect, GemItem, EngravingEffect, CardData } from '../types/lostark';
 
 // ─────────────────────────────────────────────────────────────
 // 픽스처 헬퍼
@@ -60,6 +62,23 @@ const gem = (Name: string, Level: number, Slot = 0): GemItem => ({
 const makeGems = (gems: GemItem[] = []): GemData => ({
   Gems: gems,
   Effects: null,
+});
+
+const makeCards = (effectName: string, through: 'Items' | 'CardEffects' = 'Items'): CardData => ({
+  Cards: null,
+  Effects: [
+    through === 'Items'
+      ? {
+          Index: 0,
+          CardEffects: [],
+          Items: [{ Name: effectName, Icon: '' }],
+        }
+      : {
+          Index: 0,
+          CardEffects: [{ Index: 0, Name: effectName, Description: '' }],
+          Items: [],
+        },
+  ],
 });
 
 // ─────────────────────────────────────────────────────────────
@@ -127,6 +146,81 @@ describe('extractComponents — 컴포넌트 분리', () => {
     ]);
     const c = extractComponents(profile, eng, makeGems());
     expect(c.cardSet).toBe(15);
+  });
+
+  it('카드 세트: Cards API의 접미사 포함 세트명을 정규화해 매칭한다', () => {
+    const c = extractComponents(
+      makeProfile(),
+      makeEngravings(),
+      makeGems(),
+      undefined,
+      makeCards('세상을 구하는 빛 6세트 (30각성합계)'),
+    );
+    expect(findCardSet('세상을 구하는 빛 6세트 (30각성합계)')?.id).toBe('세상을 구하는 빛');
+    expect(c.cardSet).toBe(15);
+  });
+
+  it('카드 세트: Cards API가 하나도 매칭되지 않으면 기존 engraving 카드 fallback을 유지한다', () => {
+    const c = extractComponents(
+      makeProfile(),
+      makeEngravings([], [{ Name: '세상을 구하는 빛', Description: '6세트 (30각성합계): ...' }]),
+      makeGems(),
+      undefined,
+      makeCards('알 수 없는 카드 세트 6세트 (30각성합계)'),
+    );
+    expect(c.cardSet).toBe(15);
+    expect(c.meta.missingData).toContain('카드 API 응답은 있으나 매칭된 세트 없음');
+  });
+
+  it('카드 세트: Cards API가 매칭되면 기존 engraving fallback 대신 신규 값을 사용한다', () => {
+    const c = extractComponents(
+      makeProfile(),
+      makeEngravings([], [{ Name: '세상을 구하는 빛', Description: '6세트 (30각성합계): ...' }]),
+      makeGems(),
+      undefined,
+      makeCards('알고 보면 6세트 (18각성합계)'),
+    );
+    expect(c.cardSet).toBe(5);
+  });
+
+  it('카드 세트: Cards API는 같은 세트의 여러 누적 행 중 가장 높은 각성만 점수화한다', () => {
+    const cards: CardData = {
+      Cards: null,
+      Effects: [
+        {
+          Index: 0,
+          CardEffects: [],
+          Items: [
+            { Name: '세상을 구하는 빛 6세트 (18각성합계)', Icon: '' },
+            { Name: '세상을 구하는 빛 6세트 (30각성합계)', Icon: '' },
+          ],
+        },
+      ],
+    };
+    const c = extractComponents(makeProfile(), makeEngravings(), makeGems(), undefined, cards);
+    expect(c.cardSet).toBe(15);
+  });
+
+  it('카드 세트: Cards API 12각은 0점이어도 매칭 성공으로 처리해 legacy fallback을 덮는다', () => {
+    const c = extractComponents(
+      makeProfile(),
+      makeEngravings([], [{ Name: '세상을 구하는 빛', Description: '6세트 (30각성합계): ...' }]),
+      makeGems(),
+      undefined,
+      makeCards('세상을 구하는 빛 6세트 (12각성합계)'),
+    );
+    expect(c.cardSet).toBe(0);
+    expect(c.meta.rawDebug.cardsApi[0]).toMatchObject({ matched: true, matchedAwakening: 12 });
+  });
+
+  it('광휘 보석: 지원 전용 툴팁은 damage가 아니지만 supportEffect 점수는 유지한다', () => {
+    const supportGlow = gem('10레벨 광휘의 보석', 10);
+    supportGlow.Tooltip = '아군 공격력 강화 효과 증가';
+    const classified = classifyGem(supportGlow.Name, supportGlow.Tooltip);
+    const c = extractComponents(makeProfile(), makeEngravings(), makeGems([supportGlow]));
+    expect(classified).toEqual({ type: 'glow', tier: 'T4', hasSupport: true });
+    expect(c.gemDamage).toBe(0);
+    expect(c.gemSupportEffect).toBe(10);
   });
 
   it('스탯 환산: 절정 창술사 특화 = 큰 점수, 절제 창술사 치명 = 큰 점수', () => {

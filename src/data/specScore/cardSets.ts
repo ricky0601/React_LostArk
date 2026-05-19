@@ -123,5 +123,18 @@ export const CARD_SETS: CardSetEntry[] = [
   },
 ];
 
-export const findCardSet = (id: string): CardSetEntry | undefined =>
-  CARD_SETS.find((c) => c.id === id);
+export const normalizeCardSetName = (name: string): string =>
+  name
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+\d+세트(?:\s*\([^)]*각성합계\))?/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+export const findCardSet = (id: string): CardSetEntry | undefined => {
+  const normalized = normalizeCardSetName(id);
+  return CARD_SETS.find(
+    (c) => normalized === c.id || normalized.startsWith(`${c.id} `) || id.includes(c.id),
+  );
+};
+
+export const findCardSetIdInText = (text: string): string | undefined => findCardSet(text)?.id;

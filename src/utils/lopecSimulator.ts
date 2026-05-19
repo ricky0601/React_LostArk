@@ -46,6 +46,7 @@ export interface CharStats {
 /** 공격력 +N abs 옵션의 character-specific 증폭 계수 — 한건뜬 측정값 (1.30)에서 도출, 적주피 ~30% 가정 */
 const ABS_ATTACK_AMPLIFIER = 1.30;
 
+
 export const calcLopecDelta = (
   currentScore: number,
   currentEng: EngravingData,
@@ -217,8 +218,14 @@ const calcEquipDelta = (slot: EquipSlot, cur: EquipmentState, mod: EquipmentStat
   // 1. 일반 강화 변화
   if (cur.normalLevel !== mod.normalLevel) {
     if (slot === 'weapon') {
-      // 무기는 normal × advanced 상호작용 — adv 평균값으로 weapon 전용 ratio 사용
-      const refAdv = (cur.advancedLevel + mod.advancedLevel) / 2;
+      // 무기는 normal × advanced 상호작용이 존재.
+      // normal만 변경되는 케이스(실사용 다수)에서는 현재 advanced 값을 기준으로
+      // ratio를 계산해야 Lopec 시뮬레이터와의 오차가 가장 작다.
+      // (평균값 사용 시 단일 normal 변경에서 미세 과대/과소 오차가 누적될 수 있음)
+      const isNormalOnly = cur.advancedLevel === mod.advancedLevel;
+      const refAdv = isNormalOnly
+        ? cur.advancedLevel
+        : (cur.advancedLevel + mod.advancedLevel) / 2;
       const curRatio = lookupWeaponNormalRatio(cur.normalLevel, refAdv);
       const modRatio = lookupWeaponNormalRatio(mod.normalLevel, refAdv);
       mult *= modRatio / curRatio;

@@ -40,8 +40,6 @@ interface RawData {
 
 type GemMod = { Level?: number; Tooltip?: string };
 type EngMod = { Level?: number; AbilityStoneLevel?: number | null };
-type CardAwakening = 0 | 12 | 18 | 24 | 30;
-type CardMod = { awakening?: CardAwakening };
 type AwakeningMod = { Level?: number };
 type EquipMod = { normalLevel?: number; advancedLevel?: number; tier?: string };
 type PolishMod = { polishOptions?: [string, string, string] }; // labels
@@ -49,13 +47,14 @@ type PolishMod = { polishOptions?: [string, string, string] }; // labels
 interface Mods {
   gems: Record<number, GemMod>;
   engs: Record<string, EngMod>;
-  cards: Record<string, CardMod>; // by card set name
   awakenings: Record<string, AwakeningMod>; // by class awakening name
   equip: Partial<Record<EquipSlot, EquipMod>>;
   polish: Partial<Record<AccessorySlot, PolishMod>>;
 }
 
-const EMPTY_MODS: Mods = { gems: {}, engs: {}, cards: {}, awakenings: {}, equip: {}, polish: {} };
+type ActiveCategory = 'all' | 'gems' | 'engs' | 'equip' | 'polish';
+
+const EMPTY_MODS: Mods = { gems: {}, engs: {}, awakenings: {}, equip: {}, polish: {} };
 
 const SLOT_LABEL: Record<EquipSlot, string> = {
   weapon: '무기',
@@ -68,6 +67,12 @@ const SLOT_LABEL: Record<EquipSlot, string> = {
 
 const SLOT_ORDER: EquipSlot[] = ['weapon', 'helmet', 'shoulder', 'armor', 'pants', 'gloves'];
 const TIER_OPTIONS = ['유물', '고대', '전율'];
+
+const getPolishGradeColor = (grade: string): string => {
+  if (grade === '상') return 'text-amber-400 bg-amber-500/15';
+  if (grade === '중') return 'text-blue-400 bg-blue-500/15';
+  return 'text-gray-400 bg-gray-500/15';
+};
 
 // 광휘 보석 type 강제 override용 Tooltip 합성
 const synthGlowTooltip = (type: 'damage' | 'cooldown' | 'support'): string => {
@@ -112,7 +117,7 @@ const SpecScoreSimulator: React.FC<Props> = ({ profile }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [mods, setMods] = useState<Mods>(EMPTY_MODS);
-  const [activeCategory, setActiveCategory] = useState<'all' | 'gems' | 'engs' | 'equip' | 'polish'>('all');
+  const [activeCategory, setActiveCategory] = useState<ActiveCategory>('all');
 
   useEffect(() => {
     let cancelled = false;
@@ -175,37 +180,6 @@ const SpecScoreSimulator: React.FC<Props> = ({ profile }) => {
           };
         }) ?? null,
     };
-    // 카드 modifications: cards.Effects[].Items[]의 Name을 modified awakening으로 변경
-    const modCards: CardData | undefined = raw.cards
-      ? {
-          ...raw.cards,
-          Effects:
-            raw.cards.Effects?.map((setEntry) => {
-              const items = (setEntry as { Items?: Array<{ Name: string; Description?: string }> })
-                .Items;
-              if (!Array.isArray(items)) return setEntry;
-              // setEntry에서 매칭되는 카드 세트 이름 찾기
-              const setName = items[0]?.Name?.split(' ')[0] ?? '';
-              const matchedSetName = Object.keys(mods.cards).find((k) => setName.includes(k.split(' ')[0]));
-              if (!matchedSetName) return setEntry;
-              const targetAwk = mods.cards[matchedSetName].awakening;
-              if (targetAwk === undefined) return setEntry;
-              // 새 Items: 단일 item으로 합성 (각성 단계 N각성합계)
-              return {
-                ...setEntry,
-                Items: [
-                  {
-                    Name:
-                      targetAwk === 0
-                        ? `${matchedSetName} 6세트`
-                        : `${matchedSetName} 6세트 (${targetAwk}각성합계)`,
-                    Icon: '',
-                  },
-                ],
-              };
-            }) ?? null,
-        }
-      : undefined;
     // 직업 깨달음 modifications: arkPassive.Points에서 깨달음 포인트 조정
     const modArkPassive: ArkPassiveData | undefined = raw.arkPassive
       ? (() => {
@@ -251,7 +225,7 @@ const SpecScoreSimulator: React.FC<Props> = ({ profile }) => {
       const newOptions = m.polishOptions.map((label, i) => findPolishOption(label) ?? cur.polishOptions[i]) as [PolishOption, PolishOption, PolishOption];
       modAccessories[slot] = { ...cur, polishOptions: newOptions };
     }
-    return { engravings: modEng, gems: modGems, arkPassive: modArkPassive, cards: modCards, equip: modEquip, accessories: modAccessories };
+    return { engravings: modEng, gems: modGems, arkPassive: modArkPassive, cards: raw.cards, equip: modEquip, accessories: modAccessories };
   }, [raw, mods]);
 
   const currentResult = useMemo(() => {
@@ -286,7 +260,6 @@ const SpecScoreSimulator: React.FC<Props> = ({ profile }) => {
   const hasMods =
     Object.keys(mods.gems).length > 0 ||
     Object.keys(mods.engs).length > 0 ||
-    Object.keys(mods.cards).length > 0 ||
     Object.keys(mods.awakenings).length > 0 ||
     Object.keys(mods.equip).length > 0 ||
     Object.keys(mods.polish).length > 0;
@@ -378,7 +351,7 @@ const SpecScoreSimulator: React.FC<Props> = ({ profile }) => {
   const deltaPercent = sim && sim.current > 0 ? (sim.delta / sim.current) * 100 : 0;
   const equipCount = Object.keys(raw.equip).length;
   const accessoryCount = Object.keys(raw.accessories).length;
-  const categories: Array<{ id: typeof activeCategory; label: string; count?: number }> = [
+  const categories: Array<{ id: ActiveCategory; label: string; count?: number }> = [
     { id: 'all', label: '전체' },
     { id: 'gems', label: '보석', count: raw.gems.Gems?.length ?? 0 },
     { id: 'engs', label: '각인', count: raw.engravings.ArkPassiveEffects?.length ?? 0 },
@@ -386,7 +359,7 @@ const SpecScoreSimulator: React.FC<Props> = ({ profile }) => {
     { id: 'polish', label: '악세사리', count: accessoryCount },
   ];
 
-  const showSection = (id: typeof activeCategory): boolean =>
+  const showSection = (id: ActiveCategory): boolean =>
     activeCategory === 'all' || activeCategory === id;
 
   return (
@@ -800,13 +773,6 @@ const SpecScoreSimulator: React.FC<Props> = ({ profile }) => {
                   } catch {
                     // ignore
                   }
-                  // 등급 색상 (option grade에 따라)
-                  const gradeColor = (g: string): string =>
-                    g === '상'
-                      ? 'text-amber-400 bg-amber-500/15'
-                      : g === '중'
-                        ? 'text-blue-400 bg-blue-500/15'
-                        : 'text-gray-400 bg-gray-500/15';
                   return (
                     <div
                       key={slot}
@@ -832,7 +798,7 @@ const SpecScoreSimulator: React.FC<Props> = ({ profile }) => {
                           return (
                             <div key={idx} className="flex items-stretch gap-1">
                               <span
-                                className={`flex items-center justify-center w-5 rounded text-[10px] font-bold flex-shrink-0 ${gradeColor(curOpt.grade)}`}
+                                className={`flex items-center justify-center w-5 rounded text-[10px] font-bold flex-shrink-0 ${getPolishGradeColor(curOpt.grade)}`}
                               >
                                 {curOpt.grade}
                               </span>

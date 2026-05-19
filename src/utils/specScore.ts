@@ -17,7 +17,6 @@ import {
   calcBaseAttackEfficiency,
   calcSupportEfficiency,
   CLASS_AWAKENINGS,
-  CARD_SETS,
   COOLDOWN_DPS_FACTOR,
   type JobRole,
   type StatType,
@@ -390,7 +389,8 @@ const calcCardSetScore = (
 
   // 신규 Cards API 경로
   if (cards?.Effects) {
-    if (cards.Effects.length > 0) value = 0;
+    let cardsApiMatched = 0;
+    const highestAwakeningBySet = new Map<string, number>();
 
     /** 단일 effect 객체에서 매칭 시도 — Name/Description 등 텍스트 필드 통합 검색 */
     const tryMatchCardEffect = (effObj: unknown): void => {
@@ -405,7 +405,7 @@ const calcCardSetScore = (
         return;
       }
       const fullText = candidates.join(' | ');
-      const matchedSet = CARD_SETS.find((cs) => fullText.includes(cs.id));
+      const matchedSet = findCardSet(fullText);
       if (!matchedSet) {
         cardsApiDebug.push({ effectName: fullText.slice(0, 80), matched: false });
         return;
@@ -417,7 +417,9 @@ const calcCardSetScore = (
       const sorted = [...awakeningLevels].sort((a, b) => b - a);
       const matchedLvl = sorted.find((lvl) => fullText.includes(`${lvl}각`));
       if (matchedLvl) {
-        value += matchedSet.awakening[matchedLvl] ?? 0;
+        cardsApiMatched += 1;
+        const currentHighest = highestAwakeningBySet.get(matchedSet.id) ?? 0;
+        if (matchedLvl > currentHighest) highestAwakeningBySet.set(matchedSet.id, matchedLvl);
         cardsApiDebug.push({
           effectName: fullText.slice(0, 80),
           matched: true,
@@ -446,7 +448,13 @@ const calcCardSetScore = (
       tryMatchCardEffect(setEntry);
     }
 
-    if (cards.Effects.length > 0 && value === 0) {
+    if (cardsApiMatched > 0) {
+      value = 0;
+      highestAwakeningBySet.forEach((awakening, setId) => {
+        const entry = findCardSet(setId);
+        value += entry?.awakening[awakening as keyof typeof entry.awakening] ?? 0;
+      });
+    } else if (cards.Effects.length > 0) {
       missing.push('카드 API 응답은 있으나 매칭된 세트 없음');
     }
   } else {

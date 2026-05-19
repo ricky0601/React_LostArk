@@ -105,7 +105,7 @@ export const detectGlowAttunement = (
   if (/재사용\s*대기시간\s*\d+(?:\.\d+)?\s*%?\s*감소/.test(text)) {
     return { type: 'cooldown', hasSupport };
   }
-  if (hasSupport) return { type: 'damage', hasSupport: true };
+  if (hasSupport) return { type: 'glow', hasSupport: true };
   return { type: 'glow', hasSupport: false };
 };
 
