@@ -7,6 +7,7 @@ export const CHUNK_ERROR_EVENT = 'loa-chunk-error';
 interface PwaChunkContextValue {
   /** Chunk 로드 실패로 새 버전 안내가 필요한지 */
   chunkErrorOccurred: boolean;
+  clearChunkError: () => void;
 }
 
 const PwaChunkContext = createContext<PwaChunkContextValue | null>(null);
@@ -22,8 +23,13 @@ export function PwaChunkProvider({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener(CHUNK_ERROR_EVENT, onCustom);
   }, []);
 
+  const clearChunkError = () => {
+    safeSessionStorage.removeItem(CHUNK_ERROR_KEY);
+    setChunkErrorOccurred(false);
+  };
+
   return (
-    <PwaChunkContext.Provider value={{ chunkErrorOccurred }}>
+    <PwaChunkContext.Provider value={{ chunkErrorOccurred, clearChunkError }}>
       {children}
     </PwaChunkContext.Provider>
   );
