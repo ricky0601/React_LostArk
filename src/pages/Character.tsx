@@ -637,6 +637,10 @@ const Character: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'info' | 'specScore'>('info');
+  const infoTabId = 'character-info-tab';
+  const infoPanelId = 'character-info-panel';
+  const specScoreTabId = 'character-spec-score-tab';
+  const specScorePanelId = 'character-spec-score-panel';
 
   // URL 쿼리 → state 동기화 (Simulation/Expedition과 동일 패턴).
   // 같은 라우트에 머문 상태에서 URL이 바뀔 때(다른 페이지에서 /character?nickname=X 링크 클릭 등) 재조회 트리거.
@@ -729,9 +733,13 @@ const Character: React.FC = () => {
         ) : profile ? (
           <>
             {/* 탭 바 */}
-            <div className="flex gap-2 mb-6 animate-fade-in">
+            <div className="flex gap-2 mb-6 animate-fade-in" role="tablist" aria-label="캐릭터 상세 보기">
               <button
+                id={infoTabId}
                 type="button"
+                role="tab"
+                aria-selected={activeTab === 'info'}
+                aria-controls={infoPanelId}
                 onClick={() => setActiveTab('info')}
                 className={`px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 border ${
                   activeTab === 'info'
@@ -742,7 +750,11 @@ const Character: React.FC = () => {
                 캐릭터 정보
               </button>
               <button
+                id={specScoreTabId}
                 type="button"
+                role="tab"
+                aria-selected={activeTab === 'specScore'}
+                aria-controls={specScorePanelId}
                 onClick={() => setActiveTab('specScore')}
                 className={`relative px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 border ${
                   activeTab === 'specScore'
@@ -758,7 +770,12 @@ const Character: React.FC = () => {
             </div>
 
             {activeTab === 'info' ? (
-              <div className="grid grid-cols-1 lg:grid-cols-[2fr_3fr] gap-6 items-start">
+              <div
+                id={infoPanelId}
+                role="tabpanel"
+                aria-labelledby={infoTabId}
+                className="grid grid-cols-1 lg:grid-cols-[2fr_3fr] gap-6 items-start"
+              >
                 {/* 왼쪽 컬럼 */}
                 <div className="space-y-4">
                   <ProfileCard profile={profile} nickname={nickname} />
@@ -774,7 +791,9 @@ const Character: React.FC = () => {
                 </div>
               </div>
             ) : (
-              <SpecScoreSimulator profile={profile} />
+              <div id={specScorePanelId} role="tabpanel" aria-labelledby={specScoreTabId}>
+                <SpecScoreSimulator profile={profile} />
+              </div>
             )}
           </>
         ) : (
