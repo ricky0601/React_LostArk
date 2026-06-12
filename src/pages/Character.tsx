@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useSearchParams, Link } from 'react-router-dom';
 import PullToRefresh from '../components/PullToRefresh';
@@ -14,7 +14,6 @@ import NicknameInput from '../components/NicknameInput';
 import NicknameSearchBar from '../components/NicknameSearchBar';
 import GlassCard from '../components/GlassCard';
 import { fetchProfile, fetchEquipment, fetchGems, fetchEngravings, fetchArkGrid, LS_NICKNAME } from '../utils/api';
-import SpecScoreSimulator from '../components/simulation/SpecScoreSimulator';
 import { type EffectSegment, stripHtml, htmlColorToGrade, parseBraceletLine } from '../utils/tooltipParser';
 import { gradeFrame, gradeStyles, EFFECT_GRADE_COLORS, qualityTextColor, qualityBgColor } from '../utils/equipmentColors';
 import { safeLocalStorage } from '../utils/safeStorage';
@@ -183,6 +182,17 @@ const ProfileCard: React.FC<{ profile: CharacterProfile; nickname: string }> = (
           <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5V4H2v16h5m10 0v-2a4 4 0 00-4-4H11a4 4 0 00-4 4v2m10 0H7m10-10a4 4 0 11-8 0 4 4 0 018 0z" />
         </svg>
         원정대 조회
+      </Link>
+      <Link
+        to={`/spec-simulator?nickname=${encodeURIComponent(nickname)}`}
+        className="sm:col-span-2 flex items-center justify-center gap-2 w-full py-2 rounded-lg text-sm font-medium
+                   bg-amber-500/15 text-amber-700 dark:text-amber-400 hover:bg-amber-500/25 transition-colors"
+        aria-label={`${nickname} 전투력 점수 시뮬레이터 Beta 열기`}
+      >
+        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9 17v-2m3 2v-4m3 4V7m4 14H5a2 2 0 01-2-2V5a2 2 0 012-2h14a2 2 0 012 2v14a2 2 0 01-2 2z" />
+        </svg>
+        전투력 점수 시뮬레이터 <span className="text-[10px] font-bold">Beta</span>
       </Link>
     </div>
   </GlassCard>
@@ -636,12 +646,6 @@ const Character: React.FC = () => {
   const [arkGrid, setArkGrid] = useState<ArkGridData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'info' | 'specScore'>('info');
-  const infoTabId = 'character-info-tab';
-  const infoPanelId = 'character-info-panel';
-  const specScoreTabId = 'character-spec-score-tab';
-  const specScorePanelId = 'character-spec-score-panel';
-
   // URL 쿼리 → state 동기화 (Simulation/Expedition과 동일 패턴).
   // 같은 라우트에 머문 상태에서 URL이 바뀔 때(다른 페이지에서 /character?nickname=X 링크 클릭 등) 재조회 트리거.
   useEffect(() => {
@@ -731,71 +735,21 @@ const Character: React.FC = () => {
             <p className="text-red-500 dark:text-red-400 text-lg">{error}</p>
           </GlassCard>
         ) : profile ? (
-          <>
-            {/* 탭 바 */}
-            <div className="flex gap-2 mb-6 animate-fade-in" role="tablist" aria-label="캐릭터 상세 보기">
-              <button
-                id={infoTabId}
-                type="button"
-                role="tab"
-                aria-selected={activeTab === 'info'}
-                aria-controls={infoPanelId}
-                onClick={() => setActiveTab('info')}
-                className={`px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 border ${
-                  activeTab === 'info'
-                    ? 'bg-la-gold/20 border-la-gold/50 text-la-gold-dark dark:text-la-gold'
-                    : 'bg-gray-100 border-gray-200 text-gray-600 hover:border-la-gold/30 dark:bg-white/5 dark:border-white/10 dark:text-gray-400 dark:hover:border-la-gold/30'
-                }`}
-              >
-                캐릭터 정보
-              </button>
-              <button
-                id={specScoreTabId}
-                type="button"
-                role="tab"
-                aria-selected={activeTab === 'specScore'}
-                aria-controls={specScorePanelId}
-                onClick={() => setActiveTab('specScore')}
-                className={`relative px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 border ${
-                  activeTab === 'specScore'
-                    ? 'bg-la-gold/20 border-la-gold/50 text-la-gold-dark dark:text-la-gold'
-                    : 'bg-gray-100 border-gray-200 text-gray-600 hover:border-la-gold/30 dark:bg-white/5 dark:border-white/10 dark:text-gray-400 dark:hover:border-la-gold/30'
-                }`}
-              >
-                점수 시뮬레이터
-                <span className="absolute -top-1.5 -right-1.5 px-1.5 py-0.5 text-[9px] leading-none rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-600 dark:text-amber-400 font-semibold">
-                  TEST
-                </span>
-              </button>
+          <div className="grid grid-cols-1 lg:grid-cols-[2fr_3fr] gap-6 items-start">
+            {/* 왼쪽 컬럼 */}
+            <div className="space-y-4">
+              <ProfileCard profile={profile} nickname={nickname} />
+              {engravings && <ArkPassiveCard data={engravings} />}
+              {arkGrid && <ArkGridCard data={arkGrid} />}
+              {engravings && <EngravingsCard data={engravings} />}
+              <StatsCard profile={profile} />
             </div>
-
-            {activeTab === 'info' ? (
-              <div
-                id={infoPanelId}
-                role="tabpanel"
-                aria-labelledby={infoTabId}
-                className="grid grid-cols-1 lg:grid-cols-[2fr_3fr] gap-6 items-start"
-              >
-                {/* 왼쪽 컬럼 */}
-                <div className="space-y-4">
-                  <ProfileCard profile={profile} nickname={nickname} />
-                  {engravings && <ArkPassiveCard data={engravings} />}
-                  {arkGrid && <ArkGridCard data={arkGrid} />}
-                  {engravings && <EngravingsCard data={engravings} />}
-                  <StatsCard profile={profile} />
-                </div>
-                {/* 오른쪽 컬럼 */}
-                <div className="space-y-4">
-                  {gems && <GemsCard data={gems} />}
-                  {equipment && <EquipmentCard items={equipment} />}
-                </div>
-              </div>
-            ) : (
-              <div id={specScorePanelId} role="tabpanel" aria-labelledby={specScoreTabId}>
-                <SpecScoreSimulator profile={profile} />
-              </div>
-            )}
-          </>
+            {/* 오른쪽 컬럼 */}
+            <div className="space-y-4">
+              {gems && <GemsCard data={gems} />}
+              {equipment && <EquipmentCard items={equipment} />}
+            </div>
+          </div>
         ) : (
           <GlassCard className="p-8 text-center animate-fade-in">
             <p className="text-gray-500 dark:text-gray-400">캐릭터 정보를 불러오는 데 실패했습니다.</p>
