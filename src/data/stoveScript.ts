@@ -1,4 +1,11 @@
 export const STOVE_SCRIPT = `(async function analyzeLostArkFinal() {
+    const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (ch) => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+    }[ch]));
     const getStoveCookie = (n) => {
         const v = \`; \${document.cookie}\`;
         const p = v.split(\`; \${n}=\`);
@@ -33,12 +40,11 @@ export const STOVE_SCRIPT = `(async function analyzeLostArkFinal() {
         } catch (e) { playTimeHTML = "정보 로드 실패"; }
     }
     function structureItemName(n) {
-        if (!n.includes(' - ')) return \`<span style="font-size:14px; font-weight:500;">\${n}</span>\`;
+        if (!n.includes(' - ')) return \`<span style="font-size:14px; font-weight:500;">\${escapeHtml(n)}</span>\`;
         const p = n.split(' - '), t = p[0].trim(), c = p.slice(1).join(' - ').trim();
-        const escT = t.replace(/[.*+?^\${}()|[\\]]/g, '$&');
-        const it = c.replace(new RegExp(escT, 'g'), '').split(/ - | -/).map(i => i.replace(/^[- ]+/, '').trim()).filter(i => i.length > 1);
+        const it = c.split(/ - | -/).map(i => i.replace(/^[- ]+/, '').trim()).filter(i => i.length > 1 && i !== t);
         const u = [...new Set(it)];
-        return \`<strong style="color:#2d3436; display:block; margin-bottom:4px; font-size:14px;">\${t}</strong><span style="color:#636e72; font-size:12px; line-height:1.5;">• \${u.join('<br>• ')}</span>\`;
+        return \`<strong style="color:#2d3436; display:block; margin-bottom:4px; font-size:14px;">\${escapeHtml(t)}</strong><span style="color:#636e72; font-size:12px; line-height:1.5;">• \${u.map(escapeHtml).join('<br>• ')}</span>\`;
     }
     async function fetchData() {
         for (const y of CONFIG.YEARS) {
@@ -90,16 +96,25 @@ export const STOVE_SCRIPT = `(async function analyzeLostArkFinal() {
     }
     await fetchPlayTime();
     await fetchData();
-    const ch = Object.entries(chargeStats).sort((a,b)=>b[1]-a[1]).map(([m, a]) => \`<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #f0f0f0;"><span>\${m}</span><b>\${a.toLocaleString()}원</b></div>\`).join('');
+    const ch = Object.entries(chargeStats).sort((a,b)=>b[1]-a[1]).map(([m, a]) => \`<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #f0f0f0;"><span>\${escapeHtml(m)}</span><b>\${a.toLocaleString()}원</b></div>\`).join('');
     const yh = Object.keys(yearlyData).sort((a,b)=>b-a).map(y => {
         const d = yearlyData[y]; if (d.total === 0) return "";
         grandTotal += d.total;
         const ct = Object.entries(d.categories).sort((a,b)=>b[1].total - a[1].total).map(([cn, cd]) => {
             const it = Object.entries(cd.items).sort((a,b)=>b[1].price - a[1].price).map(([n, i]) => \`<div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #eee;"><div style="flex:1;padding-right:15px;">\${n}</div><div style="text-align:right;min-width:100px;"><b>\${i.price.toLocaleString()}원</b><br><small style="color:#6c5ce7;">\${i.count}회</small></div></div>\`).join('');
-            return \`<div style="margin-top:10px;border:1px solid #e1e8ed;border-radius:10px;"><button onclick="const n=this.nextElementSibling;n.style.display=n.style.display==='none'?'block':'none'" style="width:100%;padding:12px 15px;background:#f8f9fa;border:none;cursor:pointer;display:flex;justify-content:space-between;font-weight:bold;color:#0984e3;"><span>📦 \${cn}</span><span>\${cd.total.toLocaleString()}원 ▾</span></button><div style="display:none;padding:5px 15px 10px;background:#fff;">\${it}</div></div>\`;
+            return \`<div style="margin-top:10px;border:1px solid #e1e8ed;border-radius:10px;"><button data-toggle-next="true" style="width:100%;padding:12px 15px;background:#f8f9fa;border:none;cursor:pointer;display:flex;justify-content:space-between;font-weight:bold;color:#0984e3;"><span>📦 \${escapeHtml(cn)}</span><span>\${cd.total.toLocaleString()}원 ▾</span></button><div style="display:none;padding:5px 15px 10px;background:#fff;">\${it}</div></div>\`;
         }).join('');
-        return \`<div style="margin-bottom:15px;border:1px solid #ccc;border-radius:12px;overflow:hidden;"><button onclick="const n=this.nextElementSibling;n.style.display=n.style.display==='none'?'block':'none'" style="width:100%;padding:15px 25px;background:#2d3436;color:#fff;border:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;"><span style="font-size:18px;font-weight:bold;">📅 \${y}년</span><span style="font-size:18px;color:#fdcb6e;font-weight:bold;">\${d.total.toLocaleString()}원 ▾</span></button><div style="display:none;padding:15px;background:#fff;">\${ct}</div></div>\`;
+        return \`<div style="margin-bottom:15px;border:1px solid #ccc;border-radius:12px;overflow:hidden;"><button data-toggle-next="true" style="width:100%;padding:15px 25px;background:#2d3436;color:#fff;border:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;"><span style="font-size:18px;font-weight:bold;">📅 \${escapeHtml(y)}년</span><span style="font-size:18px;color:#fdcb6e;font-weight:bold;">\${d.total.toLocaleString()}원 ▾</span></button><div style="display:none;padding:15px;background:#fff;">\${ct}</div></div>\`;
     }).join('');
-    const l = \`<div id="loa-final" style="position:fixed;top:0;left:0;width:100%;height:100%;background:#f1f2f6;z-index:999999;overflow-y:auto;padding:30px 15px;font-family:sans-serif;box-sizing:border-box;"><div style="max-width:700px;margin:0 auto;"><div style="background:#fff;padding:20px 25px;border-radius:15px;margin-bottom:15px;border:1px solid #d1d9e0;">\${playTimeHTML}</div><div style="background:#fff;border-radius:15px;margin-bottom:15px;border:1px solid #d1d9e0;overflow:hidden;"><button onclick="const n=this.nextElementSibling;n.style.display=n.style.display==='none'?'block':'none'" style="width:100%;padding:18px 25px;background:#fff;border:none;cursor:pointer;display:flex;justify-content:space-between;font-weight:bold;font-size:16px;"><span>💳 결제 수단별 합계</span><span>보기 ▾</span></button><div style="display:none;padding:15px 25px;border-top:1px solid #eee;">\${ch}</div></div><div style="background:#2d3436;color:#fff;padding:25px;border-radius:15px;text-align:center;margin-bottom:20px;"><div style="font-size:14px;opacity:0.8;margin-bottom:5px;">누적 총 결제액</div><div style="font-size:36px;font-weight:900;color:#00d2d3;">\${grandTotal.toLocaleString()}원</div></div>\${yh}<div style="text-align:center;margin:30px 0;"><button onclick="document.getElementById('loa-final').remove()" style="padding:15px 50px;background:#333;color:#fff;border:none;border-radius:10px;cursor:pointer;font-weight:bold;">닫기</button></div></div></div>\`;
+    const l = \`<div id="loa-final" style="position:fixed;top:0;left:0;width:100%;height:100%;background:#f1f2f6;z-index:999999;overflow-y:auto;padding:30px 15px;font-family:sans-serif;box-sizing:border-box;"><div style="max-width:700px;margin:0 auto;"><div style="background:#fff;padding:20px 25px;border-radius:15px;margin-bottom:15px;border:1px solid #d1d9e0;">\${playTimeHTML}</div><div style="background:#fff;border-radius:15px;margin-bottom:15px;border:1px solid #d1d9e0;overflow:hidden;"><button data-toggle-next="true" style="width:100%;padding:18px 25px;background:#fff;border:none;cursor:pointer;display:flex;justify-content:space-between;font-weight:bold;font-size:16px;"><span>💳 결제 수단별 합계</span><span>보기 ▾</span></button><div style="display:none;padding:15px 25px;border-top:1px solid #eee;">\${ch}</div></div><div style="background:#2d3436;color:#fff;padding:25px;border-radius:15px;text-align:center;margin-bottom:20px;"><div style="font-size:14px;opacity:0.8;margin-bottom:5px;">누적 총 결제액</div><div style="font-size:36px;font-weight:900;color:#00d2d3;">\${grandTotal.toLocaleString()}원</div></div>\${yh}<div style="text-align:center;margin:30px 0;"><button data-close-loa-final="true" style="padding:15px 50px;background:#333;color:#fff;border:none;border-radius:10px;cursor:pointer;font-weight:bold;">닫기</button></div></div></div>\`;
     document.body.insertAdjacentHTML('beforeend', l);
+    const root = document.getElementById('loa-final');
+    if (!root) return;
+    root.querySelectorAll('[data-toggle-next]').forEach((button) => {
+        button.addEventListener('click', () => {
+            const panel = button.nextElementSibling;
+            if (panel instanceof HTMLElement) panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+        });
+    });
+    root.querySelector('[data-close-loa-final]')?.addEventListener('click', () => root.remove());
 })();`;
