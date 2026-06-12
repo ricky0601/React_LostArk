@@ -16,6 +16,7 @@ jest.mock(
 jest.mock('./pages/Home', () => () => <div>Home Page</div>);
 jest.mock('./pages/Character', () => () => <div>Character Page</div>);
 jest.mock('./pages/Simulation', () => () => <div>Simulation Page</div>);
+jest.mock('./pages/SpecSimulator', () => () => <div>Spec Simulator Page</div>);
 jest.mock('./pages/Expedition', () => () => <div>Expedition Page</div>);
 jest.mock('./pages/Compare', () => () => <div>Compare Page</div>);
 jest.mock('./pages/Enhancement', () => () => <div>Enhancement Page</div>);

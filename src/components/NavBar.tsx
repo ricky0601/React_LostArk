@@ -10,7 +10,7 @@ const NavBar: React.FC = () => {
   }, [pathname]);
 
   const linkClass = (path: string) =>
-    `px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${
+    `px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 inline-flex items-center gap-1.5 ${
       pathname === path
         ? 'bg-la-gold/20 text-la-gold-dark dark:text-la-gold'
         : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-white dark:hover:bg-white/5'
@@ -23,6 +23,12 @@ const NavBar: React.FC = () => {
       </Link>
       <Link to="/simulation" className={linkClass('/simulation')}>
         주간 골드 계산
+      </Link>
+      <Link to="/spec-simulator" className={linkClass('/spec-simulator')} aria-label="전투력 점수 시뮬레이터 Beta">
+        <span>점수 시뮬레이터</span>
+        <span className="rounded-full border border-amber-500/30 bg-amber-500/15 px-1.5 py-0.5 text-[9px] font-bold leading-none text-amber-600 dark:text-amber-400">
+          Beta
+        </span>
       </Link>
       <Link to="/character" className={linkClass('/character')}>
         캐릭터
