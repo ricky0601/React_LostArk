@@ -1,4 +1,6 @@
 import type { EngravingData, ArkPassiveEffect, GemData } from '../types/lostark';
+import type { EquipSlot } from '../data/specScore/lopecCoefficients';
+import type { EquipmentState } from './equipmentState';
 import {
   LOPEC_ENGRAVING_PER_STONE,
   LOPEC_STONE_LV_STEPS,
@@ -25,6 +27,25 @@ const engravings = (effects: ArkPassiveEffect[]): EngravingData => ({
 });
 
 const emptyGems: GemData = { Gems: [], Effects: null };
+
+const equipment = (
+  slot: EquipSlot,
+  patch: Partial<EquipmentState> = {},
+): EquipmentState => ({
+  slot,
+  normalLevel: 10,
+  advancedLevel: 0,
+  tier: '고대',
+  isInherited: false,
+  raw: {
+    Type: '투구',
+    Name: '+10 테스트 장비',
+    Icon: '',
+    Grade: '고대',
+    Tooltip: '{}',
+  },
+  ...patch,
+});
 
 describe('calcLopecDelta stone level changes', () => {
   it('applies measured ability stone level steps for known engravings', () => {
@@ -79,5 +100,61 @@ describe('calcLopecDelta stone level changes', () => {
     );
 
     expect(result).toBeCloseTo(currentScore * (1 + LOPEC_STONE_LV_STEPS_DEFAULT[0] / 100), 6);
+  });
+});
+
+describe('calcLopecDelta inherited equipment advanced changes', () => {
+  it('ignores advanced refining deltas for inherited equipment even when a mod exists', () => {
+    const currentScore = 100_000;
+    const current = equipment('helmet', { isInherited: true, advancedLevel: 0 });
+    const modified = { ...current, advancedLevel: 40 };
+
+    const result = calcLopecDelta(
+      currentScore,
+      engravings([]),
+      engravings([]),
+      emptyGems,
+      emptyGems,
+      { helmet: current },
+      { helmet: modified },
+    );
+
+    expect(result).toBeCloseTo(currentScore, 6);
+  });
+
+  it('still applies advanced refining deltas for non-inherited equipment', () => {
+    const currentScore = 100_000;
+    const current = equipment('helmet', { isInherited: false, advancedLevel: 0 });
+    const modified = { ...current, advancedLevel: 40 };
+
+    const result = calcLopecDelta(
+      currentScore,
+      engravings([]),
+      engravings([]),
+      emptyGems,
+      emptyGems,
+      { helmet: current },
+      { helmet: modified },
+    );
+
+    expect(result).toBeGreaterThan(currentScore);
+  });
+
+  it('keeps normal enhancement simulation working for inherited equipment', () => {
+    const currentScore = 100_000;
+    const current = equipment('helmet', { isInherited: true, normalLevel: 10, advancedLevel: 0 });
+    const modified = { ...current, normalLevel: 11, advancedLevel: 40 };
+
+    const result = calcLopecDelta(
+      currentScore,
+      engravings([]),
+      engravings([]),
+      emptyGems,
+      emptyGems,
+      { helmet: current },
+      { helmet: modified },
+    );
+
+    expect(result).toBeGreaterThan(currentScore);
   });
 });

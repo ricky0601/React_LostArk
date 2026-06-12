@@ -239,6 +239,9 @@ const calcGemDelta = (cur: GemItem, mod: GemItem): number => {
 
 const calcEquipDelta = (slot: EquipSlot, cur: EquipmentState, mod: EquipmentState): number => {
   let mult = 1.0;
+  const ignoresAdvanced = cur.isInherited || mod.isInherited;
+  const curAdvanced = cur.advancedLevel;
+  const modAdvanced = ignoresAdvanced ? cur.advancedLevel : mod.advancedLevel;
 
   // 1. 일반 강화 변화
   if (cur.normalLevel !== mod.normalLevel) {
@@ -247,10 +250,10 @@ const calcEquipDelta = (slot: EquipSlot, cur: EquipmentState, mod: EquipmentStat
       // normal만 변경되는 케이스(실사용 다수)에서는 현재 advanced 값을 기준으로
       // ratio를 계산해야 Lopec 시뮬레이터와의 오차가 가장 작다.
       // (평균값 사용 시 단일 normal 변경에서 미세 과대/과소 오차가 누적될 수 있음)
-      const isNormalOnly = cur.advancedLevel === mod.advancedLevel;
+      const isNormalOnly = curAdvanced === modAdvanced;
       const refAdv = isNormalOnly
-        ? cur.advancedLevel
-        : (cur.advancedLevel + mod.advancedLevel) / 2;
+        ? curAdvanced
+        : (curAdvanced + modAdvanced) / 2;
       const curRatio = lookupWeaponNormalRatio(cur.normalLevel, refAdv);
       const modRatio = lookupWeaponNormalRatio(mod.normalLevel, refAdv);
       mult *= modRatio / curRatio;
@@ -262,13 +265,13 @@ const calcEquipDelta = (slot: EquipSlot, cur: EquipmentState, mod: EquipmentStat
   }
 
   // 2. 상급 재련 변화
-  if (cur.advancedLevel !== mod.advancedLevel) {
+  if (!ignoresAdvanced && curAdvanced !== modAdvanced) {
     const refNormal = (cur.normalLevel + mod.normalLevel) / 2;
     if (slot === 'weapon') {
       // 무기는 normal × advanced cross-term — 절대 cp 테이블에서 ratio 계산
       // X0는 page state 다름 → X0 이동 시 기존 1D 테이블 fallback
-      const curAdv = cur.advancedLevel;
-      const modAdv = mod.advancedLevel;
+      const curAdv = curAdvanced;
+      const modAdv = modAdvanced;
       if (curAdv >= 10 && modAdv >= 10) {
         const curCp = lookupWeaponAdvancedAt(curAdv, refNormal);
         const modCp = lookupWeaponAdvancedAt(modAdv, refNormal);
@@ -280,8 +283,8 @@ const calcEquipDelta = (slot: EquipSlot, cur: EquipmentState, mod: EquipmentStat
       }
     } else {
       // 방어구는 normal × advanced 상호작용 — normal 평균을 reference로 사용
-      const curRatio = lookupArmorAdvancedRatio(slot, cur.advancedLevel, refNormal);
-      const modRatio = lookupArmorAdvancedRatio(slot, mod.advancedLevel, refNormal);
+      const curRatio = lookupArmorAdvancedRatio(slot, curAdvanced, refNormal);
+      const modRatio = lookupArmorAdvancedRatio(slot, modAdvanced, refNormal);
       mult *= modRatio / curRatio;
     }
   }

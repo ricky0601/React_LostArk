@@ -207,7 +207,7 @@ const SpecScoreSimulator: React.FC<Props> = ({ profile }) => {
         ? {
             ...cur,
             normalLevel: m.normalLevel ?? cur.normalLevel,
-            advancedLevel: m.advancedLevel ?? cur.advancedLevel,
+            advancedLevel: cur.isInherited ? cur.advancedLevel : (m.advancedLevel ?? cur.advancedLevel),
             tier: m.tier ?? cur.tier,
           }
         : cur;
@@ -294,9 +294,13 @@ const SpecScoreSimulator: React.FC<Props> = ({ profile }) => {
   };
 
   const updateEquipMod = (slot: EquipSlot, patch: EquipMod): void => {
+    const cur = raw.equip[slot];
+    const safePatch = cur?.isInherited && patch.advancedLevel !== undefined
+      ? { ...patch, advancedLevel: undefined }
+      : patch;
     setMods((prev) => ({
       ...prev,
-      equip: { ...prev.equip, [slot]: { ...prev.equip[slot], ...patch } },
+      equip: { ...prev.equip, [slot]: { ...prev.equip[slot], ...safePatch } },
     }));
   };
 
@@ -318,7 +322,13 @@ const SpecScoreSimulator: React.FC<Props> = ({ profile }) => {
   const applyBulkEquip = (patch: EquipMod): void => {
     const next: Partial<Record<EquipSlot, EquipMod>> = {};
     for (const slot of SLOT_ORDER) {
-      if (!raw.equip[slot]) continue;
+      const cur = raw.equip[slot];
+      if (!cur) continue;
+      if (cur.isInherited && patch.advancedLevel !== undefined) {
+        const { advancedLevel, ...existing } = mods.equip[slot] ?? {};
+        if (Object.keys(existing).length > 0) next[slot] = existing;
+        continue;
+      }
       next[slot] = { ...mods.equip[slot], ...patch };
     }
     setMods((prev) => ({ ...prev, equip: next }));
@@ -629,7 +639,7 @@ const SpecScoreSimulator: React.FC<Props> = ({ profile }) => {
                   if (!cur) return null;
                   const m = mods.equip[slot];
                   const curNormal = m?.normalLevel ?? cur.normalLevel;
-                  const curAdvanced = m?.advancedLevel ?? cur.advancedLevel;
+                  const curAdvanced = cur.isInherited ? cur.advancedLevel : (m?.advancedLevel ?? cur.advancedLevel);
                   const curTier = m?.tier ?? cur.tier;
                   const advancedOptions = [0, 5, 10, 15, 20, 25, 30, 35, 40];
                   // 품질 추출 (tooltip JSON의 ItemTitle.qualityValue)
@@ -699,14 +709,20 @@ const SpecScoreSimulator: React.FC<Props> = ({ profile }) => {
                             ))}
                           </select>
                         </label>
-                        <label className="flex items-center gap-1 bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded px-1.5 py-0.5">
+                        <label
+                          className={`flex items-center gap-1 bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded px-1.5 py-0.5 ${
+                            cur.isInherited ? 'opacity-60 cursor-not-allowed' : ''
+                          }`}
+                          title={cur.isInherited ? '세르카 계승 장비는 상급 재련 시뮬레이션을 지원하지 않습니다' : undefined}
+                        >
                           <span className="text-gray-400 text-[10px]">상재</span>
                           <select
                             value={curAdvanced}
+                            disabled={cur.isInherited}
                             onChange={(ev) =>
                               updateEquipMod(slot, { advancedLevel: Number(ev.target.value) })
                             }
-                            className="flex-1 bg-transparent outline-none"
+                            className="flex-1 bg-transparent outline-none disabled:cursor-not-allowed"
                           >
                             {advancedOptions.map((lv) => (
                               <option key={lv} value={lv}>
@@ -714,6 +730,11 @@ const SpecScoreSimulator: React.FC<Props> = ({ profile }) => {
                               </option>
                             ))}
                           </select>
+                          {cur.isInherited && (
+                            <span className="text-[9px] text-amber-600 dark:text-amber-300 whitespace-nowrap">
+                              계승 제외
+                            </span>
+                          )}
                         </label>
                       </div>
                     </div>
