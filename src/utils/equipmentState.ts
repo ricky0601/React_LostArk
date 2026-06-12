@@ -14,6 +14,8 @@ export interface EquipmentState {
   advancedLevel: number;
   /** T4 등급 ("유물" | "고대" | "전율" | "에스더") */
   tier: string;
+  /** 세르카 계승 장비 여부 — 상급 재련 시뮬레이션 불가 */
+  isInherited: boolean;
   /** 원본 아이템 (UI 표시용) */
   raw: EquipmentItem;
 }
@@ -46,6 +48,16 @@ const parseAdvancedLevel = (tooltipJson: string): number => {
   return 0;
 };
 
+/** Enhancement 페이지와 동일한 tooltip heuristic으로 세르카/계승 장비 감지 */
+const parseIsInherited = (tooltipJson: string): boolean => {
+  try {
+    const obj = JSON.parse(tooltipJson);
+    return obj?.Element_001?.value?.slotData?.petBorder === 6;
+  } catch {
+    return false;
+  }
+};
+
 /**
  * Lost Ark API EquipmentItem → 시뮬레이션용 EquipmentState
  * 무기/방어구 6슬롯만 반환, 장신구/스톤/팔찌는 null.
@@ -58,6 +70,7 @@ export const parseEquipmentState = (item: EquipmentItem): EquipmentState | null 
     normalLevel: parseNormalLevel(item.Name),
     advancedLevel: parseAdvancedLevel(item.Tooltip),
     tier: extractEquipTier(item.Grade),
+    isInherited: parseIsInherited(item.Tooltip),
     raw: item,
   };
 };
