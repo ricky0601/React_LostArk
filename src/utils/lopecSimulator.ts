@@ -2,6 +2,10 @@ import type { EngravingData, GemData, ArkPassiveEffect, GemItem } from '../types
 import {
   LOPEC_ENGRAVING_X_STEPS,
   LOPEC_ENGRAVING_X_STEPS_DEFAULT,
+  LOPEC_ENGRAVING_PER_STONE,
+  LOPEC_ENGRAVING_PER_STONE_DEFAULT,
+  LOPEC_STONE_LV_STEPS,
+  LOPEC_STONE_LV_STEPS_DEFAULT,
   LOPEC_GRADE_FACTOR,
   LOPEC_GEM_LEVEL_STEPS,
   LOPEC_GEM_TYPE_FACTOR,
@@ -157,6 +161,27 @@ const calcEngravingDelta = (cur: ArkPassiveEffect, mod: ArkPassiveEffect): numbe
     // 단계 감소: 역방향 — 같은 step을 나눔
     for (let i = modLevel; i < curLevel && i < steps.length; i++) {
       mult /= 1 + steps[i] / 100;
+    }
+  }
+
+  // 어빌리티 스톤 단계 변화 — lopec stone-option-select-N 계수 사용.
+  // 측정 데이터는 Lv.1→2, Lv.2→3, Lv.3→4 기준이라 Lv.0↔1은 평균 per-stone 계수로 보정한다.
+  const curStoneLevel = Math.max(0, Math.min(4, cur.AbilityStoneLevel ?? 0));
+  const modStoneLevel = Math.max(0, Math.min(4, mod.AbilityStoneLevel ?? 0));
+  const stoneSteps = LOPEC_STONE_LV_STEPS[cur.Name] ?? LOPEC_STONE_LV_STEPS_DEFAULT;
+  const firstStoneStep = LOPEC_ENGRAVING_PER_STONE[cur.Name] ?? LOPEC_ENGRAVING_PER_STONE_DEFAULT;
+  const stoneStepAt = (fromLevel: number): number =>
+    fromLevel <= 0 ? firstStoneStep : stoneSteps[fromLevel - 1];
+
+  if (modStoneLevel > curStoneLevel) {
+    for (let lv = curStoneLevel; lv < modStoneLevel; lv++) {
+      const step = stoneStepAt(lv);
+      if (step !== undefined) mult *= 1 + step / 100;
+    }
+  } else if (modStoneLevel < curStoneLevel) {
+    for (let lv = modStoneLevel; lv < curStoneLevel; lv++) {
+      const step = stoneStepAt(lv);
+      if (step !== undefined) mult /= 1 + step / 100;
     }
   }
 
