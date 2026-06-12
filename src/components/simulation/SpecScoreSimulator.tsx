@@ -365,7 +365,7 @@ const SpecScoreSimulator: React.FC<Props> = ({ profile }) => {
   return (
     <div className="space-y-4 animate-fade-in">
       {/* 점수 헤더 — lopec 스타일 4분할 */}
-      <div className="glass-card p-5">
+      <div className="glass-card sticky top-16 z-30 p-5">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="text-center">
             <p className="text-[11px] text-gray-500 dark:text-gray-400 mb-1">예상 전투력</p>
@@ -458,10 +458,6 @@ const SpecScoreSimulator: React.FC<Props> = ({ profile }) => {
           <div className="space-y-1.5">
             {raw.engravings.ArkPassiveEffects?.map((e) => {
               const currentLevel = mods.engs[e.Name]?.Level ?? e.Level;
-              const currentStone =
-                mods.engs[e.Name]?.AbilityStoneLevel !== undefined
-                  ? mods.engs[e.Name].AbilityStoneLevel
-                  : e.AbilityStoneLevel;
               return (
                 <div
                   key={e.Name}
@@ -485,22 +481,6 @@ const SpecScoreSimulator: React.FC<Props> = ({ profile }) => {
                           {lv}
                         </option>
                       ))}
-                    </select>
-                  </label>
-                  <label className="flex items-center gap-1 text-gray-500">
-                    스톤
-                    <select
-                      value={currentStone ?? 0}
-                      onChange={(ev) =>
-                        updateEngMod(e.Name, { AbilityStoneLevel: Number(ev.target.value) })
-                      }
-                      className="bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded px-2 py-0.5 text-xs"
-                    >
-                      <option value="0">0</option>
-                      <option value="1">+1</option>
-                      <option value="2">+2</option>
-                      <option value="3">+3</option>
-                      <option value="4">+4</option>
                     </select>
                   </label>
                 </div>
@@ -864,6 +844,11 @@ const SpecScoreSimulator: React.FC<Props> = ({ profile }) => {
                         );
                       })}
                     </div>
+                  </div>
+                )}
+                {(!raw.stone || raw.stone.engravings.length === 0) && (
+                  <div className="rounded-lg border border-amber-200/70 dark:border-amber-500/20 bg-amber-50/70 dark:bg-amber-500/10 px-3 py-2 text-[11px] leading-relaxed text-amber-700 dark:text-amber-300">
+                    어빌리티 스톤 정보를 읽을 수 없어 스톤 단계 시뮬레이션을 표시할 수 없습니다.
                   </div>
                 )}
 

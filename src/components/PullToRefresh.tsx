@@ -95,7 +95,8 @@ const PullToRefresh: React.FC<Props> = ({ children }) => {
   }, []);
 
   return (
-    <div className="relative overflow-hidden">
+    // overflow-hidden breaks sticky descendants; overflow-clip keeps the pull indicator clipped without creating a scroll container.
+    <div className="relative overflow-clip">
       {/* Pull indicator */}
       <div
         ref={indicatorRef}
