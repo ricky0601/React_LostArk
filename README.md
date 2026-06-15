@@ -66,6 +66,7 @@ src/
 - `/expedition` - 원정대
 - `/compare` - 비교
 - `/enhancement` - 강화
+- `/market` - 시세 랭킹
 - `/spending` - 소모
 
 ## 배포
