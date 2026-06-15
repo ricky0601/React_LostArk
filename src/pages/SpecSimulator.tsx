@@ -6,6 +6,7 @@ import PullToRefresh from '../components/PullToRefresh';
 import NicknameInput from '../components/NicknameInput';
 import NicknameSearchBar from '../components/NicknameSearchBar';
 import GlassCard from '../components/GlassCard';
+import { SkeletonBlock } from '../components/Loading';
 import SpecScoreSimulator from '../components/simulation/SpecScoreSimulator';
 import { fetchProfile, LS_NICKNAME } from '../utils/api';
 import { safeLocalStorage } from '../utils/safeStorage';
@@ -13,11 +14,11 @@ import { safeLocalStorage } from '../utils/safeStorage';
 const ProfileLoadingCard: React.FC = () => (
   <GlassCard className="p-6 animate-fade-in">
     <div className="flex items-center gap-4">
-      <div className="skeleton h-16 w-16 rounded-xl flex-shrink-0" />
+      <SkeletonBlock className="h-16 w-16 rounded-xl flex-shrink-0" />
       <div className="flex-1 space-y-2">
-        <div className="skeleton h-5 w-40" />
-        <div className="skeleton h-4 w-28" />
-        <div className="skeleton h-4 w-52" />
+        <SkeletonBlock className="h-5 w-40" />
+        <SkeletonBlock className="h-4 w-28" />
+        <SkeletonBlock className="h-4 w-52" />
       </div>
     </div>
   </GlassCard>

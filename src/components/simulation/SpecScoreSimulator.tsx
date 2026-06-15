@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { LoadingIndicator } from '../Loading';
 import type { CharacterProfile, EngravingData, GemData, ArkPassiveData, CardData, EquipmentItem } from '../../types/lostark';
 import { fetchEngravings, fetchGems, fetchArkPassive, fetchCards, fetchEquipment } from '../../utils/api';
 import { calcSpecScore } from '../../utils/specScore';
@@ -265,11 +266,7 @@ const SpecScoreSimulator: React.FC<Props> = ({ profile }) => {
     Object.keys(mods.polish).length > 0;
 
   if (loading) {
-    return (
-      <div className="glass-card p-6 text-center text-gray-500 dark:text-gray-400">
-        시뮬레이션 데이터 로딩 중...
-      </div>
-    );
+    return <LoadingIndicator message="시뮬레이션 데이터 로딩 중..." className="animate-none" />;
   }
   if (error || !raw || !currentResult) {
     return (
