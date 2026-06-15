@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import NavBar from '../components/NavBar';
 import GlassCard from '../components/GlassCard';
+import SelectMenu from '../components/SelectMenu';
 import {
   fetchEquipment,
   fetchProfile,
@@ -37,6 +38,16 @@ type SlotName = '무기' | ArmorSlot;
 const ALL_SLOTS: SlotName[] = ['무기', '투구', '어깨', '상의', '하의', '장갑'];
 
 const ITEM_LEVEL_PER_STEP = 5; // 일반 재련 1단계당 아이템 레벨 증가량
+
+const NORMAL_BULK_TARGET_OPTIONS = Array.from({ length: 15 }, (_, i) => {
+  const level = i + 11;
+  return { value: level, label: `${level}강` };
+});
+
+const ADV_TARGET_OPTIONS = [10, 20, 30, 40].map((level) => ({
+  value: level,
+  label: `${level}단계`,
+}));
 
 interface MarketConfig {
   searchName: string;
@@ -804,7 +815,7 @@ const Enhancement: React.FC = () => {
   return (
     <div>
       <NavBar />
-      <main className="max-w-4xl mx-auto px-4 py-6 space-y-5">
+      <main className="enhancement-page max-w-4xl mx-auto px-4 py-6 space-y-5">
 
         {/* ── 헤더 ── */}
         <div>
@@ -901,39 +912,40 @@ const Enhancement: React.FC = () => {
           {/* 일반 재련 일괄 + 목표 선택 */}
           <div className="flex items-center gap-2 mt-2 mb-1">
             <span className="text-xs text-gray-400 dark:text-gray-500 w-8">일괄</span>
-            <select
-              value=""
-              onChange={(e) => {
-                if (!e.target.value) return;
-                const val = Number(e.target.value);
+            <SelectMenu
+              value={undefined}
+              options={NORMAL_BULK_TARGET_OPTIONS}
+              placeholder="일반 재련 일괄"
+              ariaLabel="일반 재련 일괄 목표 선택"
+              onChange={(val) => {
+                if (val === undefined) return;
+                const targetLevel = Number(val);
                 ALL_SLOTS.forEach((slot) => {
-                  if (slotCurrentLevel[slot] < val) handleTargetChange(slot, val);
+                  if (slotCurrentLevel[slot] < targetLevel) handleTargetChange(slot, targetLevel);
                 });
-                e.target.value = '';
               }}
-              className="text-xs bg-gray-100 dark:bg-white/10 text-gray-700 dark:text-gray-300 rounded-lg px-2 py-1.5 cursor-pointer"
-            >
-              <option value="">일반 재련 일괄</option>
-              {Array.from({ length: 15 }, (_, i) => i + 11).map((lvl) => (
-                <option key={lvl} value={lvl}>{lvl}강</option>
-              ))}
-            </select>
+            />
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-6 gap-2">
             {ALL_SLOTS.map((slot) => {
               const currentLvl = slotCurrentLevel[slot];
+              const targetOptions = Array.from({ length: 25 - currentLvl }, (_, i) => {
+                const level = currentLvl + i + 1;
+                return { value: level, label: `${level}강` };
+              });
               return (
-                <select
+                <SelectMenu
                   key={slot}
-                  value={targetMap[slot] ?? ''}
-                  onChange={(e) => handleTargetChange(slot, e.target.value === '' ? undefined : Number(e.target.value))}
-                  className="w-full text-xs bg-gray-100 dark:bg-white/10 text-gray-700 dark:text-gray-300 rounded-lg px-1 py-1.5 text-center cursor-pointer"
-                >
-                  <option value="">목표</option>
-                  {Array.from({ length: 25 - currentLvl }, (_, i) => currentLvl + i + 1).map((lvl) => (
-                    <option key={lvl} value={lvl}>{lvl}강</option>
-                  ))}
-                </select>
+                  value={targetMap[slot]}
+                  options={targetOptions}
+                  placeholder="목표"
+                  ariaLabel={`${slot} 일반 재련 목표 선택`}
+                  onChange={(val) => handleTargetChange(slot, val === undefined ? undefined : Number(val))}
+                  fullWidth
+                  compact
+                  align="center"
+                  clearable
+                />
               );
             })}
           </div>
@@ -942,25 +954,22 @@ const Enhancement: React.FC = () => {
             <>
               <div className="flex items-center gap-2 mt-2 mb-1">
                 <span className="text-xs text-gray-400 dark:text-gray-500 w-8">일괄</span>
-                <select
-                  value=""
-                  onChange={(e) => {
-                    if (!e.target.value) return;
-                    const val = Number(e.target.value);
+                <SelectMenu
+                  value={undefined}
+                  options={ADV_TARGET_OPTIONS}
+                  placeholder="상급 재련 일괄"
+                  ariaLabel="상급 재련 일괄 목표 선택"
+                  variant="purple"
+                  onChange={(val) => {
+                    if (val === undefined) return;
+                    const targetLevel = Number(val);
                     ALL_SLOTS.forEach((slot) => {
-                      if (!slotInheritedMap[slot] && (advLevelMap[slot] ?? 0) < val) {
-                        handleAdvTargetChange(slot, val);
+                      if (!slotInheritedMap[slot] && (advLevelMap[slot] ?? 0) < targetLevel) {
+                        handleAdvTargetChange(slot, targetLevel);
                       }
                     });
-                    e.target.value = '';
                   }}
-                  className="text-xs bg-purple-100 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 rounded-lg px-2 py-1.5 cursor-pointer"
-                >
-                  <option value="">상급 재련 일괄</option>
-                  {[10, 20, 30, 40].map((lvl) => (
-                    <option key={lvl} value={lvl}>{lvl}단계</option>
-                  ))}
-                </select>
+                />
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-6 gap-2">
                 {ALL_SLOTS.map((slot) => {
@@ -968,19 +977,21 @@ const Enhancement: React.FC = () => {
                     return <div key={slot} />;
                   }
                   const currentAdv = advLevelMap[slot] ?? 0;
-                  const availableTargets = [10, 20, 30, 40].filter((t) => t > currentAdv);
+                  const availableTargets = ADV_TARGET_OPTIONS.filter((option) => option.value > currentAdv);
                   return (
-                    <select
+                    <SelectMenu
                       key={slot}
-                      value={advTargetMap[slot] ?? ''}
-                      onChange={(e) => handleAdvTargetChange(slot, e.target.value === '' ? undefined : Number(e.target.value))}
-                      className="w-full text-xs bg-purple-100 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 rounded-lg px-1 py-1.5 text-center cursor-pointer"
-                    >
-                      <option value="">상급</option>
-                      {availableTargets.map((lvl) => (
-                        <option key={lvl} value={lvl}>{lvl}단계</option>
-                      ))}
-                    </select>
+                      value={advTargetMap[slot]}
+                      options={availableTargets}
+                      placeholder="상급"
+                      ariaLabel={`${slot} 상급 재련 목표 선택`}
+                      onChange={(val) => handleAdvTargetChange(slot, val === undefined ? undefined : Number(val))}
+                      variant="purple"
+                      fullWidth
+                      compact
+                      align="center"
+                      clearable
+                    />
                   );
                 })}
               </div>
@@ -1398,8 +1409,8 @@ const Enhancement: React.FC = () => {
               </span>
             </button>
             {showOwnedSection && (
-              <>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-2 mt-3">
+              <div className="mt-3 space-y-3 overflow-hidden">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-2">
                   {Array.from(shortfallData.keys()).map((type) => (
                     <div key={type} className="flex items-center gap-2">
                       {icons[type] && (
@@ -1430,12 +1441,12 @@ const Enhancement: React.FC = () => {
                 {hasOwnedInput && (
                   <button
                     onClick={() => setOwnedMaterials({})}
-                    className="mt-3 text-xs text-gray-400 hover:text-red-400 dark:hover:text-red-400 transition-colors underline underline-offset-2"
+                    className="text-xs text-gray-400 hover:text-red-400 dark:hover:text-red-400 transition-colors underline underline-offset-2"
                   >
                     전체 초기화
                   </button>
                 )}
-              </>
+              </div>
             )}
           </GlassCard>
         )}

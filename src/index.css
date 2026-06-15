@@ -40,6 +40,18 @@
            dark:hover:bg-white/10 dark:hover:border-white/20 dark:hover:shadow-gold-glow;
   }
 
+  .enhancement-page .glass-card,
+  .enhancement-page .glass-card-hover {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    background-color: rgb(255 255 255 / 0.86);
+  }
+
+  html.dark .enhancement-page .glass-card,
+  html.dark .enhancement-page .glass-card-hover {
+    background-color: rgb(22 27 34 / 0.92);
+  }
+
   .btn-gold {
     @apply bg-gradient-to-r from-la-gold to-la-gold-light text-la-dark font-bold
            min-h-11 py-3 px-8 rounded-xl transition-all duration-300
