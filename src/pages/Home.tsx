@@ -64,6 +64,50 @@ function getTodayTimes(startTimes: string[] | null): string[] {
 
 const CALENDAR_CATEGORIES = ['모험 섬', '카오스게이트', '필드보스', '항해'];
 
+const QUICK_ACTIONS = [
+  {
+    to: '/simulation',
+    title: '주간 골드 계산',
+    description: '주간 골드와 숙제 현황',
+    action: '계산하기',
+    iconBg: 'bg-amber-500/15',
+    iconText: 'text-amber-700 dark:text-amber-400',
+    ctaText: 'text-amber-700 dark:text-amber-400',
+    path: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z',
+    featured: true,
+  },
+  {
+    to: '/enhancement',
+    title: '재련 계산',
+    description: '재료 시세 기반 강화 비용',
+    action: '계산하기',
+    iconBg: 'bg-emerald-500/15',
+    iconText: 'text-emerald-600 dark:text-emerald-400',
+    ctaText: 'text-emerald-600 dark:text-emerald-400',
+    path: 'M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 014.5 0m0 0v5.714a2.25 2.25 0 00.659 1.591L19 14.5m-4.75-11.396c.251.023.501.05.75.082M19 14.5l-2.14 3.21a2.25 2.25 0 01-1.873 1.002H9.013A2.25 2.25 0 017.14 17.71L5 14.5m14 0H5',
+  },
+  {
+    to: '/market',
+    title: '시세 랭킹',
+    description: '각인서·보석 최저가 순위',
+    action: '랭킹 보기',
+    iconBg: 'bg-la-gold/20',
+    iconText: 'text-la-gold-dark dark:text-la-gold',
+    ctaText: 'text-la-gold-dark dark:text-la-gold',
+    path: 'M3 10h18M7 15h1m4 0h1m4 0h1M5 6h14a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2z',
+  },
+  {
+    to: '/compare',
+    title: '캐릭터 비교',
+    description: '두 캐릭터 스펙 비교',
+    action: '비교하기',
+    iconBg: 'bg-sky-500/15',
+    iconText: 'text-sky-600 dark:text-sky-400',
+    ctaText: 'text-sky-600 dark:text-sky-400',
+    path: 'M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3',
+  },
+];
+
 const Home: React.FC = () => {
   const [events, setEvents] = useState<GameEvent[]>([]);
   const [calendar, setCalendar] = useState<CalendarItem[]>([]);
@@ -115,134 +159,68 @@ const Home: React.FC = () => {
       <NavBar />
       <PullToRefresh>
       <main className="max-w-7xl mx-auto px-4 py-8 space-y-8">
-        {/* Hero */}
-        <section className="text-center animate-fade-in">
-          <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-la-gold to-la-gold-light bg-clip-text text-transparent">
-            LostArk
-          </h1>
-          <p className="text-gray-500 dark:text-gray-400 mt-1">오늘의 로스트아크 정보</p>
+        {/* Dashboard Hero */}
+        <section className="glass-card relative overflow-hidden p-6 sm:p-8 animate-fade-in">
+          <div className="absolute -left-20 -top-20 h-56 w-56 rounded-full bg-la-gold/20 blur-3xl" aria-hidden />
+          <div className="absolute -right-20 bottom-0 h-48 w-48 rounded-full bg-amber-500/10 blur-3xl" aria-hidden />
+          <div className="relative grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-end">
+            <div>
+              <span className="inline-flex rounded-full border border-la-gold/20 bg-la-gold/10 px-3 py-1 text-xs font-bold text-la-gold-dark dark:text-la-gold">
+                로아 성장 관리 대시보드
+              </span>
+              <h1 className="mt-4 text-3xl sm:text-4xl md:text-5xl font-black tracking-tight text-gray-950 dark:text-white">
+                성장에 필요한 도구를 한곳에
+              </h1>
+              <p className="mt-4 max-w-2xl text-sm sm:text-base leading-relaxed text-gray-500 dark:text-gray-400">
+                시세, 골드, 캐릭터 비교, 재련 계산까지 필요한 순간 바로 확인하세요.
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="rounded-2xl border border-la-gold/20 bg-la-gold/10 p-4">
+                <p className="text-xs font-bold tracking-wider text-la-gold-dark dark:text-la-gold">이벤트</p>
+                <p className="mt-2 text-3xl font-black text-gray-950 dark:text-white">
+                  {loadingEvents ? '-' : activeEvents.length}
+                </p>
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">진행 중</p>
+              </div>
+              <div className="rounded-2xl border border-white/10 bg-white/60 p-4 dark:bg-white/5">
+                <p className="text-xs font-bold tracking-wider text-gray-500 dark:text-gray-400">일정</p>
+                <p className="mt-2 text-3xl font-black text-gray-950 dark:text-white">
+                  {loadingCalendar ? '-' : calendarGroups.size}
+                </p>
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">오늘 일정</p>
+              </div>
+            </div>
+          </div>
         </section>
 
         {/* Quick Links */}
-        <section className="grid grid-cols-1 sm:grid-cols-3 gap-4 animate-fade-in">
-          <Link
-            to="/simulation"
-            className="glass-card p-5 text-left transition-all duration-300 group cursor-pointer hover:shadow-gold-glow hover:border-la-gold/30 dark:hover:border-la-gold/20"
-          >
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-lg bg-la-gold/20 flex items-center justify-center flex-shrink-0">
-                <svg className="w-5 h-5 text-la-gold-dark dark:text-la-gold" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-              <h2 className="text-base font-bold text-gray-900 dark:text-white">주간 골드 계산</h2>
-            </div>
-            <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
-              원정대 레이드별 주간 골드 수입을 계산하고 숙제 진행을 추적합니다
-            </p>
-            <div className="mt-3 flex items-center gap-1 text-sm font-medium text-la-gold-dark dark:text-la-gold opacity-0 group-hover:opacity-100 transition-opacity">
-              <span>시작하기</span>
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-              </svg>
-            </div>
-          </Link>
-
-          <Link
-            to="/character"
-            className="glass-card p-5 text-left transition-all duration-300 group cursor-pointer hover:shadow-gold-glow hover:border-la-gold/30 dark:hover:border-la-gold/20"
-          >
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-lg bg-blue-500/15 flex items-center justify-center flex-shrink-0">
-                <svg className="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                </svg>
-              </div>
-              <h2 className="text-base font-bold text-gray-900 dark:text-white">캐릭터 프로필</h2>
-            </div>
-            <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
-              캐릭터 장비 레벨, 전투 레벨, 길드 등 상세 정보를 조회합니다
-            </p>
-            <div className="mt-3 flex items-center gap-1 text-sm font-medium text-blue-600 dark:text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity">
-              <span>조회하기</span>
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-              </svg>
-            </div>
-          </Link>
-
-          <Link
-            to="/compare"
-            className="glass-card p-5 text-left transition-all duration-300 group cursor-pointer hover:shadow-gold-glow hover:border-la-gold/30 dark:hover:border-la-gold/20"
-          >
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-lg bg-violet-500/15 flex items-center justify-center flex-shrink-0">
-                <svg className="w-5 h-5 text-violet-600 dark:text-violet-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3" />
-                </svg>
-              </div>
-              <h2 className="text-base font-bold text-gray-900 dark:text-white">캐릭터 비교</h2>
-            </div>
-            <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
-              두 캐릭터의 장비, 보석, 각인을 나란히 비교합니다
-            </p>
-            <div className="mt-3 flex items-center gap-1 text-sm font-medium text-violet-600 dark:text-violet-400 opacity-0 group-hover:opacity-100 transition-opacity">
-              <span>비교하기</span>
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-              </svg>
-            </div>
-          </Link>
-        </section>
-
-        {/* Events Section */}
-        <section className="animate-fade-in">
-          <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">진행 중인 이벤트</h2>
-          {loadingEvents ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className="glass-card overflow-hidden">
-                  <SkeletonBlock className="h-36 w-full" />
-                  <div className="p-4 space-y-2">
-                    <SkeletonBlock className="h-5 w-3/4" />
-                    <SkeletonBlock className="h-4 w-1/2" />
-                  </div>
+        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 animate-fade-in">
+          {QUICK_ACTIONS.map((action) => (
+            <Link
+              key={action.to}
+              to={action.to}
+              className={`glass-card p-5 text-left transition-all duration-300 group cursor-pointer hover:shadow-gold-glow hover:border-la-gold/30 dark:hover:border-la-gold/20 ${action.featured ? 'ring-1 ring-la-gold/20' : ''}`}
+            >
+              <div className="flex items-center gap-3 mb-3">
+                <div className={`w-10 h-10 rounded-xl ${action.iconBg} flex items-center justify-center flex-shrink-0`}>
+                  <svg className={`w-5 h-5 ${action.iconText}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d={action.path} />
+                  </svg>
                 </div>
-              ))}
-            </div>
-          ) : activeEvents.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {activeEvents.map((event, i) => (
-                <a
-                  key={i}
-                  href={event.Link}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="glass-card overflow-hidden transition-all duration-300 hover:shadow-gold-glow hover:border-la-gold/30 dark:hover:border-la-gold/20 group"
-                >
-                  <div className="relative h-36 overflow-hidden">
-                    <img
-                      src={event.Thumbnail}
-                      alt={event.Title}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                    />
-                  </div>
-                  <div className="p-4">
-                    <h3 className="text-sm font-bold text-gray-900 dark:text-white line-clamp-2 leading-snug">
-                      {event.Title}
-                    </h3>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                      {formatShortDate(event.StartDate)} ~ {formatShortDate(event.EndDate)}
-                    </p>
-                  </div>
-                </a>
-              ))}
-            </div>
-          ) : (
-            <div className="glass-card p-6 text-center">
-              <p className="text-gray-500 dark:text-gray-400 text-sm">이벤트 정보를 불러올 수 없습니다.</p>
-            </div>
-          )}
+                <h2 className="text-base font-bold text-gray-900 dark:text-white">{action.title}</h2>
+              </div>
+              <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
+                {action.description}
+              </p>
+              <div className={`mt-3 flex items-center gap-1 text-sm font-medium ${action.ctaText} opacity-0 group-hover:opacity-100 transition-opacity`}>
+                <span>{action.action}</span>
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                </svg>
+              </div>
+            </Link>
+          ))}
         </section>
 
         {/* Today's Calendar - 카테고리별 접기, 기본 접힘 */}
@@ -330,6 +308,57 @@ const Home: React.FC = () => {
             </div>
           )}
         </section>
+
+        {/* Events Section */}
+        <section className="animate-fade-in">
+          <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">진행 중인 이벤트</h2>
+          {loadingEvents ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="glass-card overflow-hidden">
+                  <SkeletonBlock className="h-36 w-full" />
+                  <div className="p-4 space-y-2">
+                    <SkeletonBlock className="h-5 w-3/4" />
+                    <SkeletonBlock className="h-4 w-1/2" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : activeEvents.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {activeEvents.map((event, i) => (
+                <a
+                  key={i}
+                  href={event.Link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="glass-card overflow-hidden transition-all duration-300 hover:shadow-gold-glow hover:border-la-gold/30 dark:hover:border-la-gold/20 group"
+                >
+                  <div className="relative h-36 overflow-hidden">
+                    <img
+                      src={event.Thumbnail}
+                      alt={event.Title}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    />
+                  </div>
+                  <div className="p-4">
+                    <h3 className="text-sm font-bold text-gray-900 dark:text-white line-clamp-2 leading-snug">
+                      {event.Title}
+                    </h3>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                      {formatShortDate(event.StartDate)} ~ {formatShortDate(event.EndDate)}
+                    </p>
+                  </div>
+                </a>
+              ))}
+            </div>
+          ) : (
+            <div className="glass-card p-6 text-center">
+              <p className="text-gray-500 dark:text-gray-400 text-sm">진행 중인 이벤트가 없습니다.</p>
+            </div>
+          )}
+        </section>
+
       </main>
       </PullToRefresh>
     </div>
