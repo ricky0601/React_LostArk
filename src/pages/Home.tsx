@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import NavBar from '../components/NavBar';
 import PullToRefresh from '../components/PullToRefresh';
+import { SkeletonBlock } from '../components/Loading';
 import { fetchEvents, fetchCalendar } from '../utils/api';
 import type { GameEvent, CalendarItem } from '../types/lostark';
 
@@ -201,10 +202,10 @@ const Home: React.FC = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {Array.from({ length: 3 }).map((_, i) => (
                 <div key={i} className="glass-card overflow-hidden">
-                  <div className="skeleton h-36 w-full" />
+                  <SkeletonBlock className="h-36 w-full" />
                   <div className="p-4 space-y-2">
-                    <div className="skeleton h-5 w-3/4" />
-                    <div className="skeleton h-4 w-1/2" />
+                    <SkeletonBlock className="h-5 w-3/4" />
+                    <SkeletonBlock className="h-4 w-1/2" />
                   </div>
                 </div>
               ))}
@@ -251,12 +252,12 @@ const Home: React.FC = () => {
             <div className="space-y-4">
               {Array.from({ length: 3 }).map((_, i) => (
                 <div key={i} className="glass-card p-4">
-                  <div className="skeleton h-5 w-24 mb-3" />
+                  <SkeletonBlock className="h-5 w-24 mb-3" />
                   <div className="flex gap-3">
-                    <div className="skeleton h-12 w-12 rounded-lg" />
+                    <SkeletonBlock className="h-12 w-12 rounded-lg" />
                     <div className="flex-1 space-y-2">
-                      <div className="skeleton h-4 w-3/4" />
-                      <div className="skeleton h-3 w-1/2" />
+                      <SkeletonBlock className="h-4 w-3/4" />
+                      <SkeletonBlock className="h-3 w-1/2" />
                     </div>
                   </div>
                 </div>

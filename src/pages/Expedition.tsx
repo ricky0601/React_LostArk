@@ -5,6 +5,7 @@ import PullToRefresh from '../components/PullToRefresh';
 import NicknameInput from '../components/NicknameInput';
 import NicknameSearchBar from '../components/NicknameSearchBar';
 import GlassCard from '../components/GlassCard';
+import { SkeletonBlock } from '../components/Loading';
 import type { CharacterProfile, SiblingCharacter } from '../types/lostark';
 import { fetchProfile, fetchSiblings, LS_NICKNAME } from '../utils/api';
 import { safeLocalStorage } from '../utils/safeStorage';
@@ -163,16 +164,16 @@ const Expedition: React.FC = () => {
               {Array.from({ length: 6 }).map((_, index) => (
                 <GlassCard key={index} className="p-5">
                   <div className="flex items-center gap-4 mb-4">
-                    <div className="skeleton w-16 h-16 rounded-2xl" />
+                    <SkeletonBlock className="w-16 h-16 rounded-2xl" />
                     <div className="flex-1 space-y-2">
-                      <div className="skeleton h-5 w-28" />
-                      <div className="skeleton h-4 w-20" />
+                      <SkeletonBlock className="h-5 w-28" />
+                      <SkeletonBlock className="h-4 w-20" />
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <div className="skeleton h-4 w-full" />
-                    <div className="skeleton h-4 w-5/6" />
-                    <div className="skeleton h-4 w-2/3" />
+                    <SkeletonBlock className="h-4 w-full" />
+                    <SkeletonBlock className="h-4 w-5/6" />
+                    <SkeletonBlock className="h-4 w-2/3" />
                   </div>
                 </GlassCard>
               ))}
