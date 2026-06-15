@@ -116,5 +116,66 @@ export const fetchMarketItems = (
     }),
   });
 
+export interface AuctionItemOption {
+  Type: string;
+  OptionName: string;
+  OptionNameTripod: string;
+  Value: number;
+  IsPenalty: boolean;
+  ClassName: string;
+}
+
+export interface AuctionItem {
+  Name: string;
+  Grade: string;
+  Tier: number;
+  Level: number | null;
+  Icon: string;
+  GradeQuality: number | null;
+  AuctionInfo: {
+    StartPrice: number;
+    BuyPrice: number;
+    BidPrice: number;
+    EndDate: string;
+    BidCount: number;
+    BidStartPrice: number;
+    IsCompetitive: boolean;
+    TradeAllowCount: number;
+  };
+  Options: AuctionItemOption[];
+}
+
+export interface AuctionSearchResponse {
+  PageNo: number;
+  PageSize: number;
+  TotalCount: number;
+  Items: AuctionItem[];
+}
+
+export interface AuctionSearchParams {
+  CategoryCode?: number;
+  ItemName?: string;
+  PageNo?: number;
+  Sort?: string;
+  SortCondition?: string;
+  PageSize?: number;
+  [key: string]: unknown;
+}
+
+export const fetchAuctionItems = (
+  params: AuctionSearchParams = {},
+): Promise<AuctionSearchResponse> =>
+  apiFetch<AuctionSearchResponse>('/auctions/items', {
+    method: 'POST',
+    body: JSON.stringify({
+      CategoryCode: 210000,
+      PageNo: 0,
+      Sort: 'BUY_PRICE',
+      SortCondition: 'ASC',
+      PageSize: 10,
+      ...params,
+    }),
+  });
+
 // --- Shared constants ---
 export const LS_NICKNAME = 'loaGold_nickname';

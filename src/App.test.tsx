@@ -20,6 +20,7 @@ jest.mock('./pages/SpecSimulator', () => () => <div>Spec Simulator Page</div>);
 jest.mock('./pages/Expedition', () => () => <div>Expedition Page</div>);
 jest.mock('./pages/Compare', () => () => <div>Compare Page</div>);
 jest.mock('./pages/Enhancement', () => () => <div>Enhancement Page</div>);
+jest.mock('./pages/Market', () => () => <div>Market Page</div>);
 jest.mock('./pages/Spending', () => () => <div>Spending Page</div>);
 
 import App from './App';

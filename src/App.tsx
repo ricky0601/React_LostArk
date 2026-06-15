@@ -8,6 +8,7 @@ import Expedition from './pages/Expedition';
 import Compare from './pages/Compare';
 import Enhancement from './pages/Enhancement';
 import Spending from './pages/Spending';
+import Market from './pages/Market';
 import ThemeToggle from './components/ThemeToggle';
 import { PwaChunkProvider, usePwaChunk } from './context/PwaChunkContext';
 import { safeLocalStorage } from './utils/safeStorage';
@@ -65,6 +66,7 @@ const AppContent: React.FC = () => {
           <Route path="/expedition" element={<Expedition />} />
           <Route path="/compare" element={<Compare />} />
           <Route path="/enhancement" element={<Enhancement />} />
+          <Route path="/market" element={<Market />} />
           <Route path="/spending" element={<Spending />} />
         </Routes>
         <ThemeToggle isDarkMode={isDarkMode} onToggle={toggleDarkMode} />
