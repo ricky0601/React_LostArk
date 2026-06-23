@@ -1,4 +1,7 @@
 {
+  "framework": null,
+  "buildCommand": "react-scripts build",
+  "outputDirectory": "build",
   "rewrites": [
     { "source": "/:path((?!api/).*)", "destination": "/index.html" }
   ]
