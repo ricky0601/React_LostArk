@@ -1,5 +1,6 @@
 {
   "rewrites": [
+    { "source": "/api/lostark/:path*", "destination": "/api/lostark/[...]" },
     { "source": "/:path((?!api/).*)", "destination": "/index.html" }
   ]
 }
