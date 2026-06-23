@@ -11,12 +11,10 @@ import type {
   CardData,
 } from '../types/lostark';
 
-const BASE_URL = 'https://developer-lostark.game.onstove.com';
-const API_KEY = process.env.REACT_APP_API_KEY;
+const BASE_URL = '/api/lostark';
 
 const headers: HeadersInit = {
   accept: 'application/json',
-  authorization: `bearer ${API_KEY}`,
 };
 
 async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {

@@ -82,7 +82,7 @@ yarn start
 - 저장소: `.env.example`만 유지, `.env`는 `.gitignore` 유지
 
 권장 변수 분리 예시:
-- `LOSTARK_API_BASE_URL`
+- `LOSTARK_API_KEY` - Vercel 함수에서만 읽는 서버 전용 Lost Ark API 키
 - `GITHUB_TOKEN`
 - `MCP_*`
 
