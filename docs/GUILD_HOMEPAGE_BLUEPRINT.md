@@ -1,5 +1,8 @@
 # Lost Ark Guild Homepage Blueprint
 
+> 상태: 현재 React_LostArk 앱 문서가 아니라, 별도 길드 홈페이지를 만들 때 참고할 독립 청사진입니다.
+> 현재 production 앱(`https://lokki.vercel.app/`)의 라우트/배포 구조와는 별개로 관리합니다.
+
 ## 1. Project Summary
 
 Lost Ark 길드 운영을 위한 전용 홈페이지를 만든다. 길드원은 Discord SSO로 로그인하고, 사용자 권한에 따라 레이드 일정을 조회, 등록, 수정, 삭제하거나 참가 신청을 할 수 있다.
