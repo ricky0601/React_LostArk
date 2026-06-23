@@ -17,6 +17,18 @@ yarn start
 ```
 - 기본 접속: `http://localhost:3000`
 - 빌드 검증: `yarn build`
+- 테스트 검증: `yarn test --watchAll=false`
+
+### Lost Ark API 로컬 키
+
+Lost Ark API 조회가 필요한 화면은 `LOSTARK_API_KEY`가 필요합니다.
+
+```bash
+LOSTARK_API_KEY=...
+```
+
+- 로컬 개발: `src/setupProxy.js`가 `/api/lostark/*` 요청에 key를 주입
+- Production: `api/lostark/[...].js` Vercel Function이 key를 주입
 
 ---
 
@@ -86,6 +98,8 @@ yarn start
 - `GITHUB_TOKEN`
 - `MCP_*`
 
+Vercel production에서는 `LOSTARK_API_KEY`를 Project Settings의 Production scope에 설정해야 합니다.
+
 ---
 
 ## 6) 재현 완료 체크리스트 (Done 정의)
@@ -95,6 +109,8 @@ yarn start
 - [ ] `yarn install` 성공
 - [ ] `yarn start` 후 앱 정상 접속
 - [ ] `yarn build` 성공
+- [ ] `yarn test --watchAll=false` 성공
+- [ ] `/api/lostark/news/events` 로컬/production 조회 성공
 - [ ] AI 에이전트가 프로젝트 규칙/워크플로우 파일 인식
 - [ ] 주요 MCP 1회 이상 호출 성공
 - [ ] `/review/local` 같은 핵심 명령 실행 가능
@@ -114,6 +130,11 @@ yarn start
 ### C. AI 출력 톤/행동이 다름
 - 세션별 시스템/개발자 지시문 차이 확인
 - 프로젝트 내 규칙 파일(AGENTS/워크플로우) 로딩 여부 점검
+
+### D. Production Lost Ark API가 404를 반환
+- `docs/troubleshooting/vercel-lostark-api-route-404.md` 확인
+- Vercel Runtime Logs에 serverless invocation이 없으면 route/rewrite 문제 가능성이 높음
+- `vercel.json`의 `/api/lostark/:path*` rewrite와 `api/lostark/[...].js` 파일명을 먼저 확인
 
 ---
 
