@@ -7,11 +7,9 @@ module.exports = function (app) {
       target: 'https://developer-lostark.game.onstove.com',
       changeOrigin: true,
       pathRewrite: { '^/api/lostark': '' },
-      on: {
-        proxyReq: (proxyReq) => {
-          proxyReq.setHeader('authorization', `bearer ${process.env.LOSTARK_API_KEY}`);
-          proxyReq.setHeader('accept', 'application/json');
-        },
+      onProxyReq: (proxyReq) => {
+        proxyReq.setHeader('authorization', `bearer ${process.env.LOSTARK_API_KEY}`);
+        proxyReq.setHeader('accept', 'application/json');
       },
     })
   );

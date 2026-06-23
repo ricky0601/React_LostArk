@@ -1275,7 +1275,7 @@ export const getAttemptMaterials = (
 // - 총 4단계, 단계당 1000 XP (100 × 10칸)
 // - 1회 시도 결과: 성공(10xp) / 대성공(20xp) / 대성공×2(40xp)
 // - 강화 재료(숨결/책) 조합에 따라 확률 변동
-// - 선조의 가호: 6회마다 발동, 결과 XP에 배수/보너스
+// - 선조의 가호: 4턴마다 발동(일반×3 + 선조×1), 결과 XP에 배수/보너스
 // - 단계 경계 도달 시 초과 XP 소멸, 선조 사이클 리셋
 //
 // [기대 XP/회]
@@ -1438,12 +1438,11 @@ const advOptionBaseXp = (opt: AdvTurnOption): number =>
  * 책/숨결 사용 여부에 따라 그 턴의 base XP(13/19/28)가 결정되고,
  * 선조 효과(배수·보너스)는 해당 base XP에 적용됨.
  *
- * 사이클 구성:
- *   1~2단계: 일반×6 + 선조×1  (cycleLen=7)
+ * 사이클 구성 (2026-06 Summer 패치 이후):
+ *   모든 단계: 일반×3 + 선조×1  (cycleLen=4)
  *     선조 E[XP] = ancestorBase×2.30 + 8.0
- *   3~4단계: 일반×6 + 선조×1 + 강화선조×0.125  (cycleLen=7.125)
- *     선조 E[XP]     = ancestorBase×1.875 + 18.75
- *     강화선조 E[XP] = enhancedBase×3.0   + 62.0
+ *   3~4단계: 강화선조×0.125  (cycleLen=4.125)
+ *     강화선조 E[XP] = enhancedBase×3.0 + 62.0
  */
 export const calcAdvExpectedAttempts = (
   normalOpt: AdvTurnOption,
@@ -1458,14 +1457,15 @@ export const calcAdvExpectedAttempts = (
   let cycleXp: number;
   let cycleLen: number;
 
+  const normalAncestorXp   = ancestorXp * 2.30 + 8.0;
+
   if (stage <= 2) {
-    cycleXp  = 6 * normalXp + (ancestorXp * 2.30 + 8.0);
-    cycleLen = 7;
+    cycleXp  = 3 * normalXp + normalAncestorXp;
+    cycleLen = 4;
   } else {
-    const normalAncestorXp   = ancestorXp * 1.875 + 18.75;
     const enhancedAncestorXp = enhancedXp * 3.0   + 62.0;
-    cycleXp  = 6 * normalXp + normalAncestorXp + 0.125 * enhancedAncestorXp;
-    cycleLen = 7.125;
+    cycleXp  = 3 * normalXp + normalAncestorXp + 0.125 * enhancedAncestorXp;
+    cycleLen = 4.125;
   }
 
   return ADV_STAGE_XP / (cycleXp / cycleLen);
@@ -1476,7 +1476,7 @@ export const calcAdvExpectedAttempts = (
  *
  * 재련 재료(main)는 매 시도 소모.
  * 강화 재료(optional)는 사이클 내 사용 빈도에 따라 비례 소모:
- *   - 일반턴: 사이클의 6/cycleLen 비율
+ *   - 일반턴: 사이클의 3/cycleLen 비율
  *   - 선조턴: 1/cycleLen 비율
  *   - 강화선조: 0.125/cycleLen 비율 (3~4단계만)
  */
@@ -1487,18 +1487,18 @@ export const getAdvAttemptMaterials = (
   enhancedOpt: AdvTurnOption,
 ): { main: MaterialAmount[]; optional: MaterialAmount[] } => {
   const hasEnhanced = stageData.stage > 2;
-  const cycleLen = hasEnhanced ? 7.125 : 7;
+  const cycleLen = hasEnhanced ? 4.125 : 4;
 
   const usesBook   = (opt: AdvTurnOption) => opt === 'book'   || opt === 'both';
   const usesBreath = (opt: AdvTurnOption) => opt === 'breath' || opt === 'both';
 
   const bookPerCycle =
-    (usesBook(normalOpt)                     ? 6     : 0) +
+    (usesBook(normalOpt)                     ? 3     : 0) +
     (usesBook(ancestorOpt)                   ? 1     : 0) +
     (hasEnhanced && usesBook(enhancedOpt)    ? 0.125 : 0);
 
   const breathPerCycle =
-    (usesBreath(normalOpt)                   ? 6     : 0) +
+    (usesBreath(normalOpt)                   ? 3     : 0) +
     (usesBreath(ancestorOpt)                 ? 1     : 0) +
     (hasEnhanced && usesBreath(enhancedOpt)  ? 0.125 : 0);
 

@@ -1,5 +1,5 @@
 /**
- * 로스트아크 레이드 골드 데이터 (2026-04 귀속 골드 조정 반영)
+ * 로스트아크 레이드 골드 데이터 (2026-06 Summer 골드 하향 조정 반영)
  *
  * - 기본 규칙: T4 레이드는 거래가능 50% + 귀속 50%
  * - 예외 1 (전액 거래가능): 카제로스 종막 하드 / 세르카 그림자 하드·나이트메어 / 아르모체 4막 하드
@@ -144,12 +144,12 @@ export const RAIDS: Raid[] = [
                 difficulty: '노말',
                 requiredLevel: 1710,
                 gates: [
-                    { gate: 1, gold: 14000, bonusCost: 4480, coreReward: 2 },
-                    { gate: 2, gold: 21000, bonusCost: 6720, coreReward: 2 },
+                    { gate: 1, gold: 13000, bonusCost: 4160, coreReward: 2 },
+                    { gate: 2, gold: 19000, bonusCost: 6080, coreReward: 2 },
                 ],
-                totalGold: 35000,
+                totalGold: 32000,
                 isBound: false,
-                boundGold: 17500,
+                boundGold: 16000,
             },
         ],
     },
@@ -161,22 +161,33 @@ export const RAIDS: Raid[] = [
                 difficulty: '하드',
                 requiredLevel: 1730,
                 gates: [
-                    { gate: 1, gold: 17000, bonusCost: 5440, coreReward: 2 },
-                    { gate: 2, gold: 35000, bonusCost: 11200, coreReward: 2 },
+                    { gate: 1, gold: 16000, bonusCost: 5120, coreReward: 2 },
+                    { gate: 2, gold: 32000, bonusCost: 10240, coreReward: 2 },
                 ],
-                totalGold: 52000,
+                totalGold: 48000,
                 isBound: false,
             },
             {
                 difficulty: '노말',
                 requiredLevel: 1710,
                 gates: [
-                    { gate: 1, gold: 14000, bonusCost: 4480, coreReward: 2 },
-                    { gate: 2, gold: 26000, bonusCost: 8320, coreReward: 2 },
+                    { gate: 1, gold: 11000, bonusCost: 3520, coreReward: 2 },
+                    { gate: 2, gold: 21000, bonusCost: 6720, coreReward: 2 },
                 ],
-                totalGold: 40000,
+                totalGold: 32000,
                 isBound: false,
-                boundGold: 20000,
+                boundGold: 16000,
+            },
+            {
+                difficulty: '싱글',
+                requiredLevel: 1710,
+                gates: [
+                    { gate: 1, gold: 11000, bonusCost: 3520, coreReward: 2 },
+                    { gate: 2, gold: 21000, bonusCost: 6720, coreReward: 2 },
+                ],
+                totalGold: 32000,
+                isBound: false,
+                boundGold: 16000,
             },
         ],
     },
@@ -188,22 +199,33 @@ export const RAIDS: Raid[] = [
                 difficulty: '하드',
                 requiredLevel: 1720,
                 gates: [
-                    { gate: 1, gold: 15000, bonusCost: 4800, coreReward: 1 },
-                    { gate: 2, gold: 27000, bonusCost: 8640, coreReward: 1 },
+                    { gate: 1, gold: 14000, bonusCost: 4480, coreReward: 1 },
+                    { gate: 2, gold: 24000, bonusCost: 7680, coreReward: 1 },
                 ],
-                totalGold: 42000,
+                totalGold: 38000,
                 isBound: false,
             },
             {
                 difficulty: '노말',
                 requiredLevel: 1700,
                 gates: [
-                    { gate: 1, gold: 12500, bonusCost: 4000, coreReward: 1 },
-                    { gate: 2, gold: 20500, bonusCost: 6560, coreReward: 1 },
+                    { gate: 1, gold: 10500, bonusCost: 3360, coreReward: 1 },
+                    { gate: 2, gold: 16500, bonusCost: 5280, coreReward: 1 },
                 ],
-                totalGold: 33000,
+                totalGold: 27000,
                 isBound: false,
-                boundGold: 16500,
+                boundGold: 13500,
+            },
+            {
+                difficulty: '싱글',
+                requiredLevel: 1700,
+                gates: [
+                    { gate: 1, gold: 10500, bonusCost: 3360, coreReward: 1 },
+                    { gate: 2, gold: 16500, bonusCost: 5280, coreReward: 1 },
+                ],
+                totalGold: 27000,
+                isBound: false,
+                boundGold: 13500,
             },
         ],
     },
