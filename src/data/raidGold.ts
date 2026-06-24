@@ -151,6 +151,17 @@ export const RAIDS: Raid[] = [
                 isBound: false,
                 boundGold: 16000,
             },
+            {
+                difficulty: '매칭',
+                requiredLevel: 1710,
+                gates: [
+                    { gate: 1, gold: 13000, bonusCost: 4160, coreReward: 2 },
+                    { gate: 2, gold: 19000, bonusCost: 6080, coreReward: 2 },
+                ],
+                totalGold: 32000,
+                isBound: false,
+                boundGold: 16000,
+            },
         ],
     },
     {

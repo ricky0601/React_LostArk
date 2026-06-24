@@ -1283,12 +1283,11 @@ export const getAttemptMaterials = (
 //   하나:    0.50×10 + 0.30×20 + 0.20×40 = 19
 //   둘 다:   0.00×10 + 0.60×20 + 0.40×40 = 28
 //
-// [선조턴 기대 XP 배율 (7-event cycle)]
-//   1~2단계: E[ancestor] = base×2.30 + 8.0
-//     → cycle XP = base×8.30 + 8.0, 유효 XP/회 = (base×8.30 + 8.0) / 7
-//   3~4단계: 나베르 포함(12.5%), 강화선조 steady-state ~11.1%
-//     → E[ancestor] ≈ base×2.0 + 23.56
-//     → 유효 XP/회 = (base×8.0 + 23.56) / 7
+// [선조턴 기대 XP 배율 (4-event cycle, 2026-06 Summer 패치 이후)]
+//   모든 단계: E[ancestor] = base×2.30 + 8.0
+//     → cycle XP = base×(3 + 2.30) + 8.0, 유효 XP/회 = cycle XP / 4
+//   3~4단계: 강화선조×0.125 추가 (cycleLen=4.125)
+//     → E[enhancedAncestor] = base×3.0 + 62.0
 // ─────────────────────────────────────────────
 
 export interface AdvancedEnhancementStage {
@@ -1421,13 +1420,18 @@ export type AdvTurnOption = 'none' | 'book' | 'breath' | 'both';
 
 /** 1회 시도 기대 XP (강화 재료 조합별) */
 export const ADV_BASE_XP = {
-  none:    0.80 * 10 + 0.15 * 20 + 0.05 * 40, // 13
-  partial: 0.50 * 10 + 0.30 * 20 + 0.20 * 40, // 19
-  both:    0.00 * 10 + 0.60 * 20 + 0.40 * 40, // 28
+  none:   0.80 * 10 + 0.15 * 20 + 0.05 * 40, // 13
+  breath: 0.50 * 10 + 0.30 * 20 + 0.20 * 40, // 19
+  book:   0.30 * 10 + 0.45 * 20 + 0.25 * 40, // 22
+  both:   0.00 * 10 + 0.60 * 20 + 0.40 * 40, // 28
 } as const;
 
-const advOptionBaseXp = (opt: AdvTurnOption): number =>
-  opt === 'both' ? ADV_BASE_XP.both : opt === 'none' ? ADV_BASE_XP.none : ADV_BASE_XP.partial;
+const advOptionBaseXp = (opt: AdvTurnOption): number => {
+  if (opt === 'both') return ADV_BASE_XP.both;
+  if (opt === 'book') return ADV_BASE_XP.book;
+  if (opt === 'breath') return ADV_BASE_XP.breath;
+  return ADV_BASE_XP.none;
+};
 
 // ── 기대 시도 횟수 계산 ───────────────────────
 
