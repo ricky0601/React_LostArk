@@ -9,6 +9,7 @@ import Compare from './pages/Compare';
 import Enhancement from './pages/Enhancement';
 import Spending from './pages/Spending';
 import Market from './pages/Market';
+import NotFound from './pages/NotFound';
 import { PwaChunkProvider, usePwaChunk } from './context/PwaChunkContext';
 import { ThemeProvider } from './context/ThemeContext';
 
@@ -52,6 +53,7 @@ const AppContent: React.FC = () => {
           <Route path="/enhancement" element={<Enhancement />} />
           <Route path="/market" element={<Market />} />
           <Route path="/spending" element={<Spending />} />
+          <Route path="*" element={<NotFound />} />
         </Routes>
       </div>
     </Router>
