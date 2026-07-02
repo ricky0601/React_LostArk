@@ -38,6 +38,7 @@ const LS_WEEK_KEY = 'loaGold_weekKey';
 const LS_COMPLETED = 'loaGold_completed';
 const LS_BONUS = 'loaGold_bonus';
 const LS_SELECTED = 'loaGold_selectedNames';
+const LS_RAID_SELECTION = 'loaGold_raidSelection';
 
 function readPersistedStringArray(storageKey: string): string[] {
     const rawValue = safeLocalStorage.getItem(storageKey);
@@ -66,6 +67,32 @@ function readPersistedStringArray(storageKey: string): string[] {
     return [];
 }
 
+function readPersistedRaidSelection(): Record<string, string[]> {
+    const rawValue = safeLocalStorage.getItem(LS_RAID_SELECTION);
+    if (!rawValue) return {};
+
+    try {
+        const parsed: unknown = JSON.parse(rawValue);
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+            const result: Record<string, string[]> = {};
+            for (const [charName, keys] of Object.entries(parsed as Record<string, unknown>)) {
+                if (Array.isArray(keys)) {
+                    const filtered = keys.filter((k): k is string => typeof k === 'string' && k.length > 0);
+                    if (filtered.length > 0) result[charName] = filtered;
+                }
+            }
+            return result;
+        }
+    } catch (error: unknown) {
+        void error;
+        safeLocalStorage.removeItem(LS_RAID_SELECTION);
+        return {};
+    }
+
+    safeLocalStorage.removeItem(LS_RAID_SELECTION);
+    return {};
+}
+
 const Simulation: React.FC = () => {
     const [searchParams, setSearchParams] = useSearchParams();
     const urlNickname = searchParams.get('nickname');
@@ -82,7 +109,9 @@ const Simulation: React.FC = () => {
     });
     const [showMore, setShowMore] = useState(false);
     /** 캐릭터별 커스텀 레이드 3개 선택 (키: "raidName::difficulty"). 있으면 selectedRaids 대신 사용 */
-    const [customRaidSelection, setCustomRaidSelection] = useState<Record<string, string[]>>({});
+    const [customRaidSelection, setCustomRaidSelection] = useState<Record<string, string[]>>(() => {
+        return readPersistedRaidSelection();
+    });
     const [bonusSelections, setBonusSelections] = useState<Set<string>>(() => {
         const weekKey = getLoaWeekKey();
         const stored = safeLocalStorage.getItem(LS_WEEK_KEY);
@@ -231,6 +260,10 @@ const Simulation: React.FC = () => {
             const filtered = Array.from(prev).filter((name) => validNames.has(name));
             return filtered.length === prev.size ? prev : new Set(filtered);
         });
+        setCustomRaidSelection((prev) => {
+            const entries = Object.entries(prev).filter(([name]) => validNames.has(name));
+            return entries.length === Object.keys(prev).length ? prev : Object.fromEntries(entries);
+        });
     }, [allResults]);
 
     // 초기 선택: 골드 높은 순 6캐릭 자동 선택
@@ -330,6 +363,14 @@ const Simulation: React.FC = () => {
     useEffect(() => {
         safeLocalStorage.setItem(LS_COMPLETED, JSON.stringify(Array.from(completedRaids)));
     }, [completedRaids]);
+
+    useEffect(() => {
+        if (Object.keys(customRaidSelection).length === 0) {
+            safeLocalStorage.removeItem(LS_RAID_SELECTION);
+        } else {
+            safeLocalStorage.setItem(LS_RAID_SELECTION, JSON.stringify(customRaidSelection));
+        }
+    }, [customRaidSelection]);
 
     const goldResults: CharacterGoldResult[] = useMemo(() => {
         return allResults.map((r) => {
