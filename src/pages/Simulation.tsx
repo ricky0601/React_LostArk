@@ -76,10 +76,8 @@ function readPersistedRaidSelection(): Record<string, string[]> {
         if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
             const result: Record<string, string[]> = {};
             for (const [charName, keys] of Object.entries(parsed as Record<string, unknown>)) {
-                if (Array.isArray(keys)) {
-                    const filtered = keys.filter((k): k is string => typeof k === 'string' && k.length > 0);
-                    if (filtered.length > 0) result[charName] = filtered;
-                }
+                const filtered = filterPersistedStringArray(keys);
+                if (filtered.length > 0) result[charName] = filtered;
             }
             return result;
         }
