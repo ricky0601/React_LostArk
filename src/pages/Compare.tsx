@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import NavBar from '../components/NavBar';
 import PullToRefresh from '../components/PullToRefresh';
 import GlassCard from '../components/GlassCard';
+import QuickLinks from '../components/QuickLinks';
 import { SkeletonBlock } from '../components/Loading';
 import type {
   CharacterProfile,
@@ -1091,6 +1092,13 @@ const Compare: React.FC = () => {
             <p className="mt-3 text-sm text-red-500 dark:text-red-400 text-center">{error}</p>
           )}
         </GlassCard>
+
+        {/* Idle: 검색 전 다른 기능 바로가기 */}
+        {!loading && !leftData && !rightData && (
+          <div className="flex justify-center">
+            <QuickLinks />
+          </div>
+        )}
 
         {/* Loading */}
         {loading && <CompareSkeleton />}
