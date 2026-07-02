@@ -18,6 +18,23 @@ const NavBar: React.FC = () => {
   }, [pathname]);
 
   useEffect(() => {
+    if (!isMobileMenuOpen) return;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setIsMobileMenuOpen(false);
+    };
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isMobileMenuOpen]);
+
+  useEffect(() => {
     if (!isMoreMenuOpen) return;
 
     const updateMoreMenuPosition = () => {
@@ -117,6 +134,32 @@ const NavBar: React.FC = () => {
     </>
   );
 
+  const mobileMenu = isMobileMenuOpen && typeof document !== 'undefined'
+    ? createPortal(
+        <div className="md:hidden">
+          <div
+            data-testid="mobile-menu-scrim"
+            className="fixed inset-x-0 top-14 bottom-0 z-40 bg-black/50"
+            aria-hidden
+            onClick={() => setIsMobileMenuOpen(false)}
+          />
+          <div
+            id="navbar-mobile-menu"
+            className="fixed inset-x-0 top-14 z-50 max-h-[calc(100vh-3.5rem)] overflow-y-auto border-t border-gray-200/50 bg-white px-4 pb-4 shadow-lg shadow-black/10 dark:border-white/5 dark:bg-la-dark dark:shadow-black/30"
+          >
+            <div className="flex flex-col gap-2 pt-3">
+              {primaryLinks}
+              <div className={`px-3 pt-2 text-xs font-bold uppercase tracking-wide ${isMoreActive ? 'text-la-gold-dark dark:text-la-gold' : 'text-gray-400 dark:text-gray-500'}`}>
+                더보기
+              </div>
+              {moreLinks}
+            </div>
+          </div>
+        </div>,
+        document.body
+      )
+    : null;
+
   const moreMenu = isMoreMenuOpen && moreMenuPosition && typeof document !== 'undefined'
     ? createPortal(
         <div
@@ -184,6 +227,7 @@ const NavBar: React.FC = () => {
             type="button"
             className="md:hidden inline-flex items-center justify-center w-10 h-10 rounded-lg text-gray-600 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-300 dark:hover:text-white dark:hover:bg-white/10 transition-colors"
             aria-label={isMobileMenuOpen ? '메뉴 닫기' : '메뉴 열기'}
+            aria-controls={isMobileMenuOpen ? 'navbar-mobile-menu' : undefined}
             aria-expanded={isMobileMenuOpen}
             onClick={() => {
               setIsMobileMenuOpen((prev) => !prev);
@@ -200,18 +244,8 @@ const NavBar: React.FC = () => {
           </button>
         </div>
       </div>
-      {isMobileMenuOpen && (
-        <div className="md:hidden px-4 pb-4 border-t border-gray-200/50 dark:border-white/5 bg-white/95 dark:bg-la-dark/95 backdrop-blur-xl">
-          <div className="flex flex-col gap-2 pt-3">
-            {primaryLinks}
-            <div className={`px-3 pt-2 text-xs font-bold uppercase tracking-wide ${isMoreActive ? 'text-la-gold-dark dark:text-la-gold' : 'text-gray-400 dark:text-gray-500'}`}>
-              더보기
-            </div>
-            {moreLinks}
-          </div>
-        </div>
-      )}
     </nav>
+    {mobileMenu}
     {moreMenu}
     </>
   );

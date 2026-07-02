@@ -38,3 +38,28 @@ test('theme toggle button switches label and root class on click', async () => {
   expect(document.documentElement).not.toHaveClass('dark');
   expect(screen.getByRole('button', { name: '다크 모드로 전환' })).toBeInTheDocument();
 });
+
+test('mobile menu opens as an overlay with a scrim and closes on scrim click', async () => {
+  renderNavBar();
+
+  await userEvent.click(screen.getByRole('button', { name: '메뉴 열기' }));
+
+  expect(document.getElementById('navbar-mobile-menu')).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: '메뉴 닫기' })).toHaveAttribute('aria-expanded', 'true');
+
+  await userEvent.click(screen.getByTestId('mobile-menu-scrim'));
+
+  expect(document.getElementById('navbar-mobile-menu')).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: '메뉴 열기' })).toHaveAttribute('aria-expanded', 'false');
+});
+
+test('mobile menu closes on Escape key', async () => {
+  renderNavBar();
+
+  await userEvent.click(screen.getByRole('button', { name: '메뉴 열기' }));
+  expect(document.getElementById('navbar-mobile-menu')).toBeInTheDocument();
+
+  await userEvent.keyboard('{Escape}');
+
+  expect(document.getElementById('navbar-mobile-menu')).not.toBeInTheDocument();
+});
