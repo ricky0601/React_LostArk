@@ -63,3 +63,46 @@ test('mobile menu closes on Escape key', async () => {
 
   expect(document.getElementById('navbar-mobile-menu')).not.toBeInTheDocument();
 });
+
+test('mobile menu hides background content from assistive tech and restores focus on close', async () => {
+  const root = document.createElement('div');
+  root.id = 'root';
+  document.body.appendChild(root);
+
+  renderNavBar();
+  const menuButton = screen.getByRole('button', { name: '메뉴 열기' });
+
+  await userEvent.click(menuButton);
+
+  expect(root).toHaveAttribute('aria-hidden', 'true');
+  const panel = document.getElementById('navbar-mobile-menu');
+  expect(panel).toHaveAttribute('role', 'dialog');
+  expect(panel).toHaveAttribute('aria-modal', 'true');
+  expect(document.activeElement).toBe(panel?.querySelector('a'));
+
+  await userEvent.keyboard('{Escape}');
+
+  expect(root).not.toHaveAttribute('aria-hidden');
+  expect(document.activeElement).toBe(screen.getByRole('button', { name: '메뉴 열기' }));
+
+  document.body.removeChild(root);
+});
+
+test('Tab wraps focus inside the open mobile menu', async () => {
+  renderNavBar();
+
+  await userEvent.click(screen.getByRole('button', { name: '메뉴 열기' }));
+
+  const panel = document.getElementById('navbar-mobile-menu') as HTMLElement;
+  const links = panel.querySelectorAll('a');
+  const first = links[0];
+  const last = links[links.length - 1];
+
+  expect(document.activeElement).toBe(first);
+
+  await userEvent.tab({ shift: true });
+  expect(document.activeElement).toBe(last);
+
+  await userEvent.tab();
+  expect(document.activeElement).toBe(first);
+});

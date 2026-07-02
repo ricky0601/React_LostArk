@@ -13,6 +13,7 @@ const ALL_LINKS: QuickLinkItem[] = [
   { to: '/market', title: '시세 랭킹', description: '각인서·보석 최저가 순위' },
   { to: '/compare', title: '캐릭터 비교', description: '두 캐릭터 스펙 비교' },
   { to: '/character', title: '캐릭터 프로필', description: '캐릭터 상세 정보 조회' },
+  { to: '/spec-simulator', title: '전투력 시뮬 (Beta)', description: '장비 조합별 전투력 비교' },
   { to: '/expedition', title: '원정대 조회', description: '원정대 캐릭터 목록' },
 ];
 

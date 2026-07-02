@@ -11,6 +11,8 @@ const NavBar: React.FC = () => {
   const [moreMenuPosition, setMoreMenuPosition] = useState<{ top: number; right: number } | null>(null);
   const moreButtonRef = useRef<HTMLButtonElement>(null);
   const moreMenuRef = useRef<HTMLDivElement>(null);
+  const mobileMenuButtonRef = useRef<HTMLButtonElement>(null);
+  const mobileMenuPanelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setIsMobileMenuOpen(false);
@@ -20,17 +22,56 @@ const NavBar: React.FC = () => {
   useEffect(() => {
     if (!isMobileMenuOpen) return;
 
-    const previousOverflow = document.body.style.overflow;
+    const scrollY = window.scrollY;
+    const root = document.getElementById('root');
+    const previousBodyPosition = document.body.style.position;
+    const previousBodyTop = document.body.style.top;
+    const previousBodyWidth = document.body.style.width;
+    const previousBodyOverflow = document.body.style.overflow;
+
+    // iOS Safari는 overflow: hidden만으로는 배경 터치 스크롤(러버밴드)을 막지 못해 position: fixed로 고정한다.
+    document.body.style.position = 'fixed';
+    document.body.style.top = `-${scrollY}px`;
+    document.body.style.width = '100%';
     document.body.style.overflow = 'hidden';
+    root?.setAttribute('aria-hidden', 'true');
+
+    const focusableSelector = 'a[href], button:not([disabled])';
+    const panel = mobileMenuPanelRef.current;
+    panel?.querySelector<HTMLElement>(focusableSelector)?.focus();
 
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setIsMobileMenuOpen(false);
+      if (event.key === 'Escape') {
+        setIsMobileMenuOpen(false);
+        return;
+      }
+      if (event.key !== 'Tab' || !panel) return;
+
+      const focusables = Array.from(panel.querySelectorAll<HTMLElement>(focusableSelector));
+      if (focusables.length === 0) return;
+
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
     };
     document.addEventListener('keydown', handleKeyDown);
 
     return () => {
-      document.body.style.overflow = previousOverflow;
+      document.body.style.position = previousBodyPosition;
+      document.body.style.top = previousBodyTop;
+      document.body.style.width = previousBodyWidth;
+      document.body.style.overflow = previousBodyOverflow;
+      root?.removeAttribute('aria-hidden');
       document.removeEventListener('keydown', handleKeyDown);
+      window.scrollTo(0, scrollY);
+      mobileMenuButtonRef.current?.focus();
     };
   }, [isMobileMenuOpen]);
 
@@ -145,7 +186,11 @@ const NavBar: React.FC = () => {
           />
           <div
             id="navbar-mobile-menu"
-            className="fixed inset-x-0 top-14 z-50 max-h-[calc(100vh-3.5rem)] overflow-y-auto border-t border-gray-200/50 bg-white px-4 pb-4 shadow-lg shadow-black/10 dark:border-white/5 dark:bg-la-dark dark:shadow-black/30"
+            ref={mobileMenuPanelRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label="모바일 메뉴"
+            className="fixed inset-x-0 top-14 z-50 max-h-[calc(100dvh-3.5rem)] overflow-y-auto border-t border-gray-200/50 bg-white px-4 pb-4 shadow-lg shadow-black/10 dark:border-white/5 dark:bg-la-dark dark:shadow-black/30"
           >
             <div className="flex flex-col gap-2 pt-3">
               {primaryLinks}
@@ -224,6 +269,7 @@ const NavBar: React.FC = () => {
             )}
           </button>
           <button
+            ref={mobileMenuButtonRef}
             type="button"
             className="md:hidden inline-flex items-center justify-center w-10 h-10 rounded-lg text-gray-600 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-300 dark:hover:text-white dark:hover:bg-white/10 transition-colors"
             aria-label={isMobileMenuOpen ? '메뉴 닫기' : '메뉴 열기'}
