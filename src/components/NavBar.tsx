@@ -1,19 +1,79 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useLocation } from 'react-router-dom';
+import { useTheme } from '../context/ThemeContext';
 
 const NavBar: React.FC = () => {
   const { pathname } = useLocation();
+  const { isDarkMode, toggleDarkMode } = useTheme();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
   const [moreMenuPosition, setMoreMenuPosition] = useState<{ top: number; right: number } | null>(null);
   const moreButtonRef = useRef<HTMLButtonElement>(null);
   const moreMenuRef = useRef<HTMLDivElement>(null);
+  const mobileMenuButtonRef = useRef<HTMLButtonElement>(null);
+  const mobileMenuPanelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setIsMobileMenuOpen(false);
     setIsMoreMenuOpen(false);
   }, [pathname]);
+
+  useEffect(() => {
+    if (!isMobileMenuOpen) return;
+
+    const scrollY = window.scrollY;
+    const root = document.getElementById('root');
+    const previousBodyPosition = document.body.style.position;
+    const previousBodyTop = document.body.style.top;
+    const previousBodyWidth = document.body.style.width;
+    const previousBodyOverflow = document.body.style.overflow;
+
+    // iOS Safari는 overflow: hidden만으로는 배경 터치 스크롤(러버밴드)을 막지 못해 position: fixed로 고정한다.
+    document.body.style.position = 'fixed';
+    document.body.style.top = `-${scrollY}px`;
+    document.body.style.width = '100%';
+    document.body.style.overflow = 'hidden';
+    root?.setAttribute('aria-hidden', 'true');
+
+    const focusableSelector = 'a[href], button:not([disabled])';
+    const panel = mobileMenuPanelRef.current;
+    panel?.querySelector<HTMLElement>(focusableSelector)?.focus();
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsMobileMenuOpen(false);
+        return;
+      }
+      if (event.key !== 'Tab' || !panel) return;
+
+      const focusables = Array.from(panel.querySelectorAll<HTMLElement>(focusableSelector));
+      if (focusables.length === 0) return;
+
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.body.style.position = previousBodyPosition;
+      document.body.style.top = previousBodyTop;
+      document.body.style.width = previousBodyWidth;
+      document.body.style.overflow = previousBodyOverflow;
+      root?.removeAttribute('aria-hidden');
+      document.removeEventListener('keydown', handleKeyDown);
+      window.scrollTo(0, scrollY);
+      mobileMenuButtonRef.current?.focus();
+    };
+  }, [isMobileMenuOpen]);
 
   useEffect(() => {
     if (!isMoreMenuOpen) return;
@@ -115,6 +175,36 @@ const NavBar: React.FC = () => {
     </>
   );
 
+  const mobileMenu = isMobileMenuOpen && typeof document !== 'undefined'
+    ? createPortal(
+        <div className="md:hidden">
+          <div
+            data-testid="mobile-menu-scrim"
+            className="fixed inset-x-0 top-14 bottom-0 z-40 bg-black/50"
+            aria-hidden
+            onClick={() => setIsMobileMenuOpen(false)}
+          />
+          <div
+            id="navbar-mobile-menu"
+            ref={mobileMenuPanelRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label="모바일 메뉴"
+            className="fixed inset-x-0 top-14 z-50 max-h-[calc(100dvh-3.5rem)] overflow-y-auto border-t border-gray-200/50 bg-white px-4 pb-4 shadow-lg shadow-black/10 dark:border-white/5 dark:bg-la-dark dark:shadow-black/30"
+          >
+            <div className="flex flex-col gap-2 pt-3">
+              {primaryLinks}
+              <div className={`px-3 pt-2 text-xs font-bold uppercase tracking-wide ${isMoreActive ? 'text-la-gold-dark dark:text-la-gold' : 'text-gray-400 dark:text-gray-500'}`}>
+                더보기
+              </div>
+              {moreLinks}
+            </div>
+          </div>
+        </div>,
+        document.body
+      )
+    : null;
+
   const moreMenu = isMoreMenuOpen && moreMenuPosition && typeof document !== 'undefined'
     ? createPortal(
         <div
@@ -159,37 +249,49 @@ const NavBar: React.FC = () => {
             </button>
           </div>
         </div>
-        <button
-          type="button"
-          className="md:hidden inline-flex items-center justify-center w-10 h-10 rounded-lg text-gray-600 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-300 dark:hover:text-white dark:hover:bg-white/10 transition-colors"
-          aria-label={isMobileMenuOpen ? '메뉴 닫기' : '메뉴 열기'}
-          aria-expanded={isMobileMenuOpen}
-          onClick={() => {
-            setIsMobileMenuOpen((prev) => !prev);
-            setIsMoreMenuOpen(false);
-          }}
-        >
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            {isMobileMenuOpen ? (
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={toggleDarkMode}
+            className="inline-flex items-center justify-center w-10 h-10 rounded-lg text-gray-600 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-300 dark:hover:text-white dark:hover:bg-white/10 transition-colors"
+            aria-label={isDarkMode ? '라이트 모드로 전환' : '다크 모드로 전환'}
+          >
+            {isDarkMode ? (
+              <svg className="w-5 h-5 text-la-gold" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                  d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+              </svg>
             ) : (
-              <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+              <svg className="w-5 h-5 text-la-gold-dark" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                  d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+              </svg>
             )}
-          </svg>
-        </button>
-      </div>
-      {isMobileMenuOpen && (
-        <div className="md:hidden px-4 pb-4 border-t border-gray-200/50 dark:border-white/5 bg-white/95 dark:bg-la-dark/95 backdrop-blur-xl">
-          <div className="flex flex-col gap-2 pt-3">
-            {primaryLinks}
-            <div className={`px-3 pt-2 text-xs font-bold uppercase tracking-wide ${isMoreActive ? 'text-la-gold-dark dark:text-la-gold' : 'text-gray-400 dark:text-gray-500'}`}>
-              더보기
-            </div>
-            {moreLinks}
-          </div>
+          </button>
+          <button
+            ref={mobileMenuButtonRef}
+            type="button"
+            className="md:hidden inline-flex items-center justify-center w-10 h-10 rounded-lg text-gray-600 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-300 dark:hover:text-white dark:hover:bg-white/10 transition-colors"
+            aria-label={isMobileMenuOpen ? '메뉴 닫기' : '메뉴 열기'}
+            aria-controls={isMobileMenuOpen ? 'navbar-mobile-menu' : undefined}
+            aria-expanded={isMobileMenuOpen}
+            onClick={() => {
+              setIsMobileMenuOpen((prev) => !prev);
+              setIsMoreMenuOpen(false);
+            }}
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              {isMobileMenuOpen ? (
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              ) : (
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+              )}
+            </svg>
+          </button>
         </div>
-      )}
+      </div>
     </nav>
+    {mobileMenu}
     {moreMenu}
     </>
   );

@@ -1,6 +1,7 @@
 import React, { useId, useState } from 'react';
 import { LS_NICKNAME } from '../utils/api';
 import { safeLocalStorage } from '../utils/safeStorage';
+import QuickLinks from './QuickLinks';
 
 interface NicknameInputProps {
   title: string;
@@ -51,6 +52,7 @@ const NicknameInput: React.FC<NicknameInputProps> = ({ title, description, butto
           </button>
         </form>
       </div>
+      <QuickLinks />
     </main>
   );
 };

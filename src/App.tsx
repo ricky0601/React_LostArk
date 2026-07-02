@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Home from './pages/Home';
 import Character from './pages/Character';
@@ -9,9 +9,9 @@ import Compare from './pages/Compare';
 import Enhancement from './pages/Enhancement';
 import Spending from './pages/Spending';
 import Market from './pages/Market';
-import ThemeToggle from './components/ThemeToggle';
+import NotFound from './pages/NotFound';
 import { PwaChunkProvider, usePwaChunk } from './context/PwaChunkContext';
-import { safeLocalStorage } from './utils/safeStorage';
+import { ThemeProvider } from './context/ThemeContext';
 
 const ChunkErrorBanner: React.FC = () => {
   const { chunkErrorOccurred, clearChunkError } = usePwaChunk();
@@ -39,21 +39,6 @@ const ChunkErrorBanner: React.FC = () => {
 };
 
 const AppContent: React.FC = () => {
-  const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
-    const stored = safeLocalStorage.getItem('isDarkMode');
-    return stored === null ? true : stored === 'true';
-  });
-
-  useEffect(() => {
-    const root = document.documentElement;
-    root.classList.toggle('dark', isDarkMode);
-    safeLocalStorage.setItem('isDarkMode', String(isDarkMode));
-  }, [isDarkMode]);
-
-  const toggleDarkMode = (): void => {
-    setIsDarkMode((prev) => !prev);
-  };
-
   return (
     <Router>
       <div className="min-h-screen font-[Pretendard,sans-serif] bg-gray-50 dark:bg-la-dark transition-colors duration-300">
@@ -68,8 +53,8 @@ const AppContent: React.FC = () => {
           <Route path="/enhancement" element={<Enhancement />} />
           <Route path="/market" element={<Market />} />
           <Route path="/spending" element={<Spending />} />
+          <Route path="*" element={<NotFound />} />
         </Routes>
-        <ThemeToggle isDarkMode={isDarkMode} onToggle={toggleDarkMode} />
       </div>
     </Router>
   );
@@ -77,7 +62,9 @@ const AppContent: React.FC = () => {
 
 const App: React.FC = () => (
   <PwaChunkProvider>
-    <AppContent />
+    <ThemeProvider>
+      <AppContent />
+    </ThemeProvider>
   </PwaChunkProvider>
 );
 
