@@ -13,6 +13,7 @@ jest.mock(
   'react-router-dom',
   () => ({
     Link: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+    useLocation: () => ({ pathname: '/compare' }),
   }),
   { virtual: true },
 );

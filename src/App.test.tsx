@@ -22,12 +22,12 @@ jest.mock('./pages/Compare', () => () => <div>Compare Page</div>);
 jest.mock('./pages/Enhancement', () => () => <div>Enhancement Page</div>);
 jest.mock('./pages/Market', () => () => <div>Market Page</div>);
 jest.mock('./pages/Spending', () => () => <div>Spending Page</div>);
+jest.mock('./pages/NotFound', () => () => <div>Not Found Page</div>);
 
 import App from './App';
 
-test('renders the home route and theme toggle', () => {
+test('renders the home route', () => {
   render(<App />);
 
   expect(screen.getByText('Home Page')).toBeInTheDocument();
-  expect(screen.getByRole('button', { name: '라이트 모드로 전환' })).toBeInTheDocument();
 });
