@@ -63,6 +63,8 @@ const NavBar: React.FC = () => {
     };
     document.addEventListener('keydown', handleKeyDown);
 
+    const toggleButton = mobileMenuButtonRef.current;
+
     return () => {
       document.body.style.position = previousBodyPosition;
       document.body.style.top = previousBodyTop;
@@ -71,7 +73,7 @@ const NavBar: React.FC = () => {
       root?.removeAttribute('aria-hidden');
       document.removeEventListener('keydown', handleKeyDown);
       window.scrollTo(0, scrollY);
-      mobileMenuButtonRef.current?.focus();
+      toggleButton?.focus();
     };
   }, [isMobileMenuOpen]);
 
