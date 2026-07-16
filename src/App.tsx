@@ -10,6 +10,7 @@ import Enhancement from './pages/Enhancement';
 import Spending from './pages/Spending';
 import Market from './pages/Market';
 import NotFound from './pages/NotFound';
+import { RouteSeo } from './components/RouteSeo';
 import { PwaChunkProvider, usePwaChunk } from './context/PwaChunkContext';
 import { ThemeProvider } from './context/ThemeContext';
 
@@ -42,6 +43,7 @@ const AppContent: React.FC = () => {
   return (
     <Router>
       <div className="min-h-screen font-[Pretendard,sans-serif] bg-gray-50 dark:bg-la-dark transition-colors duration-300">
+        <RouteSeo />
         <ChunkErrorBanner />
         <Routes>
           <Route path="/" element={<Home />} />
