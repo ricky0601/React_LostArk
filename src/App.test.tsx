@@ -1,3 +1,5 @@
+import { readFileSync } from 'fs';
+import { join } from 'path';
 import { render, screen } from '@testing-library/react';
 
 let mockPathname = '/';
@@ -54,4 +56,25 @@ test('updates SEO metadata for the current route', () => {
     'href',
     'https://lokki.vercel.app/market',
   );
+});
+
+test('marks unknown routes as noindex without reusing the home canonical', () => {
+  mockPathname = '/missing-route';
+
+  render(<App />);
+
+  expect(document.title).toBe('페이지를 찾을 수 없습니다 - 로아끼욧');
+  expect(document.querySelector('meta[name="robots"]')).toHaveAttribute('content', 'noindex, follow');
+  expect(document.querySelector('link[rel="canonical"]')).toHaveAttribute(
+    'href',
+    'https://lokki.vercel.app/missing-route',
+  );
+});
+
+test('keeps the sitemap scoped to the SPA root document', () => {
+  const sitemap = readFileSync(join(process.cwd(), 'public', 'sitemap.xml'), 'utf8');
+
+  expect(sitemap).toContain('<loc>https://lokki.vercel.app/</loc>');
+  expect(sitemap).not.toContain('<loc>https://lokki.vercel.app/market</loc>');
+  expect(sitemap).not.toContain('<loc>https://lokki.vercel.app/character</loc>');
 });
