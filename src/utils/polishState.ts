@@ -1,8 +1,15 @@
 import type { EquipmentItem } from '../types/lostark';
 import {
+  BRACELET_OPTIONS,
+  EMPTY_BRACELET_STAT,
   POLISH_OPTIONS,
+  findBraceletOption,
+  findBraceletOptionByEffect,
   findPolishOption,
   type AccessorySlot,
+  type BraceletOption,
+  type BraceletStatOption,
+  type BraceletStatType,
   type PolishOption,
 } from '../data/specScore/polishOptions';
 
@@ -18,6 +25,99 @@ const stripHtml = (s: string): string =>
   s.replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
 
 const NO_OPTION = POLISH_OPTIONS[0]; // '없음'
+const NO_BRACELET_OPTION = BRACELET_OPTIONS[0];
+
+const parsePolishOptionLine = (line: string): PolishOption | null => {
+  const clean = line.trim();
+  if (!clean) return null;
+  const m = clean.match(/^(.+?)\s*([+-]?\d+(?:\.\d+)?)(%?)\s*$/);
+  if (!m) return null;
+
+  const [, rawType, valStr, pctMark] = m;
+  const value = parseFloat(valStr);
+  const typeKey = rawType.trim();
+  const label = pctMark
+    ? `${typeKey} +${value.toFixed(value < 10 ? 2 : 1)}${value.toFixed(2).endsWith('00') ? '' : ''}%`
+    : `${typeKey} +${value}`;
+  const direct = findPolishOption(label);
+  if (direct) return direct;
+
+  const effectType = pctMark ? typeKey : `${typeKey}_abs`;
+  return POLISH_OPTIONS.find((o) => o.type === effectType && Math.abs(o.value - value) < 0.01) ?? null;
+};
+
+const parseBraceletOptionLine = (line: string): BraceletOption | null => {
+  const clean = line.trim();
+  if (!clean) return null;
+
+  const enemyDamageSentence = clean.match(/적에게\s*주는\s*피해(?:가)?\s*(\d+(?:\.\d+)?)%\s*증가/);
+  if (enemyDamageSentence) {
+    return findBraceletOptionByEffect('적에게 주는 피해', parseFloat(enemyDamageSentence[1])) ?? null;
+  }
+  const critRateSentence = clean.match(/치명타\s*적중률(?:이)?\s*(\d+(?:\.\d+)?)%\s*증가/);
+  if (critRateSentence) {
+    return findBraceletOptionByEffect('치명타 적중률', parseFloat(critRateSentence[1])) ?? null;
+  }
+  const critDamageSentence = clean.match(/치명타\s*피해(?:량|가)?\s*(\d+(?:\.\d+)?)%\s*증가/);
+  if (critDamageSentence) {
+    return findBraceletOptionByEffect('치명타 피해', parseFloat(critDamageSentence[1])) ?? null;
+  }
+  const additionalDamageSentence = clean.match(/추가\s*피해(?:가)?\s*(\d+(?:\.\d+)?)%\s*증가/);
+  if (additionalDamageSentence) {
+    return findBraceletOptionByEffect('추가 피해', parseFloat(additionalDamageSentence[1])) ?? null;
+  }
+
+  const m = clean.match(/^(.+?)\s*([+-]?\d+(?:\.\d+)?)(%?)\s*$/);
+  if (!m) return null;
+
+  const [, rawType, valStr, pctMark] = m;
+  const value = parseFloat(valStr);
+  const typeKey = rawType.trim();
+  const label = pctMark
+    ? `${typeKey} +${value.toFixed(value < 10 ? 2 : 1)}${value.toFixed(2).endsWith('00') ? '' : ''}%`
+    : `${typeKey} +${value}`;
+  return findBraceletOption(label) ?? findBraceletOptionByEffect(pctMark ? typeKey : `${typeKey}_abs`, value) ?? null;
+};
+
+const parseBraceletStatLine = (line: string): BraceletStatOption | null => {
+  const m = line.trim().match(/^(힘|민첩|지능|특화|치명|신속|제압|인내|숙련|체력)\s*\+?([\d,]+)/);
+  if (!m) return null;
+  return { type: m[1] as BraceletStatType, value: parseInt(m[2].replace(/,/g, ''), 10) };
+};
+
+const parseBraceletOptions = (lines: string[]): BraceletOption[] => {
+  const found: BraceletOption[] = [];
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const nextLine = lines[i + 1] ?? '';
+    const critRate = line.match(/치명타\s*적중률(?:이)?\s*(\d+(?:\.\d+)?)%\s*증가/);
+    const critDamage = line.match(/치명타\s*피해(?:량|가)?\s*(\d+(?:\.\d+)?)%\s*증가/);
+    const critEnemyDamage = nextLine.match(/치명타로\s*적중\s*시\s*적에게\s*주는\s*피해(?:가)?\s*(\d+(?:\.\d+)?)%\s*증가/);
+    const baseWeaponAttack = line.match(/무기\s*공격력이\s*([\d,]+)\s*증가/);
+    const stackingWeaponAttack = nextLine.match(/30초\s*마다\s*120초\s*동안\s*무기\s*공격력이\s*([\d,]+)\s*증가.*최대\s*30중첩/);
+    if (baseWeaponAttack && stackingWeaponAttack) {
+      const option = findBraceletOptionByEffect('에테르 포식자 무공 버프', parseInt(stackingWeaponAttack[1].replace(/,/g, ''), 10) * 30);
+      if (option) found.push(option);
+      i += 1;
+      continue;
+    }
+    if (critRate && critEnemyDamage) {
+      const option = findBraceletOptionByEffect('치명타 적중률+치명타 적주피', parseFloat(critRate[1]));
+      if (option) found.push(option);
+      i += 1;
+      continue;
+    }
+    if (critDamage && critEnemyDamage) {
+      const option = findBraceletOptionByEffect('치명타 피해+치명타 적주피', parseFloat(critDamage[1]));
+      if (option) found.push(option);
+      i += 1;
+      continue;
+    }
+    const option = parseBraceletOptionLine(line);
+    if (option) found.push(option);
+  }
+  return found;
+};
 
 /**
  * Tooltip 내 '연마 효과' Element_001 텍스트에서 3개 옵션 파싱.
@@ -42,30 +142,9 @@ const parsePolishEffects = (tooltipJson: string): [PolishOption, PolishOption, P
       const lines = content.split(/<br\s*\/?>(?:\s*<img[^>]+>)?/i).map((l) => stripHtml(l));
       const found: PolishOption[] = [];
       for (const line of lines) {
-        const clean = line.trim();
-        if (!clean) continue;
-        // line: "적에게 주는 피해 +1.20%" 또는 "공격력 +390"
-        const m = clean.match(/^(.+?)\s*([+-]?\d+(?:\.\d+)?)(%?)\s*$/);
-        if (!m) continue;
-        const [, rawType, valStr, pctMark] = m;
-        const value = parseFloat(valStr);
-        const typeKey = rawType.trim();
-        // % 옵션이면 그대로 매칭, 절대값이면 _abs suffix
-        const label = pctMark
-          ? `${typeKey} +${value.toFixed(value < 10 ? 2 : 1)}${value.toFixed(2).endsWith('00') ? '' : ''}%`
-          : `${typeKey} +${value}`;
-        // 라벨 정확히 매칭 안 되면 POLISH_OPTIONS에서 value + type 으로 찾기
-        let opt = findPolishOption(label);
-        if (!opt) {
-          // type 매칭 (절대값 옵션은 type 끝에 _abs 추가)
-          const effectType = pctMark ? typeKey : `${typeKey}_abs`;
-          opt = POLISH_OPTIONS.find(
-            (o) => o.type === effectType && Math.abs(o.value - value) < 0.01,
-          );
-        }
-        if (opt) found.push(opt);
+        const option = parsePolishOptionLine(line);
+        if (option) found.push(option);
       }
-      // 최대 3개까지
       for (let i = 0; i < Math.min(3, found.length); i++) {
         defaults[i] = found[i];
       }
@@ -85,11 +164,13 @@ export interface StoneState {
   raw: EquipmentItem;
 }
 
-/** 팔찌 정보 (디스플레이 전용) */
+/** 팔찌 정보 (표시 및 시뮬레이션 입력용) */
 export interface BraceletState {
   tier: string;
   /** 효과 텍스트 라인들 (가공된 표시용) */
   effects: string[];
+  stats: [BraceletStatOption, BraceletStatOption, BraceletStatOption, BraceletStatOption];
+  options: [BraceletOption, BraceletOption, BraceletOption, BraceletOption];
   raw: EquipmentItem;
 }
 
@@ -155,7 +236,27 @@ export const parseBraceletState = (item: EquipmentItem | undefined): BraceletSta
       const content: string = el.value.Element_001 ?? '';
       // <br>로 분리, 각 라인 정리
       const lines = content.split(/<br\s*\/?>/i).map((l) => stripHtmlText(l)).filter(Boolean);
-      return { tier: item.Grade, effects: lines, raw: item };
+      const foundStats = lines.map((line) => parseBraceletStatLine(line)).filter((stat): stat is BraceletStatOption => stat !== null);
+      const stats: [BraceletStatOption, BraceletStatOption, BraceletStatOption, BraceletStatOption] = [
+        EMPTY_BRACELET_STAT,
+        EMPTY_BRACELET_STAT,
+        EMPTY_BRACELET_STAT,
+        EMPTY_BRACELET_STAT,
+      ];
+      for (let i = 0; i < Math.min(4, foundStats.length); i++) {
+        stats[i] = foundStats[i];
+      }
+      const found = parseBraceletOptions(lines);
+      const options: [BraceletOption, BraceletOption, BraceletOption, BraceletOption] = [
+        NO_BRACELET_OPTION,
+        NO_BRACELET_OPTION,
+        NO_BRACELET_OPTION,
+        NO_BRACELET_OPTION,
+      ];
+      for (let i = 0; i < Math.min(4, found.length); i++) {
+        options[i] = found[i];
+      }
+      return { tier: item.Grade, effects: lines, stats, options, raw: item };
     }
   } catch {
     // ignore
