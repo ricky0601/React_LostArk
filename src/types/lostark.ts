@@ -71,7 +71,7 @@ export interface ArkGridSlot {
   Point: number;
   Grade: string;
   Tooltip: string;
-  Gems: ArkGridGem[];
+  Gems: ArkGridGem[] | null;
 }
 
 export interface ArkGridGem {
