@@ -8,106 +8,232 @@
  * 일반화하려면 직업별 재측정 필요. 현재는 사용자 캐릭터 케이스에 최적화.
  */
 
-/** 각인 어빌리티 스톤 단계당 % 곱연산 인자 (평균값 — fallback용) */
-export const LOPEC_ENGRAVING_PER_STONE: Record<string, number> = {
-  원한: 0.6302,
-  '예리한 둔기': 0.6232,
-  아드레날린: 0.6455,
-  돌격대장: 0.6510,
-  '저주받은 인형': 0.6464,
-};
+type EngravingEffectRows = [number, number, number, number, number][];
 
-/** 추출 안 된 각인의 fallback */
-export const LOPEC_ENGRAVING_PER_STONE_DEFAULT = 0.65;
-
-/**
- * 메인 슬롯 X단계 변경 시 step ratio (%) — X0→X1, X1→X2, X2→X3, X3→X4
- *
- * lopec engraving-level-N (메인 각인 슬롯의 X단계) 변경을 **인게임 전투력(combatPower)** 기준 측정.
- * 사용자 시뮬레이터의 점수 base = combatPower이므로 이 ratio 사용.
- *
- * 핵심 발견:
- * - 아드레날린이 가장 강함 (0.9%/단계) — 다른 각인의 1.5배
- * - 각 각인 단계별 거의 균등 (점진적 감소만)
- */
-export const LOPEC_ENGRAVING_X_STEPS: Record<string, [number, number, number, number]> = {
-  원한: [0.6160, 0.6122, 0.6085, 0.6050],
-  '예리한 둔기': [0.6203, 0.6246, 0.6127, 0.6087],
-  아드레날린: [0.9113, 0.9033, 0.8952, 0.8871],
-  돌격대장: [0.6898, 0.6848, 0.6802, 0.6758],
-  '저주받은 인형': [0.6581, 0.6536, 0.6493, 0.6451],
-};
-
-export const LOPEC_ENGRAVING_X_STEPS_DEFAULT: [number, number, number, number] = [
-  0.65, 0.65, 0.65, 0.65,
+const MASS_INCREASE_EFFECTS: EngravingEffectRows = [
+  [16.00, 19.00, 19.75, 21.25, 22.00],
+  [16.75, 19.75, 20.50, 22.00, 22.75],
+  [17.50, 20.50, 21.25, 22.75, 23.50],
+  [18.25, 21.25, 22.00, 23.50, 24.25],
+  [19.00, 22.00, 22.75, 24.25, 25.00],
 ];
 
-/**
- * 어빌리티 스톤 슬롯 Lv.N 단계별 step ratio (%) — Lv.1→Lv.2, Lv.2→Lv.3, Lv.3→Lv.4
- *
- * lopec stone-option-select-N의 Lv.N 변경 측정.
- * 어빌리티 스톤이 부여하는 각인 단계 (시즌3 아크패시브 각인 단계).
- *
- * 주의: 우리 시뮬레이터의 "단계" 드롭다운은 이쪽과 매핑됨 (사용자 의도).
- * 즉 ArkPassiveEffect.Level = lopec stone Lv로 처리.
- *
- * 패턴: 후반 단계로 갈수록 효율 감소 (Lv.1→2 큰 효과, Lv.3→4 작은 효과)
- */
-export const LOPEC_STONE_LV_STEPS: Record<string, [number, number, number]> = {
-  원한: [1.9749, 1.2449, 0.6147],
-  '예리한 둔기': [1.3404, 0.0, 0.6191], // Lv.2→3 측정값 cap (재확인 필요)
-  아드레날린: [1.9696, 1.2373, 0.6114],
-  돌격대장: [1.9790, 1.2527, 0.6184],
-  '저주받은 인형': [1.9633, 1.2218, 0.6037],
+const AMBUSH_MASTER_EFFECTS: EngravingEffectRows = [
+  [15.30, 18.00, 18.70, 20.00, 20.70],
+  [16.00, 18.70, 19.40, 20.70, 21.40],
+  [16.70, 19.40, 20.10, 21.40, 22.10],
+  [17.40, 20.10, 20.80, 22.10, 22.80],
+  [18.10, 20.80, 21.50, 22.80, 23.50],
+];
+
+const GENERIC_14_EFFECTS: EngravingEffectRows = [
+  [14.00, 17.00, 17.75, 19.25, 20.00],
+  [14.75, 17.75, 18.50, 20.00, 20.75],
+  [15.50, 18.50, 19.25, 20.75, 21.50],
+  [16.25, 19.25, 20.00, 21.50, 22.25],
+  [17.00, 20.00, 20.75, 22.25, 23.00],
+];
+
+const CHARGE_EFFECTS: EngravingEffectRows = [
+  [14.40, 16.80, 17.40, 18.60, 19.20],
+  [15.00, 17.40, 18.00, 19.20, 19.80],
+  [15.60, 18.00, 18.60, 19.80, 20.40],
+  [16.20, 18.60, 19.20, 20.40, 21.00],
+  [16.80, 19.20, 19.80, 21.00, 21.60],
+];
+
+const ETHER_PREDATOR_EFFECTS: EngravingEffectRows = [
+  [12.60, 15.60, 16.50, 18.00, 18.60],
+  [13.50, 16.50, 17.40, 18.90, 19.50],
+  [14.40, 17.40, 18.30, 19.80, 20.40],
+  [15.30, 18.30, 19.20, 20.70, 21.30],
+  [16.20, 19.20, 20.10, 21.60, 22.20],
+];
+
+const MP_EFFICIENCY_EFFECTS: EngravingEffectRows = [
+  [13.00, 16.00, 16.75, 18.25, 19.00],
+  [13.75, 16.75, 17.50, 19.00, 19.75],
+  [14.50, 17.50, 18.25, 19.75, 20.50],
+  [15.25, 18.25, 19.00, 20.50, 21.25],
+  [16.00, 19.00, 19.75, 21.25, 22.00],
+];
+
+const WEAK_POINT_DETECTION_EFFECTS: EngravingEffectRows = [
+  [9.90, 12.30, 12.90, 14.10, 14.70],
+  [10.73, 13.13, 13.73, 14.93, 15.53],
+  [11.55, 13.95, 14.55, 15.75, 16.35],
+  [12.38, 14.78, 15.38, 16.58, 17.18],
+  [13.20, 15.60, 16.20, 17.40, 18.00],
+];
+
+const PRECISE_DAGGER_EFFECTS: EngravingEffectRows = [
+  [10.60, 12.70, 13.23, 14.28, 14.80],
+  [11.13, 13.23, 13.76, 14.81, 15.33],
+  [11.65, 13.75, 14.28, 15.33, 15.85],
+  [12.18, 14.28, 14.81, 15.86, 16.38],
+  [12.70, 14.80, 15.33, 16.38, 16.90],
+];
+
+const PROPULSION_EFFECTS: EngravingEffectRows = [
+  [9.80, 11.90, 12.43, 13.48, 14.00],
+  [10.33, 12.43, 12.96, 14.01, 14.53],
+  [10.85, 12.95, 13.48, 14.53, 15.05],
+  [11.38, 13.48, 14.01, 15.06, 15.58],
+  [11.90, 14.00, 14.53, 15.58, 16.10],
+];
+
+const MAGICK_STREAM_EFFECTS: EngravingEffectRows = [
+  [7.53, 7.53, 7.53, 7.53, 7.53],
+  [8.40, 8.40, 8.40, 8.40, 8.40],
+  [9.29, 9.29, 9.29, 9.29, 9.29],
+  [10.20, 10.20, 10.20, 10.20, 10.20],
+  [11.11, 11.11, 11.11, 11.11, 11.11],
+];
+
+const SIGHT_FOCUS_EFFECTS: EngravingEffectRows = [
+  [7.50, 8.70, 9.00, 9.60, 9.90],
+  [7.88, 9.08, 9.38, 9.98, 10.28],
+  [8.25, 9.45, 9.75, 10.35, 10.65],
+  [8.63, 9.83, 10.13, 10.73, 11.03],
+  [9.00, 10.20, 10.50, 11.10, 11.40],
+];
+
+const BROKEN_BONE_EFFECTS: EngravingEffectRows = [
+  [7.40, 8.20, 8.40, 8.80, 9.00],
+  [7.65, 8.45, 8.65, 9.05, 9.25],
+  [7.90, 8.70, 8.90, 9.30, 9.50],
+  [8.15, 8.95, 9.15, 9.55, 9.75],
+  [8.40, 9.20, 9.40, 9.80, 10.00],
+];
+
+const SHIELD_PIERCING_EFFECTS: EngravingEffectRows = [
+  [4.60, 5.40, 5.60, 6.00, 6.20],
+  [4.80, 5.60, 5.80, 6.20, 6.40],
+  [5.00, 5.80, 6.00, 6.40, 6.60],
+  [5.20, 6.00, 6.20, 6.60, 6.80],
+  [5.40, 6.20, 6.40, 6.80, 7.00],
+];
+
+const DROPS_OF_ETHER_EFFECTS: EngravingEffectRows = [
+  [4.00, 4.48, 4.60, 4.84, 4.96],
+  [4.16, 4.64, 4.76, 5.00, 5.12],
+  [4.32, 4.80, 4.92, 5.16, 5.28],
+  [4.48, 4.96, 5.08, 5.32, 5.44],
+  [4.64, 5.12, 5.24, 5.48, 5.60],
+];
+
+const CONTENDER_EFFECTS: EngravingEffectRows = [
+  [1.68, 1.98, 2.06, 2.21, 2.28],
+  [1.68, 1.98, 2.06, 2.21, 2.28],
+  [1.89, 2.19, 2.27, 2.42, 2.49],
+  [1.89, 2.19, 2.27, 2.42, 2.49],
+  [2.10, 2.40, 2.48, 2.63, 2.70],
+];
+
+const CRUSHING_FIST_EFFECTS: EngravingEffectRows = [
+  [1.30, 1.45, 1.49, 1.56, 1.60],
+  [1.38, 1.53, 1.57, 1.64, 1.68],
+  [1.45, 1.60, 1.64, 1.71, 1.75],
+  [1.53, 1.68, 1.72, 1.79, 1.83],
+  [1.60, 1.75, 1.79, 1.86, 1.90],
+];
+
+/** Books X0~X4 × stone Lv0~Lv4 누적 각인 효과(%). */
+export const LOPEC_ENGRAVING_TOTAL_EFFECTS: Record<string, EngravingEffectRows> = {
+  원한: [
+    [18.00, 21.00, 21.75, 23.25, 24.00],
+    [18.75, 21.75, 22.50, 24.00, 24.75],
+    [19.50, 22.50, 23.25, 24.75, 25.50],
+    [20.25, 23.25, 24.00, 25.50, 26.25],
+    [21.00, 24.00, 24.75, 26.25, 27.00],
+  ],
+  아드레날린: [
+    [15.20, 18.08, 18.80, 20.18, 20.90],
+    [16.25, 19.13, 19.85, 21.23, 21.95],
+    [17.30, 20.18, 20.90, 22.28, 23.00],
+    [18.35, 21.23, 21.95, 23.33, 24.05],
+    [19.40, 22.28, 23.00, 24.38, 25.10],
+  ],
+  '예리한 둔기': [
+    [14.39, 17.18, 17.89, 19.31, 19.98],
+    [15.13, 17.92, 18.63, 20.05, 20.72],
+    [15.88, 18.67, 19.38, 20.80, 21.47],
+    [16.62, 19.41, 20.12, 21.54, 22.21],
+    [17.36, 20.15, 20.86, 22.28, 22.95],
+  ],
+  '달인의 저력': GENERIC_14_EFFECTS,
+  바리케이드: GENERIC_14_EFFECTS,
+  '안정된 상태': GENERIC_14_EFFECTS,
+  '저주받은 인형': GENERIC_14_EFFECTS,
+  '타격의 대가': GENERIC_14_EFFECTS,
+  돌격대장: [
+    [16.00, 19.00, 19.76, 21.28, 22.00],
+    [16.80, 19.80, 20.56, 22.08, 22.80],
+    [17.60, 20.60, 21.36, 22.88, 23.60],
+    [18.40, 21.40, 22.16, 23.68, 24.40],
+    [19.20, 22.20, 22.96, 24.48, 25.20],
+  ],
+  '질량 증가': MASS_INCREASE_EFFECTS,
+  '결투의 대가': AMBUSH_MASTER_EFFECTS,
+  '기습의 대가': AMBUSH_MASTER_EFFECTS,
+  속전속결: CHARGE_EFFECTS,
+  '슈퍼 차지': CHARGE_EFFECTS,
+  '에테르 포식자': ETHER_PREDATOR_EFFECTS,
+  '마나 효율 증가': MP_EFFICIENCY_EFFECTS,
+  '약자 무시': WEAK_POINT_DETECTION_EFFECTS,
+  '정밀 단도': PRECISE_DAGGER_EFFECTS,
+  추진력: PROPULSION_EFFECTS,
+  '마나의 흐름': MAGICK_STREAM_EFFECTS,
+  '시선 집중': SIGHT_FOCUS_EFFECTS,
+  '부러진 뼈': BROKEN_BONE_EFFECTS,
+  실드관통: SHIELD_PIERCING_EFFECTS,
+  '실드 관통': SHIELD_PIERCING_EFFECTS,
+  구슬동자: DROPS_OF_ETHER_EFFECTS,
+  승부사: CONTENDER_EFFECTS,
+  '분쇄의 주먹': CRUSHING_FIST_EFFECTS,
 };
 
-export const LOPEC_STONE_LV_STEPS_DEFAULT: [number, number, number] = [1.97, 1.24, 0.61];
-
-/** 각인 등급 변경 시 곱연산 인자 */
-export const LOPEC_GRADE_FACTOR = {
-  /** 유물 → 전설 변경 */
-  reliсToLegendary: 0.98121,
-  /** 전설 → 유물 변경 */
-  legendaryToRelic: 1.01914,
-} as const;
-
-/** 보석 슬롯별 type-아래 단계당 % (현재 캐릭터 빌드 기준, 호환성 유지용) */
-export const LOPEC_GEM_PER_LEVEL: Record<number, { damage: number; cooldown: number }> = {
-  0: { damage: 1.497, cooldown: 0.808 },
-  3: { damage: 0.968, cooldown: 0.808 },
-  1: { damage: 0.439, cooldown: 0.808 },
-  2: { damage: 0.439, cooldown: 0.808 },
-  4: { damage: 0.439, cooldown: 0.808 },
-  5: { damage: 0.439, cooldown: 0.808 },
-  6: { damage: 0.439, cooldown: 0.808 },
-  7: { damage: 0.439, cooldown: 0.808 },
-  8: { damage: 0.439, cooldown: 0.808 },
-  9: { damage: 0.439, cooldown: 0.808 },
-  10: { damage: 0.439, cooldown: 0.808 },
+/** 보석 1개당 순수 전투력 증가량(%). */
+export const LOPEC_GEM_PURE_POWER_BY_TIER: Record<'T3' | 'T4', Record<number, number>> = {
+  T3: {
+    1: 0.48,
+    2: 0.96,
+    3: 1.44,
+    4: 1.92,
+    5: 2.40,
+    6: 2.88,
+    7: 3.36,
+    8: 3.84,
+    9: 4.80,
+    10: 6.40,
+  },
+  T4: {
+    1: 1.28,
+    2: 1.92,
+    3: 2.56,
+    4: 3.20,
+    5: 3.84,
+    6: 4.48,
+    7: 5.12,
+    8: 5.76,
+    9: 6.40,
+    10: 7.04,
+  },
 };
 
-export const LOPEC_GEM_PER_LEVEL_DEFAULT = { damage: 0.5, cooldown: 0.808 };
-
-/**
- * 보석 단계별 step ratio (cp 기준) — 1→2, 2→3, ..., 9→10
- *
- * slot/type 무관 (lopec 모델 일관성 확인됨).
- * 한건뜬 캐릭터(baseline 4523) 측정값. 끼욧통(baseline 2063)과 거의 동일하지만 ±0.005%p 차이.
- *
- * 패턴: 1→2 큰 점프 (1.48%), 중간 단계 0.67~0.76%, 7→10 약 0.78~0.79%
- *
- * 검증: 일괄 10레벨 변경 시 lopec +803.93, 우리 모델 ≈ +810 (±6점 일치).
- */
-export const LOPEC_GEM_LEVEL_STEPS: [
-  number, number, number, number, number, number, number, number, number,
-] = [1.4791, 0.6738, 0.7157, 0.7117, 0.7537, 0.7494, 0.7913, 0.7871, 0.7834];
-
-/** 광휘 보석의 type 변경 시 곱연산 인자 (추후 추출 후 보정) */
-export const LOPEC_GEM_TYPE_FACTOR = {
-  damage: 1.0,
-  cooldown: 0.55, // 작열은 평균적으로 겁화보다 효율 낮음 (대략)
-  support: 0.1,
-} as const;
+/** 4티어 보석 기본 공격력% 증가량. 전체 보석 합산 후 별도 배율로 적용한다. */
+export const LOPEC_T4_GEM_BASE_ATTACK_BY_LEVEL: Record<number, number> = {
+  1: 0,
+  2: 0.05,
+  3: 0.10,
+  4: 0.20,
+  5: 0.30,
+  6: 0.45,
+  7: 0.60,
+  8: 0.80,
+  9: 1.00,
+  10: 1.20,
+};
 
 // ============================================================
 // 장비 (무기 + 방어구 5슬롯)
@@ -128,20 +254,6 @@ export const LOPEC_GEM_TYPE_FACTOR = {
 export type EquipSlot = 'weapon' | 'helmet' | 'shoulder' | 'armor' | 'pants' | 'gloves';
 
 /**
- * 강화 단계별 누적 ratio (해당 슬롯의 +0 기준)
- * index 0=+0, 1=+5, 2=+10, 3=+15, 4=+20, 5=+25
- * 사이 값은 lookup 함수에서 선형 보간.
- */
-export const LOPEC_EQUIP_NORMAL_STEPS: Record<EquipSlot, number[]> = {
-  weapon:   [1.0, 1.06785, 1.14322, 1.22674, 1.30750, 1.39076],
-  helmet:   [1.0, 1.00884, 1.01923, 1.03145, 1.04394, 1.05748],
-  shoulder: [1.0, 1.00950, 1.02067, 1.03377, 1.04714, 1.06163],
-  armor:    [1.0, 1.00700, 1.01525, 1.02496, 1.03490, 1.04571],
-  pants:    [1.0, 1.00805, 1.01754, 1.02869, 1.04009, 1.05246],
-  gloves:   [1.0, 1.01241, 1.02696, 1.04398, 1.06129, 1.08000],
-};
-
-/**
  * 상급 재련 단계별 누적 ratio (해당 슬롯의 X0 기준)
  * index 0..8 = X(i*5), 즉 X0, X5, X10, ..., X40
  *
@@ -156,37 +268,6 @@ export const LOPEC_EQUIP_ADVANCED_STEPS: Record<EquipSlot, number[]> = {
   armor:    [1.0, 1.00116, 1.00231, 1.00355, 1.00479, 1.00663, 1.00846, 1.01071, 1.01296],
   pants:    [1.0, 1.00134, 1.00267, 1.00410, 1.00552, 1.00764, 1.00976, 1.01235, 1.01494],
   gloves:   [1.0, 1.00221, 1.00441, 1.00676, 1.00911, 1.01258, 1.01605, 1.02029, 1.02452],
-};
-
-/**
- * 등급별 ratio (T4 유물 = 1.0 기준)
- *
- * 무기 측정값: 유물=고대=3507.66, 전율=4003.83 (전율만 의미 있는 차이)
- *   ※ T4 에스더는 1456.66로 측정됨 — lopec 시뮬레이터의 미지원/특수 처리로 추정, 제외
- * 방어구는 helmet 측정값을 5슬롯 공통으로 사용 (큰 차이 없을 것으로 가정)
- */
-export const LOPEC_EQUIP_TIER_RATIO: Record<EquipSlot, Record<string, number>> = {
-  weapon:   { '유물': 1.0, '고대': 1.0,     '전율': 1.14143 },
-  helmet:   { '유물': 1.0, '고대': 1.01743, '전율': 1.03414 },
-  shoulder: { '유물': 1.0, '고대': 1.01743, '전율': 1.03414 },
-  armor:    { '유물': 1.0, '고대': 1.01743, '전율': 1.03414 },
-  pants:    { '유물': 1.0, '고대': 1.01743, '전율': 1.03414 },
-  gloves:   { '유물': 1.0, '고대': 1.01743, '전율': 1.03414 },
-};
-
-/**
- * 강화 단계 (0~25) → 누적 ratio 변환 (선형 보간)
- */
-export const lookupNormalRatio = (slot: EquipSlot, level: number): number => {
-  const steps = LOPEC_EQUIP_NORMAL_STEPS[slot];
-  if (level <= 0) return steps[0];
-  if (level >= 25) return steps[5];
-  const idx = level / 5;
-  const lo = Math.floor(idx);
-  const hi = Math.ceil(idx);
-  if (lo === hi) return steps[lo];
-  const frac = idx - lo;
-  return steps[lo] + (steps[hi] - steps[lo]) * frac;
 };
 
 /**
@@ -222,34 +303,8 @@ export const extractEquipTier = (grade: string): string => {
 };
 
 /**
- * 무기 normal 강화 × advanced 상호작용 보정 테이블.
- *
- * lopec의 cp formula는 무기에서 normal과 advanced를 단순 곱연산하지 않고
- * cross-term을 포함하기 때문에 advanced level에 따라 normal 강화의
- * 효과가 다르게 나타남. 이를 반영하기 위해 2D 테이블 사용.
- *
- * Index: [advanced (0/10/20/30/40)][normal (15/20/25)]
- * Ratio normalized to weapon +15 at given advanced level.
- *
- * 한건뜬 측정 (T4 전율, 2026-05-18).
- *
- * 패턴: advanced 단계가 높을수록 weapon normal 강화 효과도 약간 증폭.
- *   +15→+25 ratio: X0 +13.37% → X40 +14.98% (1.6%p 차이)
- *
- * 검증: 끼욧통 (X30, +18→+25) 예상 ratio 1.10142 vs lopec 1.10234 (오차 0.09%).
- */
-export const LOPEC_WEAPON_NORMAL_BY_ADV: Record<number, Record<number, number>> = {
-  0:  { 15: 1.0, 20: 1.06582, 25: 1.13369 },
-  10: { 15: 1.0, 20: 1.06786, 25: 1.14323 },
-  20: { 15: 1.0, 20: 1.06897, 25: 1.14552 },
-  30: { 15: 1.0, 20: 1.07005, 25: 1.14773 },
-  40: { 15: 1.0, 20: 1.07111, 25: 1.14984 },
-};
-
-/**
  * 무기 advanced 단계 → 누적 ratio (normal level 의존).
- * 동일 LOPEC_WEAPON_NORMAL_BY_ADV 데이터에서 추출 — adv별 +N 정규화값을
- * 절대 cp로 환산 후 advanced 변화 ratio 계산.
+ * advanced별 무기 절대 cp 측정값으로 advanced 변화 ratio 계산.
  *
  * 데이터는 한건뜬 weapon 절대 cp (5 advanced × 3 normal):
  *   X0:  +15=4296.32, +20=4579.09, +25=4870.67
@@ -292,42 +347,6 @@ export const lookupWeaponAdvancedAt = (advancedLevel: number, normalLevel: numbe
 };
 
 /**
- * weapon normal 강화 단계 → 누적 ratio (advanced level 의존).
- * +15 = 1.0 기준. advanced 단계는 0/10/20/30/40 사이에서 선형 보간.
- *
- * +0~+14 범위는 lopec model에서 비물리적인 cp drop이 발생 — 정상 범위 아님.
- * 이 범위는 기존 LOPEC_EQUIP_NORMAL_STEPS.weapon (X0 측정값) 사용으로 fallback.
- */
-export const lookupWeaponNormalRatio = (normalLevel: number, advancedLevel: number): number => {
-  // +15 미만은 fallback: 기존 1D 테이블 + +15 정규화
-  if (normalLevel < 15) {
-    const r15atX0 = LOPEC_EQUIP_NORMAL_STEPS.weapon[3]; // +15 in old table
-    const rN = lookupNormalRatio('weapon', normalLevel);
-    return rN / r15atX0; // +15 = 1.0이 되도록 정규화
-  }
-
-  const clampedAdv = Math.max(0, Math.min(40, advancedLevel));
-  const advLo = Math.floor(clampedAdv / 10) * 10;
-  const advHi = Math.min(40, advLo + 10);
-  const advFrac = advHi > advLo ? (clampedAdv - advLo) / 10 : 0;
-
-  const ratioAtAdvNormal = (adv: number, n: number): number => {
-    const table = LOPEC_WEAPON_NORMAL_BY_ADV[adv];
-    if (!table) return 1.0;
-    const r15 = table[15];
-    const r20 = table[20];
-    const r25 = table[25];
-    if (n >= 25) return r25;
-    if (n >= 20) return r20 + ((n - 20) / 5) * (r25 - r20);
-    return r15 + ((n - 15) / 5) * (r20 - r15);
-  };
-
-  const ratLo = ratioAtAdvNormal(advLo, normalLevel);
-  const ratHi = ratioAtAdvNormal(advHi, normalLevel);
-  return ratLo + (ratHi - ratLo) * advFrac;
-};
-
-/**
  * 방어구 advanced 단계 누적 ratio × normal level 상호작용 테이블.
  *
  * lopec model 검증: 방어구 advanced ratio가 normal level에 따라 증가
@@ -363,7 +382,7 @@ export const LOPEC_ARMOR_ADV_BY_NORMAL: Partial<Record<EquipSlot, Record<number,
 
 /**
  * 방어구 advanced 단계 → 누적 ratio (normal level 의존).
- * normal × advanced cross-term 반영. weapon은 별도 처리(LOPEC_WEAPON_NORMAL_BY_ADV).
+ * normal × advanced cross-term 반영. weapon은 별도 처리(LOPEC_WEAPON_ABS_CP).
  */
 export const lookupArmorAdvancedRatio = (
   slot: EquipSlot,
