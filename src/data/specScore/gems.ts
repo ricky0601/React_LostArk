@@ -1,4 +1,10 @@
-import type { GemEfficiencyEntry } from './types';
+interface GemEfficiencyEntry {
+  level: number;
+  damage: number;
+  cooldown: number;
+  baseAttack: number;
+  supportEffect: number;
+}
 
 /**
  * 시즌3 보석 효율 — tier-aware 공식 (2026-05 검증 기준)
