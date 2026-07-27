@@ -1,6 +1,28 @@
 import { LOPEC_ENGRAVING_TOTAL_EFFECTS } from '../data/specScore/lopecCoefficients';
 import { calcLopecDelta } from './lopecSimulator';
+import type { BraceletState } from './polishState';
 import { effect, emptyGems, engravings } from './lopecSimulator.testUtils';
+
+const noBraceletOption: BraceletState['options'][number] = {
+  type: '없음',
+  grade: '하',
+  label: '없음',
+  value: 0,
+  combatPowerIncreasePercent: 0,
+};
+
+const braceletState = (crit: number, specialization: number, swiftness: number): BraceletState => ({
+  tier: '고대',
+  effects: [],
+  stats: [
+    { type: '치명', value: crit },
+    { type: '특화', value: specialization },
+    { type: '신속', value: swiftness },
+    { type: '없음', value: 0 },
+  ],
+  options: [noBraceletOption, noBraceletOption, noBraceletOption, noBraceletOption],
+  raw: { Type: '팔찌', Name: '테스트 팔찌', Icon: '', Grade: '고대', Tooltip: '' },
+});
 
 describe('calcLopecDelta engraving factor changes', () => {
   it('uses cumulative engraving factors for known engraving X and stone level changes', () => {
@@ -92,6 +114,39 @@ describe('calcLopecDelta 97-stone base attack changes', () => {
       emptyGems,
     );
     const expected = currentScore * ((1 + 27.00 / 100) / (1 + 26.25 / 100)) * ((1 + 22.28 / 100) / (1 + 23.00 / 100));
+
+    expect(result).toBeCloseTo(expected, 6);
+  });
+});
+
+
+describe('calcLopecDelta bracelet combat stat changes', () => {
+  it('applies bracelet crit specialization and swiftness changes against full character combat stats', () => {
+    const currentScore = 100_000;
+    const currentStatSum = 1_800 + 600 + 400;
+    const modifiedStatSum = currentStatSum - (60 + 0 + 0) + (120 + 0 + 60);
+    const result = calcLopecDelta(
+      currentScore,
+      engravings([]),
+      engravings([]),
+      emptyGems,
+      emptyGems,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      {
+        W: 0,
+        baseAttack: 0,
+        combatStats: { crit: 1_800, specialization: 600, swiftness: 400 },
+      },
+      undefined,
+      undefined,
+      braceletState(60, 0, 0),
+      braceletState(120, 0, 60),
+    );
+    const expected = currentScore *
+      ((1 + (modifiedStatSum * 0.03) / 100) / (1 + (currentStatSum * 0.03) / 100));
 
     expect(result).toBeCloseTo(expected, 6);
   });

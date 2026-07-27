@@ -151,6 +151,7 @@ export interface ArkPassiveEffect {
   Level: number;
   Name: string;
   Description: string;
+  Icon?: string;
 }
 
 /** GET /armories/characters/{name}/arkpassive 응답 — 직업 깨달음 포함 */

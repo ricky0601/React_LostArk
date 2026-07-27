@@ -11,6 +11,8 @@ import type { AccessoryState, BraceletState } from './polishState';
 import { ACCESSORY_SLOTS, type AccessorySlot } from '../data/specScore/polishOptions';
 import { calcGemSetDelta } from './lopecGemDelta';
 import { calcArkGridDelta } from './lopecArkGridDelta';
+import { calcBraceletDelta } from './lopecBraceletDelta';
+import { calcStoneSetBonusDelta } from './lopecStoneDelta';
 
 /**
  * lopec 추출 데이터 기반 정확 시뮬레이션
@@ -32,11 +34,18 @@ import { calcArkGridDelta } from './lopecArkGridDelta';
  *   baseAttack = 공격력 (profile.Stats의 '공격력' Value, 공격력 증감 포함)
  *   pureBaseAttack = 공격력 tooltip의 "기본 공격력", 장비 주스탯 추론용
  */
+export interface CombatStats {
+  readonly crit: number;
+  readonly specialization: number;
+  readonly swiftness: number;
+}
+
 export interface CharStats {
   W: number;
   baseAttack: number;
   pureBaseAttack?: number;
   stoneBaseAttackBonusPercent?: number;
+  combatStats?: CombatStats;
 }
 
 
@@ -106,16 +115,7 @@ export const calcLopecDelta = (
       }
     }
   }
-  if (currentBracelet && modifiedBracelet) {
-    for (let i = 0; i < 4; i++) {
-      const curOpt = currentBracelet.options[i];
-      const modOpt = modifiedBracelet.options[i];
-      if (curOpt.label === modOpt.label) continue;
-      const curRatio = resolveBraceletCombatPowerRatio(curOpt);
-      const modRatio = resolveBraceletCombatPowerRatio(modOpt);
-      if (curRatio > 0) polishMultiplier *= modRatio / curRatio;
-    }
-  }
+  polishMultiplier *= calcBraceletDelta(currentBracelet, modifiedBracelet, charStats?.combatStats);
 
   const arkGridMultiplier = calcArkGridDelta(currentArkGrid, modifiedArkGrid);
 
@@ -208,9 +208,6 @@ const resolvePolishCombatPowerRatio = (
   return 1 + opt.combatPowerIncreasePercent / 100;
 };
 
-const resolveBraceletCombatPowerRatio = (
-  opt: { readonly combatPowerIncreasePercent: number },
-): number => 1 + opt.combatPowerIncreasePercent / 100;
 
 const neutralEngravingEffect = (name: string): ArkPassiveEffect => ({
   AbilityStoneLevel: null,
@@ -235,37 +232,6 @@ const calcEngravingDelta = (cur: ArkPassiveEffect, mod: ArkPassiveEffect): numbe
   return (1 + modifiedTotalEffect / 100) / (1 + currentTotalEffect / 100);
 };
 
-const hasStone97Bonus = (effects: ArkPassiveEffect[]): boolean => {
-  const totalStoneLevel = effects.reduce(
-    (sum, effect) => sum + Math.max(0, Math.min(4, effect.AbilityStoneLevel ?? 0)),
-    0,
-  );
-  return totalStoneLevel >= 5;
-};
-
-const calcStoneSetBonusDelta = (
-  currentEffects: ArkPassiveEffect[],
-  modifiedEffects: ArkPassiveEffect[],
-  charStats?: CharStats,
-): number => {
-  const setBonusRatio = resolveStone97BaseAttackRatio(charStats);
-  const currentRatio = hasStone97Bonus(currentEffects) ? setBonusRatio : 1;
-  const modifiedRatio = hasStone97Bonus(modifiedEffects) ? setBonusRatio : 1;
-  return modifiedRatio / currentRatio;
-};
-
-const resolveStone97BaseAttackRatio = (charStats?: CharStats): number => {
-  const bonusPercent = charStats?.stoneBaseAttackBonusPercent ?? 0;
-  const pureBaseAttack = charStats?.pureBaseAttack ?? 0;
-  const totalAttack = charStats?.baseAttack ?? 0;
-  if (bonusPercent <= 0 || pureBaseAttack <= 0 || totalAttack <= 0) return 1;
-
-  const bonusMultiplier = 1 + bonusPercent / 100;
-  const bonusAttack = pureBaseAttack - pureBaseAttack / bonusMultiplier;
-  if (bonusAttack <= 0 || bonusAttack >= totalAttack) return 1;
-
-  return totalAttack / (totalAttack - bonusAttack);
-};
 
 const calcAdvancedHoningDelta = (slot: EquipSlot, cur: EquipmentState, mod: EquipmentState): number => {
   let mult = 1.0;

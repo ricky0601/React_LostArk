@@ -1,4 +1,5 @@
 import type { Dispatch, ReactElement, SetStateAction } from 'react';
+import { createPortal } from 'react-dom';
 import type { ArkGridSlot } from '../../types/lostark';
 import {
   ARK_GRID_GEM_OPTIONS,
@@ -56,9 +57,13 @@ export const ArkGridGemEditorModal = ({
     setArkGridGemDraft(null);
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4 backdrop-blur-sm">
-      <div className="w-full max-w-md rounded-2xl border border-gray-200 bg-white p-4 shadow-2xl dark:border-white/10 dark:bg-gray-900">
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/45 p-0 backdrop-blur-sm sm:items-center sm:p-4">
+      <div
+        role="dialog"
+        aria-modal="true"
+        className="max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto rounded-t-2xl border border-gray-200 bg-white p-4 shadow-2xl dark:border-white/10 dark:bg-gray-900 sm:rounded-2xl"
+      >
         <div className="mb-3 flex items-start justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="h-14 w-14 overflow-hidden rounded-xl border border-la-gold/40 bg-gray-100 shadow-inner dark:bg-black/30">
@@ -84,7 +89,7 @@ export const ArkGridGemEditorModal = ({
           </button>
         </div>
 
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           <label className="block text-[11px] font-medium text-gray-500 dark:text-gray-400">
             필요 의지력
             <select
@@ -126,7 +131,7 @@ export const ArkGridGemEditorModal = ({
               <p className="mb-1 text-[11px] font-medium text-gray-500 dark:text-gray-400">
                 옵션 {effectIndex + 1}
               </p>
-              <div className="grid grid-cols-[minmax(0,1fr)_74px] gap-2">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_74px]">
                 <select
                   value={effect.option}
                   onChange={(event) => setArkGridGemDraft((prev) => {
@@ -168,11 +173,11 @@ export const ArkGridGemEditorModal = ({
           ))}
         </div>
 
-        <div className="mt-4 flex justify-end gap-2">
+        <div className="mt-4 grid grid-cols-2 gap-2 sm:flex sm:justify-end">
           <button
             type="button"
             onClick={closeEditor}
-            className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-500 hover:bg-gray-50 dark:border-white/10 dark:text-gray-400 dark:hover:bg-white/5"
+            className="min-h-10 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-500 hover:bg-gray-50 dark:border-white/10 dark:text-gray-400 dark:hover:bg-white/5"
           >
             취소
           </button>
@@ -182,12 +187,13 @@ export const ArkGridGemEditorModal = ({
               updateArkGridGem(editingArkGridGem, editingArkGridGemState, displayedArkGridGemState);
               closeEditor();
             }}
-            className="rounded-lg bg-la-gold px-3 py-1.5 text-xs font-bold text-gray-900 hover:bg-la-gold/90"
+            className="min-h-10 rounded-lg bg-la-gold px-3 py-1.5 text-xs font-bold text-gray-900 hover:bg-la-gold/90"
           >
             확인
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 };

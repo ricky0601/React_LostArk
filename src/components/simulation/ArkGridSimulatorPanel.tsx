@@ -21,6 +21,8 @@ interface ArkGridSimulatorPanelProps {
   arkGridMods: Record<number, ArkGridCoreMod>;
   editingArkGridGem: ArkGridGemEditTarget | null;
   arkGridGemDraft: Required<ArkGridGemMod> | null;
+  changedCount: number;
+  summaryLabel: string;
   setEditingArkGridGem: Dispatch<SetStateAction<ArkGridGemEditTarget | null>>;
   setArkGridGemDraft: Dispatch<SetStateAction<Required<ArkGridGemMod> | null>>;
   updateArkGridCore: (slotIndex: number, patch: ArkGridCoreMod) => void;
@@ -37,6 +39,8 @@ export const ArkGridSimulatorPanel = ({
   arkGridMods,
   editingArkGridGem,
   arkGridGemDraft,
+  changedCount,
+  summaryLabel,
   setEditingArkGridGem,
   setArkGridGemDraft,
   updateArkGridCore,
@@ -53,12 +57,14 @@ export const ArkGridSimulatorPanel = ({
     arkGridEffects.map((effect) => [effect.Name.replace(/\s+/g, ''), effect]),
   );
   return (
-    <div className="glass-card overflow-hidden p-5">
-      <div className="mb-4 flex items-start justify-between gap-3 border-b border-gray-200/40 pb-3 dark:border-white/5">
+    <div className="glass-card overflow-hidden p-4 sm:p-5">
+      <div className="mb-4 flex flex-col gap-3 border-b border-gray-200/40 pb-3 dark:border-white/5 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">아크 그리드</h3>
+          <p className="mt-0.5 text-[11px] text-gray-400 dark:text-gray-500">{summaryLabel}</p>
+          {changedCount > 0 && <span className="spec-chip mt-2">변경 {changedCount}</span>}
         </div>
-        <div className="rounded-xl border border-la-gold/20 bg-la-gold/10 px-3 py-2 text-right">
+        <div className="rounded-xl border border-la-gold/20 bg-la-gold/10 px-3 py-2 text-left sm:text-right">
           <p className="text-[10px] text-la-gold-dark/70 dark:text-la-gold/70">총 포인트</p>
           <p className="text-lg font-bold leading-none tabular-nums text-la-gold-dark dark:text-la-gold">
             {arkGridTotalPoint}P
@@ -68,7 +74,7 @@ export const ArkGridSimulatorPanel = ({
 
       {arkGridSlots.length > 0 ? (
         <>
-          <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2 xl:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
             {arkGridSlots.map((slot) => {
               const coreMod = arkGridMods[slot.Index];
               const slotGems = slot.Gems ?? [];
@@ -81,10 +87,10 @@ export const ArkGridSimulatorPanel = ({
               return (
                 <div
                   key={slot.Index}
-                  className="rounded-xl border border-gray-200/70 bg-white/50 p-2.5 shadow-sm dark:border-white/10 dark:bg-white/5"
+                  className="rounded-xl border border-gray-200/70 bg-white/50 p-3 shadow-sm dark:border-white/10 dark:bg-white/5"
                 >
-                  <div className="grid grid-cols-[72px_minmax(0,1fr)] gap-2.5">
-                    <div className="flex flex-col items-center gap-1.5">
+                  <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-[72px_minmax(0,1fr)]">
+                    <div className="flex flex-row items-center justify-between gap-2 sm:flex-col sm:justify-start sm:gap-1.5">
                       <div
                         className={`h-16 w-16 overflow-hidden rounded-xl border shadow-inner ${coreFrame.className}`}
                         style={coreFrame.style}
@@ -107,7 +113,7 @@ export const ArkGridSimulatorPanel = ({
                       <select
                         value={displayGrade}
                         onChange={(event) => updateArkGridCore(slot.Index, { grade: event.target.value })}
-                        className="h-8 w-full rounded-lg border border-gray-200 bg-gray-50 px-2 text-[11px] font-medium text-gray-600 outline-none transition-colors hover:border-la-gold/50 focus:border-la-gold dark:border-white/10 dark:bg-black/20 dark:text-gray-300"
+                        className="spec-touch-control h-8 w-full rounded-lg border border-gray-200 bg-gray-50 px-2 text-[11px] font-medium text-gray-600 outline-none transition-colors hover:border-la-gold/50 focus:border-la-gold dark:border-white/10 dark:bg-black/20 dark:text-gray-300"
                         aria-label={`${slot.Name} 코어 등급`}
                       >
                         {ARK_GRID_CORE_GRADE_OPTIONS.map((grade) => (
@@ -118,7 +124,7 @@ export const ArkGridSimulatorPanel = ({
                         <select
                           value={selectedChaosName}
                           onChange={(event) => updateArkGridCore(slot.Index, { coreName: event.target.value })}
-                          className="h-8 w-full rounded-lg border border-gray-200 bg-gray-50 px-2 text-[11px] font-semibold text-gray-700 outline-none transition-colors hover:border-la-gold/50 focus:border-la-gold dark:border-white/10 dark:bg-black/20 dark:text-gray-200"
+                          className="spec-touch-control h-8 w-full rounded-lg border border-gray-200 bg-gray-50 px-2 text-[11px] font-semibold text-gray-700 outline-none transition-colors hover:border-la-gold/50 focus:border-la-gold dark:border-white/10 dark:bg-black/20 dark:text-gray-200"
                           aria-label={`${slot.Name} 혼돈 코어 선택`}
                         >
                           {chaosOptionGroup?.options.map((name) => (
@@ -151,7 +157,7 @@ export const ArkGridSimulatorPanel = ({
                                 setEditingArkGridGem({ slotIndex: slot.Index, gemIndex: gem?.Index ?? gemIndex });
                                 setArkGridGemDraft(gemState);
                               }}
-                              className={`relative aspect-square overflow-hidden rounded-md border bg-gray-100 outline-none transition-transform hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-la-gold dark:bg-black/30 ${
+                              className={`spec-touch-control relative aspect-square overflow-hidden rounded-md border bg-gray-100 outline-none transition-transform hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-la-gold dark:bg-black/30 ${
                                 gem?.IsActive || gemMod
                                   ? 'border-la-gold/60 shadow-[0_0_10px_rgba(245,197,66,0.18)]'
                                   : 'border-gray-200 opacity-60 dark:border-white/10'
@@ -175,7 +181,7 @@ export const ArkGridSimulatorPanel = ({
                                 setEditingArkGridGem({ slotIndex: slot.Index, gemIndex });
                                 setArkGridGemDraft(emptyState);
                               }}
-                              className="flex aspect-square items-center justify-center rounded-md border border-dashed border-gray-300 bg-gray-50/70 text-lg font-semibold text-gray-400 outline-none transition-colors hover:border-la-gold/60 hover:bg-la-gold/10 hover:text-la-gold-dark focus-visible:ring-2 focus-visible:ring-la-gold dark:border-white/10 dark:bg-black/20 dark:text-gray-500 dark:hover:border-la-gold/60 dark:hover:bg-la-gold/15 dark:hover:text-la-gold"
+                              className="spec-touch-control flex aspect-square items-center justify-center rounded-md border border-dashed border-gray-300 bg-gray-50/70 text-lg font-semibold text-gray-400 outline-none transition-colors hover:border-la-gold/60 hover:bg-la-gold/10 hover:text-la-gold-dark focus-visible:ring-2 focus-visible:ring-la-gold dark:border-white/10 dark:bg-black/20 dark:text-gray-500 dark:hover:border-la-gold/60 dark:hover:bg-la-gold/15 dark:hover:text-la-gold"
                               aria-label={`${slot.Name} 빈 젬 ${gemIndex + 1} 추가`}
                               title="아크 그리드 젬 추가"
                             >
@@ -191,8 +197,8 @@ export const ArkGridSimulatorPanel = ({
             })}
           </div>
 
-          <div className="mt-3 rounded-xl border border-gray-200/70 bg-white/45 p-3 dark:border-white/10 dark:bg-black/20">
-            <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
+          <div className="mt-4 rounded-xl border border-gray-200/70 bg-white/45 p-3 dark:border-white/10 dark:bg-black/20">
+            <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2 lg:grid-cols-3">
               {ARK_GRID_SUMMARY_OPTIONS.map((label) => {
                 const effectKey = label.replace(/\s+/g, '');
                 const effect = arkGridEffectByName.get(effectKey);
@@ -233,9 +239,6 @@ export const ArkGridSimulatorPanel = ({
       ) : (
         <p className="text-xs text-gray-500 dark:text-gray-400">아크 그리드 정보 없음</p>
       )}
-      <div className="mt-3 rounded-lg border border-amber-200/70 bg-amber-50/70 px-3 py-2 text-[11px] leading-relaxed text-amber-700 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-300">
-        영웅~고대 코어와 딜러 젬 옵션(공격력·추가 피해·보스 피해) 실측 계수만 전투력에 반영됩니다. 무기 코어와 미확정 옵션은 반영하지 않습니다.
-      </div>
     </div>
   );
 };
