@@ -28,10 +28,15 @@ yarn-error.log*
 .tmp/
 
 # AI tooling
+AGENTS.md
 .claude/
 .serena/
 .agent/
 .sisyphus/
 .playwright-mcp/
+
+# Local Lost Ark research fixtures
+docs/lostark-api-*.json
+docs/lostark-combat-dummy-data.md
 *mobile*.png
 compare-mobile.png
