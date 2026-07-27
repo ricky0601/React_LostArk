@@ -80,9 +80,10 @@ export const ArkGridSimulatorPanel = ({
               const slotGems = slot.Gems ?? [];
               const displayGrade = coreMod?.grade ?? slot.Grade;
               const displayName = coreMod?.coreName ?? slot.Name;
+              const coreLabel = displayName ?? `아크 그리드 ${slot.Index + 1}번 슬롯`;
               const isChaos = isChaosArkGridSlot(slot.Index);
               const chaosOptionGroup = isChaos ? getArkGridChaosOptionGroup(slot.Index) : undefined;
-              const selectedChaosName = isChaos ? resolveArkGridChaosOptionName(slot.Index, displayName) : displayName;
+              const selectedChaosName = isChaos ? resolveArkGridChaosOptionName(slot.Index, displayName) : coreLabel;
               const coreFrame = gradeFrame(displayGrade, 'bg');
               return (
                 <div
@@ -114,7 +115,7 @@ export const ArkGridSimulatorPanel = ({
                         value={displayGrade}
                         onChange={(event) => updateArkGridCore(slot.Index, { grade: event.target.value })}
                         className="spec-touch-control h-8 w-full rounded-lg border border-gray-200 bg-gray-50 px-2 text-[11px] font-medium text-gray-600 outline-none transition-colors hover:border-la-gold/50 focus:border-la-gold dark:border-white/10 dark:bg-black/20 dark:text-gray-300"
-                        aria-label={`${slot.Name} 코어 등급`}
+                        aria-label={`${coreLabel} 코어 등급`}
                       >
                         {ARK_GRID_CORE_GRADE_OPTIONS.map((grade) => (
                           <option key={grade} value={grade}>{grade} 코어</option>
@@ -125,7 +126,7 @@ export const ArkGridSimulatorPanel = ({
                           value={selectedChaosName}
                           onChange={(event) => updateArkGridCore(slot.Index, { coreName: event.target.value })}
                           className="spec-touch-control h-8 w-full rounded-lg border border-gray-200 bg-gray-50 px-2 text-[11px] font-semibold text-gray-700 outline-none transition-colors hover:border-la-gold/50 focus:border-la-gold dark:border-white/10 dark:bg-black/20 dark:text-gray-200"
-                          aria-label={`${slot.Name} 혼돈 코어 선택`}
+                          aria-label={`${coreLabel} 혼돈 코어 선택`}
                         >
                           {chaosOptionGroup?.options.map((name) => (
                             <option key={`${chaosOptionGroup.group}-${name}`} value={name}>{name}</option>
@@ -182,7 +183,7 @@ export const ArkGridSimulatorPanel = ({
                                 setArkGridGemDraft(emptyState);
                               }}
                               className="spec-touch-control flex aspect-square items-center justify-center rounded-md border border-dashed border-gray-300 bg-gray-50/70 text-lg font-semibold text-gray-400 outline-none transition-colors hover:border-la-gold/60 hover:bg-la-gold/10 hover:text-la-gold-dark focus-visible:ring-2 focus-visible:ring-la-gold dark:border-white/10 dark:bg-black/20 dark:text-gray-500 dark:hover:border-la-gold/60 dark:hover:bg-la-gold/15 dark:hover:text-la-gold"
-                              aria-label={`${slot.Name} 빈 젬 ${gemIndex + 1} 추가`}
+                              aria-label={`${coreLabel} 빈 젬 ${gemIndex + 1} 추가`}
                               title="아크 그리드 젬 추가"
                             >
                               +

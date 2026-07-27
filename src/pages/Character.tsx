@@ -106,7 +106,9 @@ function parseEquipmentInfo(itemName: string, tooltip: string): ParsedEquipmentI
 const ARMOR_TYPES = ['무기', '투구', '어깨', '상의', '하의', '장갑'];
 const ACCESSORY_TYPES = ['목걸이', '귀걸이', '반지'];
 
-function shortCoreName(fullName: string): string {
+function shortCoreName(fullName: string | null): string {
+  if (!fullName) return '이름 없음';
+
   const m = fullName.match(/^(.+?)\s*코어/);
   return m ? m[1].trim() : fullName;
 }
