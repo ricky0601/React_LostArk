@@ -67,7 +67,7 @@ export interface ArkGridData {
 export interface ArkGridSlot {
   Index: number;
   Icon: string;
-  Name: string;
+  Name: string | null;
   Point: number;
   Grade: string;
   Tooltip: string;

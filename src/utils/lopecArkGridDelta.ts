@@ -42,7 +42,7 @@ const CHAOS_LOW: Readonly<Record<number, number>> = {
   20: 2,
 };
 
-const normalize = (value: string): string => value.replace(/\s+/g, '');
+const normalize = (value: string | null): string => value?.replace(/\s+/g, '') ?? '';
 
 const isSupportedCoreGrade = (grade: string): boolean =>
   grade === '영웅' || grade === '전설' || grade === '유물' || grade === '고대';
