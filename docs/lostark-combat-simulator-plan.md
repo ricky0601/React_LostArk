@@ -1,6 +1,6 @@
 # Lost Ark Combat Simulator Plan
 
-This document defines the product and implementation direction for the combat-power simulator. Formula details, reverse-engineering notes, raw samples, and unresolved coefficient research belong in [`lostark-combat-power-research.md`](./lostark-combat-power-research.md) and [`lostark-combat-dummy-data.md`](./lostark-combat-dummy-data.md).
+This document defines the product and implementation direction for the combat-power simulator. Formula details, reverse-engineering notes, raw samples, and unresolved coefficient research belong in [`lostark-combat-power-research.md`](./lostark-combat-power-research.md). Keep this plan focused on product behavior and implementation confidence, not raw sample dumps.
 
 ## Goal
 
@@ -57,6 +57,15 @@ Initial high-value simulation targets:
 
 Unsupported or uncertain changes should be disabled, marked as experimental, or require manual coefficient input.
 
+## Current Equipment Confidence
+
+Detailed formulas and sample evidence are in [`lostark-combat-power-research.md`](./lostark-combat-power-research.md). Current implementation status:
+
+- Serka (`운명의 전율`) weapon changes are confirmed for practical use with the weapon attack ratio.
+- Egir (`운명의 업화`) weapon changes are estimated until the normal-honing x advanced-honing weapon tooltip table is confirmed. The calculation should use effective weapon attack, including non-buff weapon-attack sources, as the denominator when those values can be parsed.
+- Serka armor changes are experimental/manual. Measured samples fit with a character-level armor delta multiplier, but API-visible strength/dexterity/intelligence data is not yet generalized enough for fully automatic armor simulation.
+- Attack `+` and attack `%` options are direct combat-power factors; they should not be mixed into weapon-attack or main-stat ratio calculations.
+
 ## Calculation Principles
 
 Use ratio updates from the current API baseline.
@@ -65,7 +74,7 @@ Examples:
 
 ```text
 Weapon attack only:
-new_cp = current_cp * sqrt(new_weapon_attack / current_weapon_attack)
+new_cp = current_cp * sqrt(new_effective_weapon_attack / current_effective_weapon_attack)
 
 Main stat only:
 new_cp = current_cp * sqrt(new_main_stat / current_main_stat)
@@ -163,6 +172,6 @@ Delta:     +77.78 (+1.576%)
 ## Implementation Notes
 
 - Keep research findings in the research document, not in this plan unless they directly affect product behavior.
-- Keep raw copied character data in the dummy-data document.
+- Keep raw copied character data out of this plan; add a separate dummy-data fixture document only if the data becomes reusable test input.
 - Prefer adding static coefficient tables under `src/data/` once a coefficient is stable enough for implementation.
 - Add explicit source and confidence metadata to coefficient tables so experimental values are not mistaken for official values.

@@ -106,6 +106,8 @@ yarn build
 
 - `API_KEY_MITIGATION.md` - API key를 서버 전용 Vercel proxy로 옮긴 설계 기록
 - `docs/DEV_ENV_REPRO_GUIDE.md` - 개발 환경 재현 가이드
+- `docs/lostark-combat-power-research.md` - 전투력 공식, 장비 계수, 검증 샘플 연구 노트
+- `docs/lostark-combat-simulator-plan.md` - 전투력 시뮬레이터 제품/구현 계획
 - `docs/troubleshooting/` - 재발 가능성이 있는 문제와 해결 기록
 - `README_write_guide.md` - README 작성/갱신 규칙
 - `REAPER_LOPEC_VALIDATION_TEMPLATE.md` - Lopec 정합 검증 템플릿

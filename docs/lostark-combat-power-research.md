@@ -4,6 +4,15 @@ This document records the current working model, measured samples, and unresolve
 
 Product and implementation planning for the simulator page lives in [`lostark-combat-simulator-plan.md`](./lostark-combat-simulator-plan.md). Keep this file focused on formula research, source notes, measured samples, and unresolved calculation assumptions.
 
+## Current Implementation Source Status
+
+Use the latest equipment notes below as the implementation source of truth:
+
+- Serka (`운명의 전율`) weapon simulation is validated for practical use with the base-attack weapon ratio.
+- Egir (`운명의 업화`) weapon simulation must use an effective weapon-attack denominator, not only the weapon tooltip attack.
+- Serka armor simulation is still experimental unless a character-specific armor delta multiplier is available; the blocker is main-stat generalization.
+- Deprecated Lopec correction samples and the full reverse-solved constant are historical checkpoints only. Do not use them as implementation inputs without fresh validation.
+
 ## Current Character Snapshot
 
 - Current combat power: `4933.35`
@@ -694,12 +703,11 @@ working model.
 
 #### Current Multi-Sample Prediction Checkpoint
 
-Raw sample source:
+Raw sample source status:
 
-- Local raw data: [`lostark-combat-dummy-data.md`](./lostark-combat-dummy-data.md)
-- Use this file as the character-by-character input source for recalculation.
-- This research note should keep formulas, derived factors, and validation results;
-  the dummy-data file should keep raw copied character state.
+- The earlier local raw-data file referenced by this section is not currently tracked.
+- Treat the sample roles below as historical notes until raw character fixtures are recreated from fresh API payloads.
+- This research note should keep formulas, derived factors, and validation results. If raw copied character state becomes reusable test input, add it as a separate fixture document instead of embedding it here.
 
 Current sample roles:
 
@@ -786,7 +794,8 @@ Paradise attack orb factor = 1.0224969672
 
 This section is stale relative to the current Ark Grid and bracelet findings. It
 is kept as a historical checkpoint until the full multi-sample worksheet is
-rewritten.
+rewritten. Do not use this empirical constant as the simulator implementation
+source while equipment-specific ratio simulation is available.
 
 Using the then-known factors, including the measured ark-grid gem factor:
 
@@ -1135,6 +1144,169 @@ for `운명의 전율`, but the target weapon power must come from this 2D table
 ```text
 new_combat_power = current_combat_power * sqrt(target_weapon_power / current_weapon_power)
 ```
+
+#### 2026-07-28 Egir Advanced-Honing Weapon Notes
+
+The simple formula above is correct only when `current_weapon_power` means the
+effective weapon attack used by pure base attack, not just the weapon tooltip's
+`기본 효과 > 무기 공격력 +N` value.
+
+Article source <https://www.inven.co.kr/board/lostark/4821/106546> confirms the
+separation:
+
+```text
+pure_base_attack = sqrt(main_stat * weapon_attack / 6)
+
+Weapon attack and main stat sources are reflected through pure base attack.
+Attack + and attack % are not reflected in pure base attack; they are separate
+combat-power factors using an end-spec reference baseline.
+```
+
+For accessories and bracelets this means:
+
+```text
+Include in effective weapon attack:
+- Weapon tooltip base effect, e.g. 무기 공격력 +145904
+- Accessory polishing weapon attack %
+- Accessory polishing flat weapon attack
+- Bracelet non-buff weapon attack, e.g. 무기 공격력 +8100
+- Bracelet non-buff wording such as 무기 공격력이 7800 증가한다
+
+Do not include in effective weapon attack:
+- Attack +, e.g. 공격력 +390
+- Attack %, e.g. 공격력 +0.95%
+- Bracelet buff/stack weapon attack, e.g. 공격 적중 시 140 증가, 최대 30중첩
+```
+
+The buff/stack bracelet weapon-attack options are instead separate fixed
+combat-power factors. The article notes that these are evaluated at max stacks,
+but they do not change pure base attack.
+
+Therefore the preferred weapon-change formula is:
+
+```text
+current_effective_weapon_attack =
+  weapon_tooltip_attack
+  + non_buff_flat_weapon_attack
+  + percent_weapon_attack_contribution
+
+target_effective_weapon_attack =
+  current_effective_weapon_attack
+  + (target_weapon_tooltip_attack - current_weapon_tooltip_attack)
+
+new_combat_power =
+  current_combat_power
+  * sqrt(target_effective_weapon_attack / current_effective_weapon_attack)
+```
+
+If percent weapon-attack contribution cannot yet be reconstructed exactly, use
+the tooltip `pure_base_attack` and `weapon_tooltip_attack` as the grounded
+minimum, then validate against Lopec samples.
+
+Observed Lopec samples for `운명의 업화` advanced honing showed why the effective
+denominator matters. All three characters below share `normalLevel +18`,
+`advancedLevel 30`, and weapon tooltip attack `145904`, but their apparent
+delta response differs when measured against a tooltip-only table:
+
+| Model | Pure base attack | Attack increase effect | Notable weapon-attack options | Apparent delta amp |
+|---|---:|---:|---|---:|
+| 타임키요옷 | 130673 | +5054 | Bracelet non-buff weapon attack `+8100 +7800`; buff `+140*30` excluded | 1.00000 |
+| 동물으나 | 124645 | +2555 | Accessory weapon attack `+2.60%`, flat `+195*3` | ~1.09483 |
+| 주먹바리 | 123655 | +6544 | Accessory weapon attack `+3.60%`; no non-buff bracelet weapon attack | ~1.10878 |
+
+The `타임키요옷` vs `주먹바리` comparison is the key sanity check:
+
+```text
+타임키요옷 non-buff bracelet weapon attack = 8100 + 7800 = 15900
+타임키요옷 effective denominator approx = 145904 + 15900 = 161804
+161804 / 145904 = 1.10897
+주먹바리 apparent delta amp ~= 1.10878
+```
+
+So the different apparent amps are not arbitrary character coefficients. They
+are mostly explained by whether pre-existing non-buff weapon attack is present
+in the current effective denominator.
+
+Known `+18` and `+19` advanced-honing weapon tooltip values from Lopec reverse
+calculation, pending confirmation from actual OpenAPI weapon tooltip snapshots:
+
+| Normal | Advanced | Weapon tooltip attack | Source |
+|---:|---:|---:|---|
+| +18 | 30 | 145904 | API tooltip baseline |
+| +18 | 31 | 146622 | 타임키요옷 CP reverse-calc |
+| +18 | 32 | 147346 | 타임키요옷 CP reverse-calc |
+| +18 | 33 | 148072 | 타임키요옷 CP reverse-calc |
+| +18 | 34 | 148806 | 타임키요옷 CP reverse-calc |
+| +18 | 35 | 149544 | 타임키요옷 CP reverse-calc |
+| +18 | 36 | 150287 | 타임키요옷 CP reverse-calc |
+| +18 | 37 | 151035 | 타임키요옷 CP reverse-calc |
+| +18 | 38 | 151788 | 타임키요옷 CP reverse-calc |
+| +18 | 39 | 152546 | 타임키요옷 CP reverse-calc |
+| +18 | 40 | 157398 | 타임키요옷 CP reverse-calc |
+| +19 | 33 | 152428 | API tooltip baseline |
+| +19 | 34 | 153269 | 끼욧통 CP reverse-calc |
+| +19 | 35 | 154117 | 끼욧통 CP reverse-calc |
+| +19 | 36 | 154969 | 끼욧통 CP reverse-calc |
+| +19 | 37 | 155828 | 끼욧통 CP reverse-calc |
+| +19 | 38 | 156692 | 끼욧통 CP reverse-calc |
+| +19 | 39 | 157563 | 끼욧통 CP reverse-calc |
+| +19 | 40 | 163098 | 끼욧통 CP reverse-calc |
+
+The important data to collect next is the actual weapon tooltip attack per
+advanced-honing step, preferably as either absolute values or per-step deltas:
+
+```text
+weaponFamily: egir
+normalLevel: +18
+X30: 145904
+X30 -> X31: +?
+X31 -> X32: +?
+...
+X39 -> X40: +?
+```
+
+Always record the normal honing level together with the advanced step because
+the per-step advanced-honing weapon attack increase is not constant across
+normal levels.
+
+#### Serka Equipment Status
+
+`운명의 전율` weapon simulation is considered solved for practical purposes:
+
+```text
+new_combat_power = current_combat_power * sqrt(target_weapon_attack / current_weapon_attack)
+```
+
+Validated example:
+
+```text
+Serka weapon +23 -> +24
+weapon_attack 229737 -> 235480
+combat_power 5869.66 -> 5942.57
+```
+
+Serka armor is not fully generalized yet. Current measured armor simulations fit
+well when a character-level armor delta multiplier is known:
+
+```text
+new_combat_power =
+  current_combat_power
+  * sqrt((current_main_stat + raw_armor_delta * armor_delta_amp) / current_main_stat)
+```
+
+Observed character-level armor delta multipliers:
+
+| Model | Armor delta amp |
+|---|---:|
+| 한건뜬 | 1.4194141133414786 |
+| 미녀바리 | 1.4336392665138455 |
+| 연쏘울 | 1.4830496435197025 |
+
+The remaining armor blocker is main-stat generalization. API profile does not
+directly expose displayed strength/dexterity/intelligence. It can be inferred as
+`pure_base_attack^2 * 6 / weapon_attack`, but the armor tooltip stat delta still
+needs to be mapped to the effective main-stat delta after all main-stat sources
+and basic-effect modifiers are considered.
 
 ### Current Honing Data Gap
 
