@@ -1,6 +1,7 @@
 import type { ReactElement } from 'react';
-import type { EquipSlot } from '../../data/specScore/lopecCoefficients';
+import { ARMLET_LEVELS, ARMLET_POWER_BY_LEVEL, resolveArmletLevel, type EquipSlot } from '../../data/specScore/lopecCoefficients';
 import type { EquipmentState } from '../../utils/equipmentState';
+import { gradeFrame } from '../../utils/equipmentColors';
 import type { EquipMod } from './specScoreSimulatorTypes';
 
 interface SpecScoreEquipmentPanelProps {
@@ -21,9 +22,10 @@ const SLOT_LABEL: Record<EquipSlot, string> = {
   armor: '상의',
   pants: '하의',
   gloves: '장갑',
+  armlet: '완갑',
 };
 
-const SLOT_ORDER: EquipSlot[] = ['weapon', 'helmet', 'shoulder', 'armor', 'pants', 'gloves'];
+const SLOT_ORDER: EquipSlot[] = ['weapon', 'helmet', 'shoulder', 'armor', 'pants', 'gloves', 'armlet'];
 const TIER_OPTIONS = ['유물', '고대', '전율'];
 
 const extractQuality = (tooltip: string): number | null => {
@@ -37,8 +39,8 @@ const extractQuality = (tooltip: string): number | null => {
         break;
       }
     }
-  } catch {
-    // ignore
+  } catch (error) {
+    if (!(error instanceof SyntaxError)) throw error;
   }
   return quality;
 };
@@ -99,20 +101,66 @@ export const SpecScoreEquipmentPanel = ({
           const curAdvanced = cur.isInherited ? cur.advancedLevel : (m?.advancedLevel ?? cur.advancedLevel);
           const curTier = m?.tier ?? cur.tier;
           const advancedOptions = [0, 5, 10, 15, 20, 25, 30, 35, 40];
-          // 품질 추출 (tooltip JSON의 ItemTitle.qualityValue)
           const quality = extractQuality(cur.raw.Tooltip);
+          if (slot === 'armlet') {
+            const armletLevel = resolveArmletLevel(curNormal);
+            const armletPower = ARMLET_POWER_BY_LEVEL[armletLevel];
+            return (
+              <div
+                key={slot}
+                className="flex flex-col gap-2 border-b border-gray-100 py-2 dark:border-white/5 last:border-0 sm:flex-row sm:items-stretch"
+              >
+                <div className="relative w-14 flex-shrink-0">
+                  <img
+                    src={armletPower.icon}
+                    alt=""
+                    className={`h-14 w-14 rounded border border-gray-200 dark:border-white/10 ${armletLevel === 0 ? 'opacity-45 grayscale' : ''}`}
+                  />
+                  <span className="absolute top-0.5 left-0.5 rounded bg-black/70 px-1 text-[9px] font-bold leading-tight text-white">
+                    완갑
+                  </span>
+                  <span className="absolute bottom-0.5 left-0.5 right-0.5 rounded bg-black/70 text-center text-[9px] font-bold leading-tight text-amber-300">
+                    {armletPower.grade}
+                  </span>
+                </div>
+                <div className="grid flex-1 grid-cols-1 gap-1 text-[11px] sm:grid-cols-2">
+                  <div className="rounded border border-gray-200 bg-gray-100 px-1.5 py-0.5 text-center text-gray-500 dark:border-white/10 dark:bg-white/5">
+                    품질 없음 · 아이템 레벨 제외
+                  </div>
+                  <div className="rounded border border-gray-200 bg-gray-100 px-1.5 py-0.5 text-center text-gray-500 dark:border-white/10 dark:bg-white/5">
+                    기본공 +{armletPower.baseAttackPercent.toFixed(2)}%
+                  </div>
+                  <label className="flex items-center gap-1 rounded border border-gray-200 bg-gray-100 px-1.5 py-0.5 dark:border-white/10 dark:bg-white/5">
+                    <span className="text-[10px] text-gray-400">+</span>
+                    <select
+                      value={armletLevel}
+                      onChange={(ev) => onEquipmentChange(slot, { normalLevel: Number(ev.target.value) })}
+                      className="spec-touch-control flex-1 bg-transparent outline-none"
+                    >
+                      {ARMLET_LEVELS.map((level) => (
+                        <option key={level} value={level}>
+                          {level === 0 ? '0 미착용' : level}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <div className="rounded border border-gray-200 bg-gray-100 px-1.5 py-0.5 text-center text-gray-500 dark:border-white/10 dark:bg-white/5">
+                    무공 {armletPower.weaponAttack.toLocaleString()} · 주스탯 {armletPower.mainStat.toLocaleString()}
+                  </div>
+                </div>
+              </div>
+            );
+          }
+          const frame = gradeFrame(cur.raw.Grade, 'bg');
           return (
             <div
               key={slot}
               className="flex flex-col gap-2 border-b border-gray-100 py-2 dark:border-white/5 last:border-0 sm:flex-row sm:items-stretch"
             >
-              {/* 좌측: 아이콘 + 품질 뱃지 */}
               <div className="relative w-14 flex-shrink-0">
-                <img
-                  src={cur.raw.Icon}
-                  alt=""
-                  className="w-14 h-14 rounded border border-gray-200 dark:border-white/10"
-                />
+                <div className={`h-14 w-14 overflow-hidden rounded border ${frame.className}`} style={frame.style}>
+                  <img src={cur.raw.Icon} alt="" className="h-full w-full object-contain" />
+                </div>
                 <span className="absolute top-0.5 left-0.5 text-[9px] font-bold text-white bg-black/70 rounded px-1 leading-tight">
                   {SLOT_LABEL[slot]}
                 </span>
@@ -138,7 +186,7 @@ export const SpecScoreEquipmentPanel = ({
                 <div className="bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded px-1.5 py-0.5 text-center text-gray-500">
                   품질 {quality ?? '-'}
                 </div>
-                <label className="flex items-center gap-1 bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded px-1.5 py-0.5">
+                <label className="flex items-center gap-1 rounded border border-gray-200 bg-gray-100 px-1.5 py-0.5 dark:border-white/10 dark:bg-white/5">
                   <span className="text-gray-400 text-[10px]">+</span>
                   <select
                     value={curNormal}
@@ -147,7 +195,7 @@ export const SpecScoreEquipmentPanel = ({
                     }
                     className="spec-touch-control flex-1 bg-transparent outline-none"
                   >
-                    {Array.from({ length: 26 }, (_, i) => i).map((lv) => (
+                    {Array.from({ length: 26 }, (_, i) => 25 - i).map((lv) => (
                       <option key={lv} value={lv}>
                         {lv}
                       </option>

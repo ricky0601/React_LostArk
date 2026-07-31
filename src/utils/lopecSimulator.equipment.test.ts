@@ -1,5 +1,5 @@
 import { calcLopecDelta } from './lopecSimulator';
-import { baseAttackFor, emptyGems, engravings, equipment } from './lopecSimulator.testUtils';
+import { charStatsFor, emptyGems, engravings, equipment } from './lopecSimulator.testUtils';
 
 describe('calcLopecDelta inherited equipment advanced changes', () => {
   it('ignores advanced refining deltas for inherited equipment even when a mod exists', () => {
@@ -60,7 +60,7 @@ describe('calcLopecDelta inherited equipment advanced changes', () => {
       { helmet: modified },
       undefined,
       undefined,
-      { W: weaponAttack, baseAttack: baseAttackFor(weaponAttack, mainStat) },
+      charStatsFor(weaponAttack, mainStat),
     );
 
     expect(result).toBeGreaterThan(currentScore);
@@ -86,6 +86,30 @@ describe('calcLopecDelta inherited equipment advanced changes', () => {
 });
 
 describe('calcLopecDelta equipment API/table formula changes', () => {
+  it('applies armlet weapon attack main stat and base attack percent at supported levels', () => {
+    const currentScore = 100_000;
+    const weaponAttack = 200_000;
+    const mainStat = 900_000;
+    const current = equipment('armlet', { normalLevel: 0, tier: '미착용' });
+    const modified = { ...current, normalLevel: 10, tier: '영웅' };
+
+    const result = calcLopecDelta(
+      currentScore,
+      engravings([]),
+      engravings([]),
+      emptyGems,
+      emptyGems,
+      { armlet: current },
+      { armlet: modified },
+      undefined,
+      undefined,
+      charStatsFor(weaponAttack, mainStat),
+    );
+    const baseStatRatio = Math.sqrt(((weaponAttack + 10969) * (mainStat + 1456)) / (weaponAttack * mainStat));
+
+    expect(result).toBeCloseTo(currentScore * baseStatRatio * 1.01, 6);
+  });
+
   it('uses API weapon attack and Egir normal honing deltas for weapon normal changes', () => {
     const currentScore = 100_000;
     const weaponAttack = 135_527;
@@ -103,7 +127,7 @@ describe('calcLopecDelta equipment API/table formula changes', () => {
       { weapon: modified },
       undefined,
       undefined,
-      { W: weaponAttack, baseAttack: baseAttackFor(weaponAttack, mainStat) },
+      charStatsFor(weaponAttack, mainStat),
     );
 
     expect(result).toBeCloseTo(currentScore * Math.sqrt((weaponAttack + 3956 + 4095) / weaponAttack), 6);
@@ -126,7 +150,7 @@ describe('calcLopecDelta equipment API/table formula changes', () => {
       { helmet: modified },
       undefined,
       undefined,
-      { W: weaponAttack, baseAttack: baseAttackFor(weaponAttack, mainStat) },
+      charStatsFor(weaponAttack, mainStat),
     );
     const effectiveStatDelta = 2133 + 2208;
 
@@ -135,9 +159,9 @@ describe('calcLopecDelta equipment API/table formula changes', () => {
 
   it('uses profile tooltip pure base attack instead of total attack for armor stat inference', () => {
     const currentScore = 100_000;
-    const weaponAttack = 218_667;
-    const totalAttack = 197_023;
-    const pureBaseAttack = 180_391;
+    const weaponAttack = 200_000;
+    const totalAttack = 150_000;
+    const pureBaseAttack = 140_000;
     const currentMainStat = (pureBaseAttack * pureBaseAttack * 6) / weaponAttack;
     const current = equipment('helmet', { normalLevel: 18, advancedLevel: 20 });
     const modified = { ...current, normalLevel: 20 };
@@ -152,14 +176,21 @@ describe('calcLopecDelta equipment API/table formula changes', () => {
       { helmet: modified },
       undefined,
       undefined,
-      { W: weaponAttack, baseAttack: totalAttack, pureBaseAttack },
+      {
+        W: weaponAttack,
+        baseAttack: totalAttack,
+        pureBaseAttack,
+        effectiveWeaponAttack: weaponAttack,
+        weaponAttackPercentSum: 0,
+        baseAttackPercentSum: 0,
+      },
     );
     const effectiveStatDelta = 2133 + 2208;
 
     expect(result).toBeCloseTo(currentScore * Math.sqrt((currentMainStat + effectiveStatDelta) / currentMainStat), 6);
   });
 
-  it('matches Hangunttun Serka weapon normal honing from 21 to 22 using tooltip weapon attack only', () => {
+  it('matches synthetic Serka weapon normal honing from 21 to 22 using tooltip weapon attack only', () => {
     const current = equipment('weapon', {
       normalLevel: 21,
       equipmentFamily: 'serka',
@@ -169,7 +200,7 @@ describe('calcLopecDelta equipment API/table formula changes', () => {
     const modified = { ...current, normalLevel: 22 };
 
     const result = calcLopecDelta(
-      4933.35,
+      100_000,
       engravings([]),
       engravings([]),
       emptyGems,
@@ -178,10 +209,17 @@ describe('calcLopecDelta equipment API/table formula changes', () => {
       { weapon: modified },
       undefined,
       undefined,
-      { W: 218_667, baseAttack: 197_023, pureBaseAttack: 180_391 },
+      {
+        W: 200_000,
+        baseAttack: 150_000,
+        pureBaseAttack: 140_000,
+        effectiveWeaponAttack: 200_000,
+        weaponAttackPercentSum: 0,
+        baseAttackPercentSum: 0,
+      },
     );
 
-    expect(result).toBeCloseTo(4994.63, 2);
+    expect(result).toBeCloseTo(101357.2888350907, 6);
   });
 
   it('uses formula-only Serka weapon normal honing downgrade from 25 to 21', () => {
@@ -203,7 +241,14 @@ describe('calcLopecDelta equipment API/table formula changes', () => {
       { weapon: modified },
       undefined,
       undefined,
-      { W: 241_367, baseAttack: 209_240 },
+      {
+        W: 241_367,
+        baseAttack: 209_240,
+        pureBaseAttack: 209_240,
+        effectiveWeaponAttack: 241_367,
+        weaponAttackPercentSum: 0,
+        baseAttackPercentSum: 0,
+      },
     );
 
     expect(result).toBeCloseTo(6761.905220079957, 6);

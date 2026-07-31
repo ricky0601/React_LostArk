@@ -7,8 +7,10 @@ import {
   SERKA_WEAPON_ATTACK_DELTA_BY_LEVEL,
 } from '../data/specScore/equipmentPowerTables';
 import {
+  ARMLET_POWER_BY_LEVEL,
   EQUIP_TYPE_TO_SLOT,
   extractEquipTier,
+  resolveArmletLevel,
   type EquipSlot,
 } from '../data/specScore/lopecCoefficients';
 
@@ -16,7 +18,8 @@ export type EquipmentFamily = 'egir' | 'serka';
 
 export type EquipmentNormalHoningDelta =
   | { readonly kind: 'weapon'; readonly weaponAttack: number }
-  | { readonly kind: 'armor'; readonly stats: StatDelta };
+  | { readonly kind: 'armor'; readonly stats: StatDelta }
+  | { readonly kind: 'armlet'; readonly weaponAttack: number; readonly mainStat: number; readonly baseAttackPercent: number };
 
 /** 시뮬레이션 가능한 슬롯의 현재 상태 */
 export interface EquipmentState {
@@ -93,6 +96,15 @@ export const resolveNormalHoningDelta = (
   family: EquipmentFamily,
   normalLevel: number,
 ): EquipmentNormalHoningDelta | undefined => {
+  if (slot === 'armlet') {
+    const power = ARMLET_POWER_BY_LEVEL[resolveArmletLevel(normalLevel)];
+    return {
+      kind: 'armlet',
+      weaponAttack: power.weaponAttack,
+      mainStat: power.mainStat,
+      baseAttackPercent: power.baseAttackPercent,
+    };
+  }
   if (normalLevel <= 0) return undefined;
   if (slot === 'weapon') {
     const table = family === 'serka'
@@ -116,9 +128,26 @@ export const resolveNormalHoningDelta = (
 export const parseEquipmentState = (item: EquipmentItem): EquipmentState | null => {
   const slot = EQUIP_TYPE_TO_SLOT[item.Type];
   if (!slot) return null;
-  const normalLevel = parseNormalLevel(item.Name);
+  const parsedNormalLevel = parseNormalLevel(item.Name);
   const isInherited = parseIsInherited(item.Tooltip);
   const equipmentFamily: EquipmentFamily = isInherited ? 'serka' : 'egir';
+
+  if (slot === 'armlet') {
+    const normalLevel = resolveArmletLevel(parsedNormalLevel);
+    const normalHoningDelta = resolveNormalHoningDelta(slot, equipmentFamily, normalLevel);
+    return {
+      slot,
+      normalLevel,
+      advancedLevel: 0,
+      tier: ARMLET_POWER_BY_LEVEL[normalLevel].grade,
+      equipmentFamily,
+      normalHoningDelta,
+      isInherited,
+      raw: item,
+    };
+  }
+
+  const normalLevel = parsedNormalLevel;
   const advancedLevel = parseAdvancedLevel(item.Tooltip);
   const tier = extractEquipTier(item.Grade);
   const normalHoningDelta = resolveNormalHoningDelta(slot, equipmentFamily, normalLevel);
@@ -134,6 +163,23 @@ export const parseEquipmentState = (item: EquipmentItem): EquipmentState | null 
   };
 };
 
+const createEmptyArmletState = (): EquipmentState => ({
+  slot: 'armlet',
+  normalLevel: 0,
+  advancedLevel: 0,
+  tier: ARMLET_POWER_BY_LEVEL[0].grade,
+  equipmentFamily: 'egir',
+  normalHoningDelta: resolveNormalHoningDelta('armlet', 'egir', 0),
+  isInherited: false,
+  raw: {
+    Type: '완갑',
+    Name: '+0 완갑 미착용',
+    Icon: ARMLET_POWER_BY_LEVEL[0].icon,
+    Grade: ARMLET_POWER_BY_LEVEL[0].grade,
+    Tooltip: '{}',
+  },
+});
+
 /** 전체 장비 목록을 슬롯별 state로 변환 */
 export const parseEquipmentList = (items: EquipmentItem[]): Partial<Record<EquipSlot, EquipmentState>> => {
   const result: Partial<Record<EquipSlot, EquipmentState>> = {};
@@ -141,5 +187,6 @@ export const parseEquipmentList = (items: EquipmentItem[]): Partial<Record<Equip
     const state = parseEquipmentState(item);
     if (state) result[state.slot] = state;
   }
+  if (!result.armlet) result.armlet = createEmptyArmletState();
   return result;
 };

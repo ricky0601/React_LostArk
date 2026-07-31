@@ -10,7 +10,7 @@ import { SpecScoreCorePanel } from './SpecScoreCorePanel';
 import { SpecScoreEquipmentPanel } from './SpecScoreEquipmentPanel';
 import { SpecScoreGemPanel } from './SpecScoreGemPanel';
 import { SpecScoreSummary } from './SpecScoreSummary';
-import { SLOT_ORDER } from './specScoreSimulatorModel';
+import { ITEM_LEVEL_SLOT_ORDER } from './specScoreSimulatorModel';
 import type { ActiveCategory, SpecScoreCategory, SpecScoreRawData } from './specScoreSimulatorTypes';
 import type { EquipmentState } from '../../utils/equipmentState';
 import { useSpecScoreSimulator } from './useSpecScoreSimulator';
@@ -29,7 +29,7 @@ const calculateAverageItemLevel = (
 ): number => {
   let totalItemLevel = 0;
 
-  for (const slot of SLOT_ORDER) {
+  for (const slot of ITEM_LEVEL_SLOT_ORDER) {
     const state = equipment[slot];
     if (!state) return fallbackItemLevel;
 
@@ -39,7 +39,7 @@ const calculateAverageItemLevel = (
     totalItemLevel += baseItemLevel + state.advancedLevel;
   }
 
-  return totalItemLevel / SLOT_ORDER.length;
+  return totalItemLevel / ITEM_LEVEL_SLOT_ORDER.length;
 };
 
 interface Props {

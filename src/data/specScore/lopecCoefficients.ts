@@ -1,7 +1,7 @@
 /**
  * lopec 시뮬레이터에서 직접 추출한 정확 계수 (2026-05-15 발키리 빛의 기사 기준)
  *
- * 추출 방식: chrome-devtools로 lopec.kr/character/simulator/한건뜬 페이지의
+ * 추출 방식: chrome-devtools로 lopec.kr/character/simulator/익명 측정 fixture 페이지의
  * 각 select 드롭다운을 자동 변경하며 점수 차이를 측정.
  *
  * 주의: 이 데이터는 캐릭터/직업/스킬 빌드에 따라 달라질 수 있음. 다른 직업으로
@@ -241,7 +241,7 @@ export const LOPEC_T4_GEM_BASE_ATTACK_BY_LEVEL: Record<number, number> = {
 // 추출 방식: lopec.kr 시뮬레이터의 armory-{slot}-{normal|advanced|tier} 드롭다운을
 // chrome-devtools로 자동 변경하며 인게임 전투력(combatPower) 차이 측정.
 //
-// 한건뜬 캐릭터 (발키리 빛의 기사, T4 전율, 2026-05-18 측정 기준)
+// 익명 측정 fixture 캐릭터 (발키리 빛의 기사, T4 전율, 2026-05-18 측정 기준)
 //
 // 핵심 발견:
 // - 무기 normal +25 vs +0 = +39.08% — 단일 가장 큰 영향
@@ -251,7 +251,34 @@ export const LOPEC_T4_GEM_BASE_ATTACK_BY_LEVEL: Record<number, number> = {
 // - 상급재련 X30/X40 구간에 추가 보너스 step (1.3%/5단계 vs 보너스 2.4~2.9%/5단계)
 // ============================================================
 
-export type EquipSlot = 'weapon' | 'helmet' | 'shoulder' | 'armor' | 'pants' | 'gloves';
+export type StandardEquipSlot = 'weapon' | 'helmet' | 'shoulder' | 'armor' | 'pants' | 'gloves';
+export type ArmletLevel = 0 | 10 | 15 | 20 | 25;
+export type EquipSlot = StandardEquipSlot | 'armlet';
+
+export const STANDARD_EQUIP_SLOTS: StandardEquipSlot[] = ['weapon', 'helmet', 'shoulder', 'armor', 'pants', 'gloves'];
+export const ARMLET_LEVELS: ArmletLevel[] = [0, 10, 15, 20, 25];
+
+export interface ArmletPower {
+  readonly weaponAttack: number;
+  readonly mainStat: number;
+  readonly baseAttackPercent: number;
+  readonly grade: string;
+  readonly icon: string;
+}
+
+export const ARMLET_POWER_BY_LEVEL: Record<ArmletLevel, ArmletPower> = {
+  0: { weaponAttack: 0, mainStat: 0, baseAttackPercent: 0, grade: '미착용', icon: '/images/arms1.webp' },
+  10: { weaponAttack: 10969, mainStat: 1456, baseAttackPercent: 1.0, grade: '영웅', icon: '/images/arms1.webp' },
+  15: { weaponAttack: 14817, mainStat: 1968, baseAttackPercent: 1.5, grade: '전설', icon: '/images/arms2.webp' },
+  20: { weaponAttack: 18794, mainStat: 2488, baseAttackPercent: 2.0, grade: '유물', icon: '/images/arms3.webp' },
+  25: { weaponAttack: 22940, mainStat: 3019, baseAttackPercent: 3.0, grade: '고대', icon: '/images/arms4.webp' },
+};
+
+export const isArmletLevel = (level: number): level is ArmletLevel =>
+  level === 0 || level === 10 || level === 15 || level === 20 || level === 25;
+
+export const resolveArmletLevel = (level: number): ArmletLevel =>
+  isArmletLevel(level) ? level : 0;
 
 /**
  * 상급 재련 단계별 누적 ratio (해당 슬롯의 X0 기준)
@@ -260,7 +287,7 @@ export type EquipSlot = 'weapon' | 'helmet' | 'shoulder' | 'armor' | 'pants' | '
  * 무기/투구는 5단계 간격 실측. 나머지 4슬롯은 10단계 간격 실측 + 선형 보간.
  * 무기/투구 데이터에서 보이는 X30/X40 보너스 step 패턴은 보간값에도 반영 (대략적).
  */
-export const LOPEC_EQUIP_ADVANCED_STEPS: Record<EquipSlot, number[]> = {
+export const LOPEC_EQUIP_ADVANCED_STEPS: Record<StandardEquipSlot, number[]> = {
   weapon:   [1.0, 1.01322, 1.02673, 1.04052, 1.05461, 1.06899, 1.09446, 1.10960, 1.14148],
   helmet:   [1.0, 1.00144, 1.00294, 1.00448, 1.00607, 1.00773, 1.01073, 1.01253, 1.01643],
   // X5,X15,X25,X35는 인접 측정값(10단계 간격)의 선형 보간
@@ -273,7 +300,7 @@ export const LOPEC_EQUIP_ADVANCED_STEPS: Record<EquipSlot, number[]> = {
 /**
  * 상급재련 단계 (0~40) → 누적 ratio 변환 (선형 보간)
  */
-export const lookupAdvancedRatio = (slot: EquipSlot, level: number): number => {
+export const lookupAdvancedRatio = (slot: StandardEquipSlot, level: number): number => {
   const steps = LOPEC_EQUIP_ADVANCED_STEPS[slot];
   if (level <= 0) return steps[0];
   if (level >= 40) return steps[8];
@@ -293,12 +320,13 @@ export const EQUIP_TYPE_TO_SLOT: Record<string, EquipSlot> = {
   '상의': 'armor',
   '하의': 'pants',
   '장갑': 'gloves',
+  '완갑': 'armlet',
 };
 
 /** Grade 문자열에서 T4 등급 추출 ("유물"/"고대"/"전율"/"에스더") */
 export const extractEquipTier = (grade: string): string => {
   // Grade가 정확히 "유물"/"고대"/"전율"/"에스더"인 경우 (Lost Ark API 패턴)
-  if (grade === '유물' || grade === '고대' || grade === '전율' || grade === '에스더') return grade;
+  if (grade === '영웅' || grade === '전설' || grade === '유물' || grade === '고대' || grade === '전율' || grade === '에스더') return grade;
   return '전율'; // 미상 시 기본값 (T4 표준)
 };
 
@@ -306,7 +334,7 @@ export const extractEquipTier = (grade: string): string => {
  * 무기 advanced 단계 → 누적 ratio (normal level 의존).
  * advanced별 무기 절대 cp 측정값으로 advanced 변화 ratio 계산.
  *
- * 데이터는 한건뜬 weapon 절대 cp (5 advanced × 3 normal):
+ * 데이터는 익명 측정 fixture weapon 절대 cp (5 advanced × 3 normal):
  *   X0:  +15=4296.32, +20=4579.09, +25=4870.67
  *   X10: +15=3417.83, +20=3649.74, +25=3907.34
  *   X20: +15=3507.66, +20=3749.59, +25=4018.06

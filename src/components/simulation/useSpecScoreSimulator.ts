@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { EquipSlot } from '../../data/specScore/lopecCoefficients';
+import { resolveArmletLevel, type EquipSlot } from '../../data/specScore/lopecCoefficients';
 import type { AccessorySlot, BraceletStatOption } from '../../data/specScore/polishOptions';
 import type { CharacterProfile } from '../../types/lostark';
 import type { ArkGridCoreMod, ArkGridGemEditTarget, ArkGridGemMod } from './arkGridSimulatorState';
@@ -93,9 +93,11 @@ export const useSpecScoreSimulator = (profile: CharacterProfile) => {
   const updateEquipMod = (slot: EquipSlot, patch: EquipMod): void => {
     const equipment = raw?.equip[slot];
     if (!equipment) return;
-    const safePatch = equipment.isInherited && patch.advancedLevel !== undefined
-      ? { ...patch, advancedLevel: undefined }
-      : patch;
+    const safePatch: EquipMod = slot === 'armlet'
+      ? (patch.normalLevel === undefined ? {} : { normalLevel: resolveArmletLevel(patch.normalLevel) })
+      : equipment.isInherited && patch.advancedLevel !== undefined
+        ? { ...patch, advancedLevel: undefined }
+        : patch;
     setMods((previous) => ({
       ...previous,
       equip: { ...previous.equip, [slot]: { ...previous.equip[slot], ...safePatch } },
@@ -152,6 +154,14 @@ export const useSpecScoreSimulator = (profile: CharacterProfile) => {
     for (const slot of SLOT_ORDER) {
       const current = raw.equip[slot];
       if (!current) continue;
+      if (slot === 'armlet') {
+        if (patch.normalLevel !== undefined) {
+          equip[slot] = { ...mods.equip[slot], normalLevel: resolveArmletLevel(patch.normalLevel) };
+        } else if (mods.equip[slot]) {
+          equip[slot] = mods.equip[slot];
+        }
+        continue;
+      }
       if (current.isInherited && patch.advancedLevel !== undefined) {
         const { advancedLevel, ...existing } = mods.equip[slot] ?? {};
         if (Object.keys(existing).length > 0) equip[slot] = existing;

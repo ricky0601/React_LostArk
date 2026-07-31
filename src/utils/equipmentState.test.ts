@@ -1,5 +1,5 @@
 import type { EquipmentItem } from '../types/lostark';
-import { parseEquipmentState } from './equipmentState';
+import { parseEquipmentList, parseEquipmentState } from './equipmentState';
 
 const equipment = (
   tooltip: string,
@@ -40,6 +40,42 @@ describe('parseEquipmentState inherited equipment', () => {
 });
 
 describe('parseEquipmentState normal honing power tables', () => {
+  it('creates an unequipped armlet simulation state when API has no armlet', () => {
+    const result = parseEquipmentList([]);
+
+    expect(result.armlet).toMatchObject({
+      slot: 'armlet',
+      normalLevel: 0,
+      advancedLevel: 0,
+      tier: '미착용',
+    });
+  });
+
+  it('parses armlet only at supported public simulation levels', () => {
+    const supported = parseEquipmentState(equipment('{}', {
+      Type: '완갑',
+      Name: '+15 운명의 전용 완갑',
+      Grade: '전설',
+    }));
+    const unsupported = parseEquipmentState(equipment('{}', {
+      Type: '완갑',
+      Name: '+13 운명의 전용 완갑',
+      Grade: '영웅',
+    }));
+
+    expect(supported?.normalLevel).toBe(15);
+    expect(supported?.tier).toBe('전설');
+    expect(supported?.advancedLevel).toBe(0);
+    expect(supported?.normalHoningDelta).toEqual({
+      kind: 'armlet',
+      weaponAttack: 14817,
+      mainStat: 1968,
+      baseAttackPercent: 1.5,
+    });
+    expect(unsupported?.normalLevel).toBe(0);
+    expect(unsupported?.tier).toBe('미착용');
+  });
+
   it('attaches Egir armor tooltip stat delta for the current normal level', () => {
     const tooltip = JSON.stringify({
       Element_001: { value: { slotData: { petBorder: 3 } } },
