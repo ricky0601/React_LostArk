@@ -20,6 +20,25 @@ const gemBaseAttackPercent = (gem: GemItem): number => {
   return LOPEC_T4_GEM_BASE_ATTACK_BY_LEVEL[gem.Level] ?? 0;
 };
 
+/**
+ * 보석의 순수 전투력 배율만. 기본 공격력% 는 기본공격력 계열이라 여기서 제외한다.
+ * 절대 재구성 경로에서는 이 값만 직접 인자로 쓰고, 기본공% 는 버킷 합으로 다시 계산한다.
+ */
+export const calcGemPurePowerDelta = (
+  currentGems: GemItem[],
+  modifiedGems: GemItem[],
+): number => {
+  let pureMultiplier = 1.0;
+  for (const currentGem of currentGems) {
+    const modifiedGem = modifiedGems.find((gem) => gem.Slot === currentGem.Slot);
+    if (!modifiedGem) continue;
+    pureMultiplier *=
+      (1 + gemPurePowerPercent(modifiedGem) / 100) /
+      (1 + gemPurePowerPercent(currentGem) / 100);
+  }
+  return pureMultiplier;
+};
+
 export const calcGemSetDelta = (
   currentGems: GemItem[],
   modifiedGems: GemItem[],

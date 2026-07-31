@@ -97,6 +97,17 @@ export interface EquipmentItem {
   Tooltip: string;
 }
 
+/** GET /armories/characters/{name}/avatars 응답 아이템 */
+export interface AvatarItem {
+  readonly Type: string;
+  readonly Name: string;
+  readonly Icon: string;
+  readonly Grade: string;
+  readonly IsSet: boolean;
+  readonly IsInner: boolean;
+  readonly Tooltip: string;
+}
+
 /** GET /armories/characters/{name}/gems 응답 */
 export interface GemData {
   Gems: GemItem[] | null;
@@ -165,6 +176,8 @@ export interface ArkPassivePoint {
   Name: string;
   Value: number;
   Tooltip: string;
+  /** 카르마 랭크/레벨. 예: '6랭크 26레벨' */
+  Description?: string;
 }
 
 export interface ArkPassiveDataEffect {

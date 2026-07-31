@@ -46,9 +46,30 @@ const parsePolishOptionLine = (line: string): PolishOption | null => {
   return POLISH_OPTIONS.find((o) => o.type === effectType && Math.abs(o.value - value) < 0.01) ?? null;
 };
 
+const parseBraceletNumericText = (value: string): number => Number(value.replace(/,/g, ''));
+
 const parseBraceletOptionLine = (line: string): BraceletOption | null => {
   const clean = line.trim();
   if (!clean) return null;
+
+  const conditionalWeaponAttackSentence = clean.match(
+    /^체력\s*이\s*50(?:\.0+)?\s*%\s*이상(?:\s*일\s*경우)?\s*무기\s*공격력\s*이\s*([\d,]+(?:\.\d+)?)\s*증가(?:한다)?\.?$/,
+  );
+  if (conditionalWeaponAttackSentence) {
+    return findBraceletOptionByEffect(
+      '체력 조건 무공 버프',
+      parseBraceletNumericText(conditionalWeaponAttackSentence[1]),
+    ) ?? null;
+  }
+  const baseWeaponAttackSentence = clean.match(
+    /^무기\s*공격력\s*이\s*([\d,]+(?:\.\d+)?)\s*증가(?:한다)?\.?$/,
+  );
+  if (baseWeaponAttackSentence) {
+    return findBraceletOptionByEffect(
+      '무기 공격력',
+      parseBraceletNumericText(baseWeaponAttackSentence[1]),
+    ) ?? null;
+  }
 
   const enemyDamageSentence = clean.match(/적에게\s*주는\s*피해(?:가)?\s*(\d+(?:\.\d+)?)%\s*증가/);
   if (enemyDamageSentence) {
@@ -93,10 +114,17 @@ const parseBraceletOptions = (lines: string[]): BraceletOption[] => {
     const critRate = line.match(/치명타\s*적중률(?:이)?\s*(\d+(?:\.\d+)?)%\s*증가/);
     const critDamage = line.match(/치명타\s*피해(?:량|가)?\s*(\d+(?:\.\d+)?)%\s*증가/);
     const critEnemyDamage = nextLine.match(/치명타로\s*적중\s*시\s*적에게\s*주는\s*피해(?:가)?\s*(\d+(?:\.\d+)?)%\s*증가/);
-    const baseWeaponAttack = line.match(/무기\s*공격력이\s*([\d,]+)\s*증가/);
-    const stackingWeaponAttack = nextLine.match(/30초\s*마다\s*120초\s*동안\s*무기\s*공격력이\s*([\d,]+)\s*증가.*최대\s*30중첩/);
+    const baseWeaponAttack = line.match(
+      /무기\s*공격력\s*이\s*([\d,]+(?:\.\d+)?)\s*증가/,
+    );
+    const stackingWeaponAttack = nextLine.match(
+      /30초\s*마다\s*120초\s*동안\s*무기\s*공격력\s*이\s*([\d,]+(?:\.\d+)?)\s*증가.*최대\s*30중첩/,
+    );
     if (baseWeaponAttack && stackingWeaponAttack) {
-      const option = findBraceletOptionByEffect('에테르 포식자 무공 버프', parseInt(stackingWeaponAttack[1].replace(/,/g, ''), 10) * 30);
+      const option = findBraceletOptionByEffect(
+        '에테르 포식자 무공 버프',
+        parseBraceletNumericText(stackingWeaponAttack[1]) * 30,
+      );
       if (option) found.push(option);
       i += 1;
       continue;
