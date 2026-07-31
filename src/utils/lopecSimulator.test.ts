@@ -82,9 +82,9 @@ describe('calcLopecDelta engraving factor changes', () => {
 });
 
 describe('calcLopecDelta 97-stone base attack changes', () => {
-  it('uses profile attack tooltip facts when removing Hangunttun 97-stone base attack bonus', () => {
+  it('uses synthetic profile attack tooltip facts when removing a 97-stone base attack bonus', () => {
     const result = calcLopecDelta(
-      4933.35,
+      100_000,
       engravings([effect('원한', 2, 0), effect('예리한 둔기', 3, 0)]),
       engravings([effect('원한', 1, 0), effect('예리한 둔기', 3, 0)]),
       emptyGems,
@@ -94,14 +94,14 @@ describe('calcLopecDelta 97-stone base attack changes', () => {
       undefined,
       undefined,
       {
-        W: 218667,
-        baseAttack: 197023,
-        pureBaseAttack: 180391,
+        W: 200_000,
+        baseAttack: 150_000,
+        pureBaseAttack: 140_000,
         stoneBaseAttackBonusPercent: 1.5,
       },
     );
 
-    expect(result).toBeCloseTo(4836.62, 2);
+    expect(result).toBeCloseTo(98013.17, 2);
   });
 
   it('keeps the 97-stone base attack bonus when total stone levels stay at 5 or higher', () => {
