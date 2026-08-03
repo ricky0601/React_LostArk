@@ -261,17 +261,18 @@ export const ARMLET_LEVELS: ArmletLevel[] = [0, 10, 15, 20, 25];
 export interface ArmletPower {
   readonly weaponAttack: number;
   readonly mainStat: number;
+  readonly baseAttack: number;
   readonly baseAttackPercent: number;
   readonly grade: string;
   readonly icon: string;
 }
 
 export const ARMLET_POWER_BY_LEVEL: Record<ArmletLevel, ArmletPower> = {
-  0: { weaponAttack: 0, mainStat: 0, baseAttackPercent: 0, grade: '미착용', icon: '/images/arms1.webp' },
-  10: { weaponAttack: 10969, mainStat: 1456, baseAttackPercent: 1.0, grade: '영웅', icon: '/images/arms1.webp' },
-  15: { weaponAttack: 14817, mainStat: 1968, baseAttackPercent: 1.5, grade: '전설', icon: '/images/arms2.webp' },
-  20: { weaponAttack: 18794, mainStat: 2488, baseAttackPercent: 2.0, grade: '유물', icon: '/images/arms3.webp' },
-  25: { weaponAttack: 22940, mainStat: 3019, baseAttackPercent: 3.0, grade: '고대', icon: '/images/arms4.webp' },
+  0: { weaponAttack: 0, mainStat: 0, baseAttack: 0, baseAttackPercent: 0, grade: '미착용', icon: '/images/arms1.webp' },
+  10: { weaponAttack: 10969, mainStat: 34746, baseAttack: 2030, baseAttackPercent: 0, grade: '영웅', icon: '/images/arms1.webp' },
+  15: { weaponAttack: 14817, mainStat: 47268, baseAttack: 3690, baseAttackPercent: 1.0, grade: '전설', icon: '/images/arms2.webp' },
+  20: { weaponAttack: 18794, mainStat: 60216, baseAttack: 5980, baseAttackPercent: 2.0, grade: '유물', icon: '/images/arms3.webp' },
+  25: { weaponAttack: 22940, mainStat: 73710, baseAttack: 9050, baseAttackPercent: 3.0, grade: '고대', icon: '/images/arms4.webp' },
 };
 
 export const isArmletLevel = (level: number): level is ArmletLevel =>

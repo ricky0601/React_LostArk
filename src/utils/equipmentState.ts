@@ -20,7 +20,7 @@ export type EquipmentTier = '유물' | '업화' | '전율';
 export type EquipmentNormalHoningDelta =
   | { readonly kind: 'weapon'; readonly weaponAttack: number }
   | { readonly kind: 'armor'; readonly stats: StatDelta }
-  | { readonly kind: 'armlet'; readonly weaponAttack: number; readonly mainStat: number; readonly baseAttackPercent: number };
+  | { readonly kind: 'armlet'; readonly weaponAttack: number; readonly mainStat: number; readonly baseAttack: number; readonly baseAttackPercent: number };
 
 /** 시뮬레이션 가능한 슬롯의 현재 상태 */
 export interface EquipmentState {
@@ -110,6 +110,7 @@ export const resolveNormalHoningDelta = (
       kind: 'armlet',
       weaponAttack: power.weaponAttack,
       mainStat: power.mainStat,
+      baseAttack: power.baseAttack,
       baseAttackPercent: power.baseAttackPercent,
     };
   }

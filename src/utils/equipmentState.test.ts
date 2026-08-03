@@ -70,8 +70,9 @@ describe('parseEquipmentState normal honing power tables', () => {
     expect(supported?.normalHoningDelta).toEqual({
       kind: 'armlet',
       weaponAttack: 14817,
-      mainStat: 1968,
-      baseAttackPercent: 1.5,
+      mainStat: 47268,
+      baseAttack: 3690,
+      baseAttackPercent: 1.0,
     });
     expect(unsupported?.normalLevel).toBe(0);
     expect(unsupported?.tier).toBe('미착용');
