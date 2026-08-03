@@ -1,6 +1,6 @@
 import { buildModifiedSpecScoreData, EMPTY_MODS } from './specScoreSimulatorModel';
 import type { Mods, SpecScoreRawData } from './specScoreSimulatorTypes';
-import { charStatsFor, effect, emptyGems, engravings } from '../../utils/lopecSimulator.testUtils';
+import { charStatsFor, effect, emptyGems, engravings, equipment } from '../../utils/lopecSimulator.testUtils';
 import type { StoneState } from '../../utils/polishState';
 
 const stoneWithWonhan: StoneState = {
@@ -66,5 +66,64 @@ describe('buildModifiedSpecScoreData engraving name changes', () => {
       '타격의 대가',
       '아드레날린',
     ]);
+  });
+});
+
+describe('buildModifiedSpecScoreData equipment tier changes', () => {
+  it('updates derived equipment state when tier changes to Serka', () => {
+    // Given
+    const currentEquipment = equipment('helmet', {
+      normalLevel: 16,
+      advancedLevel: 20,
+      tier: '업화',
+      equipmentFamily: 'egir',
+      isInherited: false,
+    });
+    const mods: Mods = {
+      ...EMPTY_MODS,
+      equip: {
+        helmet: { normalLevel: 17, advancedLevel: 40, tier: '전율' },
+      },
+    };
+
+    // When
+    const modified = buildModifiedSpecScoreData({ ...createRawData(), equip: { helmet: currentEquipment } }, mods);
+
+    // Then
+    expect(modified.equip.helmet).toEqual(expect.objectContaining({
+      normalLevel: 17,
+      advancedLevel: 20,
+      tier: '전율',
+      equipmentFamily: 'serka',
+      isInherited: true,
+    }));
+  });
+
+  it('updates derived equipment state when tier changes back to Egir', () => {
+    // Given
+    const currentEquipment = equipment('helmet', {
+      normalLevel: 17,
+      advancedLevel: 20,
+      tier: '전율',
+      equipmentFamily: 'serka',
+      isInherited: true,
+    });
+    const mods: Mods = {
+      ...EMPTY_MODS,
+      equip: {
+        helmet: { advancedLevel: 40, tier: '업화' },
+      },
+    };
+
+    // When
+    const modified = buildModifiedSpecScoreData({ ...createRawData(), equip: { helmet: currentEquipment } }, mods);
+
+    // Then
+    expect(modified.equip.helmet).toEqual(expect.objectContaining({
+      advancedLevel: 40,
+      tier: '업화',
+      equipmentFamily: 'egir',
+      isInherited: false,
+    }));
   });
 });

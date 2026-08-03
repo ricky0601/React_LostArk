@@ -10,6 +10,7 @@ import type { ArkPassiveData, EngravingData, GemData } from '../../types/lostark
 import { calcLopecDelta } from '../../utils/lopecSimulator';
 import { calcCombatPowerBreakdown } from '../../utils/lopecCombatPower';
 import { roundToTwoDecimals } from '../../utils/numberFormat';
+import type { EquipmentFamily } from '../../utils/equipmentState';
 import type { AccessoryState, BraceletState } from '../../utils/polishState';
 import { buildModifiedArkGrid } from './arkGridSimulatorState';
 import type {
@@ -102,6 +103,15 @@ export const replaceBraceletStat = (
   statIndex === 3 ? { ...stats[3], ...patch } : stats[3],
 ];
 
+const resolveEquipmentFamily = (tier: string): EquipmentFamily =>
+  tier === '전율' ? 'serka' : 'egir';
+
+const resolveModifiedIsInherited = (
+  equipmentFamily: EquipmentFamily,
+  currentIsInherited: boolean,
+  tierChanged: boolean,
+): boolean => tierChanged ? equipmentFamily === 'serka' : currentIsInherited;
+
 export const buildModifiedSpecScoreData = (
   raw: SpecScoreRawData,
   mods: Mods,
@@ -187,14 +197,26 @@ export const buildModifiedSpecScoreData = (
       };
       continue;
     }
-    equip[slot] = mod
-      ? {
-          ...current,
-          normalLevel: mod.normalLevel ?? current.normalLevel,
-          advancedLevel: current.isInherited ? current.advancedLevel : (mod.advancedLevel ?? current.advancedLevel),
-          tier: mod.tier ?? current.tier,
-        }
-      : current;
+    if (!mod) {
+      equip[slot] = current;
+      continue;
+    }
+
+    const tier = mod.tier ?? current.tier;
+    const equipmentFamily = resolveEquipmentFamily(tier);
+    const isInherited = resolveModifiedIsInherited(
+      equipmentFamily,
+      current.isInherited,
+      mod.tier !== undefined && mod.tier !== current.tier,
+    );
+    equip[slot] = {
+      ...current,
+      normalLevel: mod.normalLevel ?? current.normalLevel,
+      advancedLevel: isInherited ? current.advancedLevel : (mod.advancedLevel ?? current.advancedLevel),
+      tier,
+      equipmentFamily,
+      isInherited,
+    };
   }
   const accessories: ModifiedSpecScoreData['accessories'] = {};
   for (const slot of ACCESSORY_SLOTS) {
