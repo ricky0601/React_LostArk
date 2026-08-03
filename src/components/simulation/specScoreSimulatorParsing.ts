@@ -12,6 +12,7 @@ import {
   sumBraceletFlatWeaponAttack,
   sumGemBaseAttackPercent,
 } from '../../utils/lopecBaseAttack';
+import { hasStone97Bonus } from '../../utils/lopecStoneDelta';
 import { parseAccessoryList, parseBraceletState, parseStoneState } from '../../utils/polishState';
 import type { SpecScoreRawData } from './specScoreSimulatorTypes';
 
@@ -187,6 +188,9 @@ export const fetchSpecScoreRawData = async (profile: CharacterProfile): Promise<
   const weaponAttackPercentSum =
     sumAccessoryWeaponAttackPercent(accessories) +
     resolveEnlightenmentKarmaWeaponAttackPercent(arkPassive);
+  const stoneBaseAttackFallback = hasStone97Bonus(engravings.ArkPassiveEffects ?? [])
+    ? ASSUMED_STONE_BASE_ATTACK_PERCENT
+    : 0;
   const effectiveWeaponAttack = composeEffectiveWeaponAttack({
     weaponTooltipAttack,
     flatWeaponAttack:
@@ -197,7 +201,7 @@ export const fetchSpecScoreRawData = async (profile: CharacterProfile): Promise<
   });
   const baseAttackPercentSum =
     sumGemBaseAttackPercent(gems.Gems) +
-    (stoneBaseAttackBonusPercent ?? ASSUMED_STONE_BASE_ATTACK_PERCENT) +
+    (stoneBaseAttackBonusPercent ?? stoneBaseAttackFallback) +
     armletPower.baseAttackPercent;
 
   const charStats = {
@@ -210,6 +214,7 @@ export const fetchSpecScoreRawData = async (profile: CharacterProfile): Promise<
     stoneBaseAttackBonusPercent,
     effectiveWeaponAttack,
     weaponAttackPercentSum,
+    baseAttackFlatSum: armletPower.baseAttack,
     baseAttackPercentSum,
     combatStats: extractCombatStats(profile.Stats),
   };

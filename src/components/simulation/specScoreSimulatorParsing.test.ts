@@ -281,4 +281,26 @@ describe('fetchSpecScoreRawData weapon attack parsing', () => {
     expect(result.charStats.weaponAttackPercentSum).toBeCloseTo(6.4, 6);
     expect(result.charStats.effectiveWeaponAttack).toBeCloseTo(264_890.248, 3);
   });
+
+  it('does not invent the 97-stone base attack fallback for ordinary stones', async () => {
+    // Given
+    setupApiMocks([
+      equipment('무기', '무기 공격력 +100,000'),
+      equipment('어빌리티 스톤', '공격력 +100'),
+    ], []);
+    jest.mocked(fetchEngravings).mockResolvedValue({
+      Engravings: null,
+      Effects: null,
+      ArkPassiveEffects: [
+        { AbilityStoneLevel: 2, Description: '', Grade: '유물', Level: 3, Name: '원한' },
+        { AbilityStoneLevel: 2, Description: '', Grade: '유물', Level: 3, Name: '아드레날린' },
+      ],
+    });
+
+    // When
+    const result = await fetchSpecScoreRawData(profile);
+
+    // Then
+    expect(result.charStats.baseAttackPercentSum).toBe(0);
+  });
 });
