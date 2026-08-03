@@ -15,6 +15,7 @@ import {
 } from '../data/specScore/lopecCoefficients';
 
 export type EquipmentFamily = 'egir' | 'serka';
+export type EquipmentTier = '유물' | '업화' | '전율';
 
 export type EquipmentNormalHoningDelta =
   | { readonly kind: 'weapon'; readonly weaponAttack: number }
@@ -28,9 +29,9 @@ export interface EquipmentState {
   normalLevel: number;
   /** 상급 재련 단계 (0~40) */
   advancedLevel: number;
-  /** T4 등급 ("유물" | "고대" | "전율" | "에스더") */
-  tier: string;
-  /** 일반 재련 표 계열: 에기르(업화) 또는 세르카(전율) */
+  /** 시뮬레이션 장비 티어: 유물, 업화(에기르), 전율(세르카) */
+  tier: EquipmentTier | string;
+  /** 일반 재련 표 계열: 에기르 또는 세르카 계승 */
   equipmentFamily: EquipmentFamily;
   /** 현재 일반 강화 단계가 tooltip/API stat에 더한 원시 증가량 */
   normalHoningDelta?: EquipmentNormalHoningDelta;
@@ -91,6 +92,13 @@ const parseIsInherited = (tooltipJson: string): boolean => {
   return isRecord(slotData) && slotData.petBorder === 6;
 };
 
+const parseEquipmentTier = (item: EquipmentItem): EquipmentTier | string => {
+  if (item.Name.includes('운명의 업화')) return '업화';
+  if (item.Name.includes('운명의 전율')) return '전율';
+  const gradeTier = extractEquipTier(item.Grade);
+  return gradeTier === '고대' ? '업화' : gradeTier;
+};
+
 export const resolveNormalHoningDelta = (
   slot: EquipSlot,
   family: EquipmentFamily,
@@ -129,8 +137,9 @@ export const parseEquipmentState = (item: EquipmentItem): EquipmentState | null 
   const slot = EQUIP_TYPE_TO_SLOT[item.Type];
   if (!slot) return null;
   const parsedNormalLevel = parseNormalLevel(item.Name);
-  const isInherited = parseIsInherited(item.Tooltip);
-  const equipmentFamily: EquipmentFamily = isInherited ? 'serka' : 'egir';
+  const tier = parseEquipmentTier(item);
+  const equipmentFamily: EquipmentFamily = tier === '전율' ? 'serka' : 'egir';
+  const isInherited = equipmentFamily === 'serka' && parseIsInherited(item.Tooltip);
 
   if (slot === 'armlet') {
     const normalLevel = resolveArmletLevel(parsedNormalLevel);
@@ -149,7 +158,6 @@ export const parseEquipmentState = (item: EquipmentItem): EquipmentState | null 
 
   const normalLevel = parsedNormalLevel;
   const advancedLevel = parseAdvancedLevel(item.Tooltip);
-  const tier = extractEquipTier(item.Grade);
   const normalHoningDelta = resolveNormalHoningDelta(slot, equipmentFamily, normalLevel);
   return {
     slot,

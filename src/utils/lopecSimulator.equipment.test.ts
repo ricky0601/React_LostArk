@@ -68,7 +68,7 @@ describe('calcLopecDelta inherited equipment advanced changes', () => {
 
   it('does not apply legacy tier ratios for equipment tier-only changes', () => {
     const currentScore = 100_000;
-    const current = equipment('weapon', { tier: '고대' });
+    const current = equipment('weapon', { tier: '업화' });
     const modified = { ...current, tier: '전율' };
 
     const result = calcLopecDelta(

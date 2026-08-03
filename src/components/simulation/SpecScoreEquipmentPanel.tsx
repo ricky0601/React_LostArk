@@ -1,7 +1,8 @@
 import type { ReactElement } from 'react';
 import { ARMLET_LEVELS, ARMLET_POWER_BY_LEVEL, resolveArmletLevel, type EquipSlot } from '../../data/specScore/lopecCoefficients';
-import type { EquipmentState } from '../../utils/equipmentState';
+import type { EquipmentState, EquipmentTier } from '../../utils/equipmentState';
 import { gradeFrame } from '../../utils/equipmentColors';
+import { SpecSelect } from './SpecSelect';
 import type { EquipMod } from './specScoreSimulatorTypes';
 
 interface SpecScoreEquipmentPanelProps {
@@ -26,7 +27,17 @@ const SLOT_LABEL: Record<EquipSlot, string> = {
 };
 
 const SLOT_ORDER: EquipSlot[] = ['weapon', 'helmet', 'shoulder', 'armor', 'pants', 'gloves', 'armlet'];
-const TIER_OPTIONS = ['유물', '고대', '전율'];
+const TIER_OPTIONS = ['유물', '업화', '전율'] as const;
+const TIER_LABELS: Record<(typeof TIER_OPTIONS)[number], string> = {
+  유물: '유물',
+  업화: '에기르',
+  전율: '세르카',
+};
+
+const normalizeEditableTier = (tier: EquipmentState['tier']): EquipmentTier => {
+  if (tier === '유물' || tier === '업화' || tier === '전율') return tier;
+  return '업화';
+};
 
 const extractQuality = (tooltip: string): number | null => {
   let quality: number | null = null;
@@ -57,6 +68,16 @@ export const SpecScoreEquipmentPanel = ({
 }: SpecScoreEquipmentPanelProps): ReactElement | null => {
   if (!visible || equipmentCount <= 0) return null;
 
+  const nonArmletTiers = SLOT_ORDER.flatMap((slot) => {
+    if (slot === 'armlet') return [];
+    const currentEquipment = equipment[slot];
+    return currentEquipment
+      ? [normalizeEditableTier(equipmentMods[slot]?.tier ?? currentEquipment.tier)]
+      : [];
+  });
+  const allNonArmletEquipmentIsAegir =
+    nonArmletTiers.length > 0 && nonArmletTiers.every((tier) => tier === '업화');
+
   return (
     <div className="glass-card p-4 sm:p-5">
       <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
@@ -85,10 +106,12 @@ export const SpecScoreEquipmentPanel = ({
           </button>
           <button
             type="button"
-            onClick={() => onApplyBulkEquipment({ tier: '전율' })}
+            onClick={() =>
+              onApplyBulkEquipment({ tier: allNonArmletEquipmentIsAegir ? '전율' : '업화' })
+            }
             className="spec-touch-control px-2 py-0.5 text-[11px] rounded border border-gray-200 dark:border-white/10 text-gray-600 dark:text-gray-400 hover:border-la-gold/50 hover:text-la-gold-dark dark:hover:text-la-gold"
           >
-            전율
+            {allNonArmletEquipmentIsAegir ? '세르카' : '에기르'}
           </button>
         </div>
       </div>
@@ -99,8 +122,8 @@ export const SpecScoreEquipmentPanel = ({
           const m = equipmentMods[slot];
           const curNormal = m?.normalLevel ?? cur.normalLevel;
           const curAdvanced = cur.isInherited ? cur.advancedLevel : (m?.advancedLevel ?? cur.advancedLevel);
-          const curTier = m?.tier ?? cur.tier;
-          const advancedOptions = [0, 5, 10, 15, 20, 25, 30, 35, 40];
+          const curTier = normalizeEditableTier(m?.tier ?? cur.tier);
+          const advancedOptions = Array.from({ length: 41 }, (_, level) => level);
           const quality = extractQuality(cur.raw.Tooltip);
           if (slot === 'armlet') {
             const armletLevel = resolveArmletLevel(curNormal);
@@ -124,28 +147,17 @@ export const SpecScoreEquipmentPanel = ({
                   </span>
                 </div>
                 <div className="grid flex-1 grid-cols-1 gap-1 text-[11px] sm:grid-cols-2">
-                  <div className="rounded border border-gray-200 bg-gray-100 px-1.5 py-0.5 text-center text-gray-500 dark:border-white/10 dark:bg-white/5">
-                    품질 없음 · 아이템 레벨 제외
-                  </div>
-                  <div className="rounded border border-gray-200 bg-gray-100 px-1.5 py-0.5 text-center text-gray-500 dark:border-white/10 dark:bg-white/5">
-                    기본공 +{armletPower.baseAttackPercent.toFixed(2)}%
-                  </div>
-                  <label className="flex items-center gap-1 rounded border border-gray-200 bg-gray-100 px-1.5 py-0.5 dark:border-white/10 dark:bg-white/5">
-                    <span className="text-[10px] text-gray-400">+</span>
-                    <select
+                  <div className="flex min-w-0 items-center gap-1">
+                    <SpecSelect
                       value={armletLevel}
-                      onChange={(ev) => onEquipmentChange(slot, { normalLevel: Number(ev.target.value) })}
-                      className="spec-touch-control flex-1 bg-transparent outline-none"
-                    >
-                      {ARMLET_LEVELS.map((level) => (
-                        <option key={level} value={level}>
-                          {level === 0 ? '0 미착용' : level}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <div className="rounded border border-gray-200 bg-gray-100 px-1.5 py-0.5 text-center text-gray-500 dark:border-white/10 dark:bg-white/5">
-                    무공 {armletPower.weaponAttack.toLocaleString()} · 주스탯 {armletPower.mainStat.toLocaleString()}
+                      onChange={(value) => onEquipmentChange(slot, { normalLevel: Number(value) })}
+                      items={ARMLET_LEVELS.map((level) => ({
+                        value: level,
+                        label: level === 0 ? '미착용' : String(level),
+                      }))}
+                      ariaLabel="완갑 레벨"
+                      className="w-20 flex-shrink-0"
+                    />
                   </div>
                 </div>
               </div>
@@ -171,64 +183,49 @@ export const SpecScoreEquipmentPanel = ({
                 )}
               </div>
               {/* 우측: 2×2 grid selects */}
-              <div className="grid flex-1 grid-cols-1 gap-1 text-[11px] sm:grid-cols-2">
-                <select
+              <div className="grid flex-1 grid-cols-1 gap-0.5 text-[11px] sm:grid-cols-2">
+                <SpecSelect
                   value={curTier}
-                  onChange={(ev) => onEquipmentChange(slot, { tier: ev.target.value })}
-                  className="spec-touch-control bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded px-1.5 py-0.5"
-                >
-                  {TIER_OPTIONS.map((t) => (
-                    <option key={t} value={t}>
-                      T4 {t}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(value) => onEquipmentChange(slot, { tier: value })}
+                  items={TIER_OPTIONS.map((tier) => ({ value: tier, label: TIER_LABELS[tier] }))}
+                  ariaLabel={`${SLOT_LABEL[slot]} 티어`}
+                  className="w-20 flex-shrink-0"
+                />
                 <div className="bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded px-1.5 py-0.5 text-center text-gray-500">
                   품질 {quality ?? '-'}
                 </div>
-                <label className="flex items-center gap-1 rounded border border-gray-200 bg-gray-100 px-1.5 py-0.5 dark:border-white/10 dark:bg-white/5">
-                  <span className="text-gray-400 text-[10px]">+</span>
-                  <select
+                <div className="flex min-w-0 items-center gap-1">
+                  <SpecSelect
                     value={curNormal}
-                    onChange={(ev) =>
-                      onEquipmentChange(slot, { normalLevel: Number(ev.target.value) })
+                    onChange={(value) =>
+                      onEquipmentChange(slot, { normalLevel: Number(value) })
                     }
-                    className="spec-touch-control flex-1 bg-transparent outline-none"
-                  >
-                    {Array.from({ length: 26 }, (_, i) => 25 - i).map((lv) => (
-                      <option key={lv} value={lv}>
-                        {lv}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label
-                  className={`flex items-center gap-1 bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded px-1.5 py-0.5 ${
+                    items={Array.from({ length: 26 }, (_, i) => 25 - i).map((level) => ({
+                      value: level,
+                      label: String(level),
+                    }))}
+                    ariaLabel={`${SLOT_LABEL[slot]} 일반 재련 레벨`}
+                    className="w-20 flex-shrink-0"
+                  />
+                </div>
+                <div
+                  className={`flex min-w-0 items-center gap-1 ${
                     cur.isInherited ? 'opacity-60 cursor-not-allowed' : ''
                   }`}
                   title={cur.isInherited ? '세르카 계승 장비는 상급 재련 시뮬레이션을 지원하지 않습니다' : undefined}
                 >
                   <span className="text-gray-400 text-[10px]">상재</span>
-                  <select
+                  <SpecSelect
                     value={curAdvanced}
                     disabled={cur.isInherited}
-                    onChange={(ev) =>
-                      onEquipmentChange(slot, { advancedLevel: Number(ev.target.value) })
+                    onChange={(value) =>
+                      onEquipmentChange(slot, { advancedLevel: Number(value) })
                     }
-                    className="spec-touch-control flex-1 bg-transparent outline-none disabled:cursor-not-allowed"
-                  >
-                    {advancedOptions.map((lv) => (
-                      <option key={lv} value={lv}>
-                        X{lv}
-                      </option>
-                    ))}
-                  </select>
-                  {cur.isInherited && (
-                    <span className="text-[9px] text-amber-600 dark:text-amber-300 whitespace-nowrap">
-                      계승 제외
-                    </span>
-                  )}
-                </label>
+                    items={advancedOptions.map((level) => ({ value: level, label: `X${level}` }))}
+                    ariaLabel={`${SLOT_LABEL[slot]} 상급 재련 레벨`}
+                    className="w-20 flex-shrink-0"
+                  />
+                </div>
               </div>
             </div>
           );

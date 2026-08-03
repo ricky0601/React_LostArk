@@ -43,7 +43,7 @@ export const equipment = (
   slot,
   normalLevel: 10,
   advancedLevel: 0,
-  tier: '고대',
+  tier: '업화',
   equipmentFamily: 'egir',
   isInherited: false,
   raw: {
