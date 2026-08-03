@@ -3,6 +3,7 @@ import {
   buildModifiedArkGrid,
   getArkGridGemState,
   parseArkGridGemEffects,
+  resolveArkGridChaosOptionName,
 } from './arkGridSimulatorState';
 
 const gem = (tooltip: string): ArkGridGem => ({
@@ -14,6 +15,14 @@ const gem = (tooltip: string): ArkGridGem => ({
 });
 
 describe('arkGridSimulatorState', () => {
+  it('falls back to the first chaos option when the API sends a null core name', () => {
+    // Given / When
+    const optionName = resolveArkGridChaosOptionName(3, null);
+
+    // Then
+    expect(optionName).toBe('현란한 공격');
+  });
+
   it('parses ark grid gem tooltip state', () => {
     // Given
     const tooltip = '필요 의지력 : 3<br>질서 포인트 : 5<br>[공격력] Lv.4<br>[추가 피해] Lv.2';

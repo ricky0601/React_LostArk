@@ -29,8 +29,9 @@ export const isChaosArkGridSlot = (slotIndex: number): boolean => slotIndex >= 3
 export const getArkGridChaosOptionGroup = (slotIndex: number): typeof ARK_GRID_CHAOS_CORE_OPTIONS[number] =>
   ARK_GRID_CHAOS_CORE_OPTIONS[slotIndex - 3] ?? ARK_GRID_CHAOS_CORE_OPTIONS[0];
 
-export const resolveArkGridChaosOptionName = (slotIndex: number, coreName: string): string => {
+export const resolveArkGridChaosOptionName = (slotIndex: number, coreName: string | null): string => {
   const optionGroup = getArkGridChaosOptionGroup(slotIndex);
+  if (!coreName) return optionGroup.options[0];
   const normalizedCoreName = coreName.replace(/\s+/g, '');
   return optionGroup.options.find((option) => normalizedCoreName.includes(option.replace(/\s+/g, ''))) ?? optionGroup.options[0];
 };
@@ -75,7 +76,7 @@ export const getArkGridGemState = (gem: ArkGridGem | undefined): Required<ArkGri
   effects: getArkGridGemEffects(gem),
 });
 
-const resolveModifiedArkGridCoreName = (slotIndex: number, currentName: string, modifiedCoreName: string | undefined): string => {
+const resolveModifiedArkGridCoreName = (slotIndex: number, currentName: string | null, modifiedCoreName: string | undefined): string | null => {
   if (!modifiedCoreName) return currentName;
   if (!isChaosArkGridSlot(slotIndex)) return modifiedCoreName;
   const chaosCoreName = ARK_GRID_CHAOS_CORE_NAMES[slotIndex - 3];
