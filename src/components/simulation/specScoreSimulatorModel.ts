@@ -119,9 +119,18 @@ export const buildModifiedSpecScoreData = (
     name: mods.stone[index]?.name ?? engraving.name,
     level: mods.stone[index]?.level ?? engraving.level,
   })) ?? [];
+  const renamedOriginalEngravingNames = new Set(
+    (raw.engravings.ArkPassiveEffects ?? [])
+      .filter((effect) => {
+        const selectedName = mods.engs[effect.Name]?.Name;
+        return selectedName !== undefined && selectedName !== effect.Name;
+      })
+      .map((effect) => effect.Name),
+  );
   const modifiedArkPassiveEffects = (raw.engravings.ArkPassiveEffects ?? []).map((effect) => {
     const mod = mods.engs[effect.Name];
-    const selectedStone = stoneSelections.find((stone) => stone.name === effect.Name);
+    const selectedName = mod?.Name ?? effect.Name;
+    const selectedStone = stoneSelections.find((stone) => stone.name === selectedName);
     const stoneLevel = selectedStone
       ? selectedStone.level
       : originalStoneNames.has(effect.Name)
@@ -129,11 +138,13 @@ export const buildModifiedSpecScoreData = (
         : effect.AbilityStoneLevel;
     return {
       ...effect,
+      Name: selectedName,
       Level: mod?.Level ?? effect.Level,
       AbilityStoneLevel: mod?.AbilityStoneLevel !== undefined ? mod.AbilityStoneLevel : stoneLevel,
     };
   });
   for (const stone of stoneSelections) {
+    if (renamedOriginalEngravingNames.has(stone.name)) continue;
     if (modifiedArkPassiveEffects.some((effect) => effect.Name === stone.name)) continue;
     modifiedArkPassiveEffects.push({
       AbilityStoneLevel: stone.level,

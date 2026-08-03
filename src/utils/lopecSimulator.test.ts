@@ -79,6 +79,21 @@ describe('calcLopecDelta engraving factor changes', () => {
 
     expect(result).toBeCloseTo(currentScore * ((1 + modifiedTotalEffect / 100) / (1 + currentTotalEffect / 100)), 6);
   });
+
+  it('uses each engraving coefficient table when a common engraving name changes', () => {
+    const currentScore = 100_000;
+    const result = calcLopecDelta(
+      currentScore,
+      engravings([effect('원한', null, 4)]),
+      engravings([effect('타격의 대가', null, 4)]),
+      emptyGems,
+      emptyGems,
+    );
+    const currentTotalEffect = LOPEC_ENGRAVING_TOTAL_EFFECTS['원한'][4][0];
+    const modifiedTotalEffect = LOPEC_ENGRAVING_TOTAL_EFFECTS['타격의 대가'][4][0];
+
+    expect(result).toBeCloseTo(currentScore * ((1 + modifiedTotalEffect / 100) / (1 + currentTotalEffect / 100)), 6);
+  });
 });
 
 describe('calcLopecDelta 97-stone base attack changes', () => {

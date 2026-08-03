@@ -225,6 +225,9 @@ const neutralEngravingEffect = (name: string): ArkPassiveEffect => ({
   Name: name,
 });
 
+const isNeutralEngravingEffect = (effect: ArkPassiveEffect): boolean =>
+  effect.Grade === '' && effect.Level === 0 && effect.AbilityStoneLevel === null;
+
 const calcEngravingDelta = (cur: ArkPassiveEffect, mod: ArkPassiveEffect): number => {
   const curLevel = cur.Level;
   const modLevel = mod.Level;
@@ -233,8 +236,8 @@ const calcEngravingDelta = (cur: ArkPassiveEffect, mod: ArkPassiveEffect): numbe
   const totalEffects = LOPEC_ENGRAVING_TOTAL_EFFECTS[cur.Name];
   if (!totalEffects) return 1.0;
 
-  const currentTotalEffect = totalEffects[curLevel]?.[curStoneLevel];
-  const modifiedTotalEffect = totalEffects[modLevel]?.[modStoneLevel];
+  const currentTotalEffect = isNeutralEngravingEffect(cur) ? 0 : totalEffects[curLevel]?.[curStoneLevel];
+  const modifiedTotalEffect = isNeutralEngravingEffect(mod) ? 0 : totalEffects[modLevel]?.[modStoneLevel];
   if (currentTotalEffect === undefined || modifiedTotalEffect === undefined) return 1.0;
 
   return (1 + modifiedTotalEffect / 100) / (1 + currentTotalEffect / 100);

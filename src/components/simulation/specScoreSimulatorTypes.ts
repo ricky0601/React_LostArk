@@ -1,15 +1,15 @@
 import type { AccessorySlot, BraceletStatOption } from '../../data/specScore/polishOptions';
 import type { EquipSlot } from '../../data/specScore/lopecCoefficients';
 import type { ArkGridData, ArkPassiveData, CardData, EngravingData, GemData } from '../../types/lostark';
-import type { EquipmentState } from '../../utils/equipmentState';
+import type { EquipmentState, EquipmentTier } from '../../utils/equipmentState';
 import type { AccessoryState, BraceletState, StoneState } from '../../utils/polishState';
 import type { CharStats } from '../../utils/lopecSimulator';
 import type { ArkGridCoreMod } from './arkGridSimulatorState';
 
 export type GemMod = { Level?: number; Tooltip?: string };
-export type EngMod = { Level?: number; AbilityStoneLevel?: number | null };
+export type EngMod = { Name?: string; Level?: number; AbilityStoneLevel?: number | null };
 export type AwakeningMod = { Level?: number };
-export type EquipMod = { normalLevel?: number; advancedLevel?: number; tier?: string };
+export type EquipMod = { normalLevel?: number; advancedLevel?: number; tier?: EquipmentTier };
 export type PolishMod = { polishOptions?: [string, string, string] };
 export type PolishOptionLabels = [string, string, string];
 export type BraceletMod = {
