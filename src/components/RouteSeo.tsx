@@ -75,6 +75,13 @@ const ROUTE_SEO: readonly RouteSeoEntry[] = [
       '로스트아크 강화, 거래소, 콘텐츠 준비에 사용한 골드 지출을 기록하고 관리하세요.',
     robots: 'index, follow',
   },
+  {
+    path: '/changelog',
+    title: '업데이트 내역 - 로아끼욧',
+    description:
+      '로아끼욧에 추가되거나 개선된 기능을 날짜순으로 확인하세요.',
+    robots: 'index, follow',
+  },
 ];
 
 const NOT_FOUND_SEO: RouteSeoEntry = {
