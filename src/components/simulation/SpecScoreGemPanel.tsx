@@ -14,24 +14,22 @@ interface SpecScoreGemPanelProps {
   readonly onApplyBulkGems: (level: number) => void;
 }
 
-const GLOW_GEM_TYPES = ['damage', 'cooldown', 'support'] as const;
+const GLOW_GEM_TYPES = ['damage', 'cooldown'] as const;
 type GlowGemType = typeof GLOW_GEM_TYPES[number];
 
 const isGlowGemType = (value: string): value is GlowGemType =>
   GLOW_GEM_TYPES.some((type) => type === value);
 
-const synthGlowTooltip = (type: 'damage' | 'cooldown' | 'support'): string => {
+const synthGlowTooltip = (type: GlowGemType): string => {
   if (type === 'damage') return '특정 스킬의 피해 36% 증가';
-  if (type === 'cooldown') return '특정 스킬의 재사용 대기시간 20% 감소';
-  return '아군 공격력 강화 효과 증가';
+  return '특정 스킬의 재사용 대기시간 20% 감소';
 };
 
-const detectCurrentType = (tooltip: string | undefined): 'damage' | 'cooldown' | 'support' | 'unknown' => {
+const detectCurrentType = (tooltip: string | undefined): GlowGemType | 'unknown' => {
   if (!tooltip) return 'unknown';
   const t = tooltip.replace(/<[^>]+>/g, ' ');
   if (/피해\s*\d+(?:\.\d+)?\s*%?\s*증가/.test(t)) return 'damage';
   if (/재사용\s*대기시간\s*\d+(?:\.\d+)?\s*%?\s*감소/.test(t)) return 'cooldown';
-  if (/아군.*(?:공격력|피해량|보호막|치유).*강화|지원\s*효과/.test(t)) return 'support';
   return 'unknown';
 };
 
@@ -77,10 +75,8 @@ export const SpecScoreGemPanel = ({
           const typeLabel =
             currentType === 'damage' ? '겁화'
               : currentType === 'cooldown' ? '작열'
-                : currentType === 'support' ? '지원'
-                  : isGlow ? '광휘' : (cleanName.split(' ').pop() ?? '');
+                : isGlow ? '광휘' : (cleanName.split(' ').pop() ?? '');
           const skill = gems.Effects?.Skills?.find((s) => s.GemSlot === g.Slot);
-          const skillShort = skill?.Name?.slice(0, 3) ?? '';
           return (
             <div
               key={g.Slot}
