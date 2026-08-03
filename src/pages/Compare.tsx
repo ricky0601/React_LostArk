@@ -53,7 +53,8 @@ function parseItemLevel(str: string): number {
   return parseFloat(str.replace(/,/g, '')) || 0;
 }
 
-function shortCoreName(fullName: string): string {
+function shortCoreName(fullName: string | null): string {
+  if (!fullName) return '이름 없음';
   const m = fullName.match(/^(.+?)\s*코어/);
   return m ? m[1].trim() : fullName;
 }

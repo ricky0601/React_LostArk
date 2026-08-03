@@ -81,9 +81,10 @@ export const ArkGridSimulatorPanel = ({
               const slotGems = slot.Gems ?? [];
               const displayGrade = coreMod?.grade ?? slot.Grade;
               const displayName = coreMod?.coreName ?? slot.Name;
+              const coreLabel = displayName ?? `아크 그리드 ${slot.Index + 1}번 슬롯`;
               const isChaos = isChaosArkGridSlot(slot.Index);
               const chaosOptionGroup = isChaos ? getArkGridChaosOptionGroup(slot.Index) : undefined;
-              const selectedChaosName = isChaos ? resolveArkGridChaosOptionName(slot.Index, displayName) : displayName;
+              const selectedChaosName = isChaos ? resolveArkGridChaosOptionName(slot.Index, displayName) : coreLabel;
               const coreFrame = gradeFrame(displayGrade, 'bg');
               return (
                 <div
@@ -118,14 +119,14 @@ export const ArkGridSimulatorPanel = ({
                           value: grade,
                           label: `${grade} 코어`,
                         }))}
-                        ariaLabel={`${slot.Name} 코어 등급`}
+                        ariaLabel={`${coreLabel} 코어 등급`}
                       />
                       {isChaos ? (
                         <SpecSelect
                           value={selectedChaosName}
                           onChange={(value) => updateArkGridCore(slot.Index, { coreName: value })}
                           items={chaosOptionGroup?.options.map((name) => ({ value: name, label: name })) ?? []}
-                          ariaLabel={`${slot.Name} 혼돈 코어 선택`}
+                          ariaLabel={`${coreLabel} 혼돈 코어 선택`}
                         />
                       ) : (
                         <div className="flex h-8 items-center rounded-lg border border-gray-200 bg-gray-50 px-2 text-[11px] font-semibold text-gray-500 dark:border-white/10 dark:bg-black/20 dark:text-gray-400">
@@ -178,7 +179,7 @@ export const ArkGridSimulatorPanel = ({
                                 setArkGridGemDraft(emptyState);
                               }}
                               className="spec-touch-control flex aspect-square items-center justify-center rounded-md border border-dashed border-gray-300 bg-gray-50/70 text-lg font-semibold text-gray-400 outline-none transition-colors hover:border-la-gold/60 hover:bg-la-gold/10 hover:text-la-gold-dark focus-visible:ring-2 focus-visible:ring-la-gold dark:border-white/10 dark:bg-black/20 dark:text-gray-500 dark:hover:border-la-gold/60 dark:hover:bg-la-gold/15 dark:hover:text-la-gold"
-                              aria-label={`${slot.Name} 빈 젬 ${gemIndex + 1} 추가`}
+                              aria-label={`${coreLabel} 빈 젬 ${gemIndex + 1} 추가`}
                               title="아크 그리드 젬 추가"
                             >
                               +
