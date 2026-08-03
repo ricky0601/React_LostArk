@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useLocation } from 'react-router-dom';
 import { useTheme } from '../context/ThemeContext';
+import ChangelogBell from './ChangelogBell';
 
 const NavBar: React.FC = () => {
   const { pathname } = useLocation();
@@ -249,6 +250,7 @@ const NavBar: React.FC = () => {
           </div>
         </div>
         <div className="flex items-center gap-1">
+          <ChangelogBell />
           <button
             type="button"
             onClick={toggleDarkMode}
