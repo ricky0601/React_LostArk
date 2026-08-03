@@ -86,7 +86,7 @@ describe('calcLopecDelta inherited equipment advanced changes', () => {
 });
 
 describe('calcLopecDelta equipment API/table formula changes', () => {
-  it('applies armlet weapon attack main stat and base attack percent at supported levels', () => {
+  it('applies armlet weapon attack main stat and flat base attack at supported levels', () => {
     const currentScore = 100_000;
     const weaponAttack = 200_000;
     const mainStat = 900_000;
@@ -105,9 +105,10 @@ describe('calcLopecDelta equipment API/table formula changes', () => {
       undefined,
       charStatsFor(weaponAttack, mainStat),
     );
-    const baseStatRatio = Math.sqrt(((weaponAttack + 10969) * (mainStat + 1456)) / (weaponAttack * mainStat));
+    const currentBaseAttack = Math.sqrt((weaponAttack * mainStat) / 6);
+    const modifiedBaseAttack = Math.sqrt(((weaponAttack + 10969) * (mainStat + 34746)) / 6) + 2030;
 
-    expect(result).toBeCloseTo(currentScore * baseStatRatio * 1.01, 6);
+    expect(result).toBeCloseTo(currentScore * (modifiedBaseAttack / currentBaseAttack), 6);
   });
 
   it('uses API weapon attack and Egir normal honing deltas for weapon normal changes', () => {

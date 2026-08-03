@@ -1,3 +1,4 @@
+import { ARMLET_POWER_BY_LEVEL } from '../data/specScore/lopecCoefficients';
 import { findBraceletOption } from '../data/specScore/polishOptions';
 import { calcCombatPowerBreakdown, COMBAT_POWER_CONSTANT } from './lopecCombatPower';
 import { calcLopecDelta } from './lopecSimulator';
@@ -95,6 +96,44 @@ describe('calcCombatPowerBreakdown current snapshot', () => {
     const result = calcCombatPowerBreakdown(baseInput({ W: 218_667, baseAttack: 190_000 }, 4972.25));
 
     expect(result).toBeNull();
+  });
+});
+
+
+describe('calcCombatPowerBreakdown armlet weapon attack', () => {
+  it('keeps unchanged armlet weapon attack in the simulated snapshot', () => {
+    // Given
+    const armletLevel = 25;
+    const armletPower = ARMLET_POWER_BY_LEVEL[armletLevel];
+    const weaponAttack = 230_000;
+    const mainStat = 700_000;
+    const displayedBaseAttack = (Math.sqrt((mainStat * (weaponAttack + armletPower.weaponAttack)) / 6) + armletPower.baseAttack) *
+      (1 + armletPower.baseAttackPercent / 100);
+    const currentCombatPower = displayedBaseAttack * COMBAT_POWER_CONSTANT;
+    const currentEquip = {
+      armlet: equipment('armlet', { normalLevel: armletLevel, tier: armletPower.grade }),
+    };
+
+    // When
+    const breakdown = calcCombatPowerBreakdown({
+      ...baseInput({
+        W: weaponAttack,
+        baseAttack: displayedBaseAttack,
+        pureBaseAttack: displayedBaseAttack,
+        effectiveWeaponAttack: weaponAttack + armletPower.weaponAttack,
+        weaponAttackPercentSum: 0,
+        baseAttackFlatSum: armletPower.baseAttack,
+        baseAttackPercentSum: armletPower.baseAttackPercent,
+      }, currentCombatPower),
+      currentEquip,
+      modifiedEquip: currentEquip,
+    });
+
+    // Then
+    expect(breakdown).not.toBeNull();
+    if (breakdown === null) throw new TypeError('Expected a combat-power breakdown');
+    expect(breakdown.simulated.effectiveWeaponAttack).toBeCloseTo(breakdown.current.effectiveWeaponAttack, 6);
+    expect(breakdown.simulatedCombatPower).toBeCloseTo(currentCombatPower, 6);
   });
 });
 

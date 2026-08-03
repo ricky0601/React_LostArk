@@ -58,6 +58,8 @@ export interface CharStats {
   effectiveWeaponAttack?: number;
   /** 장신구 연마% + 깨달음 카르마% 합. raw 재련 델타를 증폭할 때 쓴다. */
   weaponAttackPercentSum?: number;
+  /** 완갑 등 기본 공격력 flat 보너스 합 */
+  baseAttackFlatSum?: number;
   /** T4 보석% + 어빌리티 스톤% 합 */
   baseAttackPercentSum?: number;
   combatStats?: CombatStats;

@@ -133,6 +133,8 @@ export interface MainStatInversionInput {
   /** profile Stats 공격력 툴팁의 '기본 공격력은 N' */
   readonly displayedBaseAttack: number;
   readonly effectiveWeaponAttack: number;
+  /** 완갑 등 기본 공격력 flat 보너스 합 */
+  readonly baseAttackFlatSum?: number;
   /** T4 보석% + 어빌리티 스톤% 합 */
   readonly baseAttackPercentSum: number;
 }
@@ -141,7 +143,8 @@ export interface MainStatInversionInput {
 export const resolvePureBaseAttack = (
   displayedBaseAttack: number,
   baseAttackPercentSum: number,
-): number => displayedBaseAttack / (1 + baseAttackPercentSum / 100);
+  baseAttackFlatSum = 0,
+): number => (displayedBaseAttack / (1 + baseAttackPercentSum / 100)) - baseAttackFlatSum;
 
 /**
  * 주스탯 역산. API 가 표시 주스탯을 주지 않으므로 기본 공격력 공식을 뒤집는다.
@@ -151,9 +154,11 @@ export const resolvePureBaseAttack = (
 export const invertMainStat = ({
   displayedBaseAttack,
   effectiveWeaponAttack,
+  baseAttackFlatSum = 0,
   baseAttackPercentSum,
 }: MainStatInversionInput): number => {
   if (displayedBaseAttack <= 0 || effectiveWeaponAttack <= 0) return 0;
-  const pureBaseAttack = resolvePureBaseAttack(displayedBaseAttack, baseAttackPercentSum);
+  const pureBaseAttack = resolvePureBaseAttack(displayedBaseAttack, baseAttackPercentSum, baseAttackFlatSum);
+  if (pureBaseAttack <= 0) return 0;
   return (pureBaseAttack * pureBaseAttack * 6) / effectiveWeaponAttack;
 };

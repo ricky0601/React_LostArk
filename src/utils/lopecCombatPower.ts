@@ -43,10 +43,15 @@ const sumArmletBaseAttackPercent = (
   equipment: Partial<Record<EquipSlot, EquipmentState>> | undefined,
 ): number => ARMLET_POWER_BY_LEVEL[resolveArmletLevel(equipment?.armlet?.normalLevel ?? 0)].baseAttackPercent;
 
+const sumArmletWeaponAttack = (
+  equipment: Partial<Record<EquipSlot, EquipmentState>> | undefined,
+): number => ARMLET_POWER_BY_LEVEL[resolveArmletLevel(equipment?.armlet?.normalLevel ?? 0)].weaponAttack;
+
 export interface BaseAttackSnapshot {
   readonly effectiveWeaponAttack: number;
   readonly mainStat: number;
   readonly weaponAttackPercentSum: number;
+  readonly baseAttackFlatSum: number;
   readonly baseAttackPercentSum: number;
   readonly displayedBaseAttack: number;
   /** displayed_base_attack * 288 / 100000 */
@@ -83,9 +88,10 @@ export interface CombatPowerInput {
 const resolveDisplayedBaseAttack = (
   mainStat: number,
   effectiveWeaponAttack: number,
+  baseAttackFlatSum: number,
   baseAttackPercentSum: number,
 ): number =>
-  Math.sqrt((mainStat * effectiveWeaponAttack) / 6) * (1 + baseAttackPercentSum / 100);
+  (Math.sqrt((mainStat * effectiveWeaponAttack) / 6) + baseAttackFlatSum) * (1 + baseAttackPercentSum / 100);
 
 /**
  * 시뮬레이션 후의 기본 공격력% 버킷 합 = T4 보석 기여분 + 어빌리티 스톤 몫.
@@ -119,14 +125,16 @@ const resolveSimulatedBaseAttackPercentSum = (
 
 const buildCurrentSnapshot = (charStats: CharStats): BaseAttackSnapshot => {
   const weaponAttackPercentSum = charStats.weaponAttackPercentSum ?? 0;
+  const baseAttackFlatSum = charStats.baseAttackFlatSum ?? 0;
   const baseAttackPercentSum = charStats.baseAttackPercentSum ?? 0;
   const displayedBaseAttack = charStats.pureBaseAttack ?? 0;
   const effectiveWeaponAttack = charStats.effectiveWeaponAttack ?? charStats.W;
 
   return {
     effectiveWeaponAttack,
-    mainStat: invertMainStat({ displayedBaseAttack, effectiveWeaponAttack, baseAttackPercentSum }),
+    mainStat: invertMainStat({ displayedBaseAttack, effectiveWeaponAttack, baseAttackFlatSum, baseAttackPercentSum }),
     weaponAttackPercentSum,
+    baseAttackFlatSum,
     baseAttackPercentSum,
     displayedBaseAttack,
     combatPowerConstant: displayedBaseAttack * COMBAT_POWER_CONSTANT,
@@ -152,7 +160,7 @@ const buildSimulatedSnapshot = (
 
   const rawDeltas = currentEquip && modifiedEquip
     ? sumNormalHoningRawDeltas({ slots: EQUIP_SLOTS, currentEquip, modifiedEquip })
-    : { weaponAttack: 0, mainStat: 0 };
+    : { weaponAttack: 0, mainStat: 0, baseAttack: 0, baseAttackPercent: 0 };
 
   const mainStatMultiplier = combineAvatarPetMainStatMultiplier(
     charStats.avatarMainStatMultiplier,
@@ -165,11 +173,13 @@ const buildSimulatedSnapshot = (
     input.modifiedAccessories,
   );
   const nextWeaponAttackPercentSum = current.weaponAttackPercentSum + polishDelta.percent;
+  const nextBaseAttackFlatSum = current.baseAttackFlatSum + rawDeltas.baseAttack;
   const nextWeaponTooltipAttack = charStats.W + rawDeltas.weaponAttack;
   const nextEffectiveWeaponAttack = composeEffectiveWeaponAttack({
     weaponTooltipAttack: nextWeaponTooltipAttack,
     flatWeaponAttack:
       sumAccessoryFlatWeaponAttack(input.currentAccessories) +
+      sumArmletWeaponAttack(input.currentEquip) +
       polishDelta.flat +
       sumBraceletFlatWeaponAttack(input.modifiedBracelet),
     weaponAttackPercentSum: nextWeaponAttackPercentSum,
@@ -180,6 +190,7 @@ const buildSimulatedSnapshot = (
   const displayedBaseAttack = resolveDisplayedBaseAttack(
     nextMainStat,
     nextEffectiveWeaponAttack,
+    nextBaseAttackFlatSum,
     nextBaseAttackPercentSum,
   );
 
@@ -187,6 +198,7 @@ const buildSimulatedSnapshot = (
     effectiveWeaponAttack: nextEffectiveWeaponAttack,
     mainStat: nextMainStat,
     weaponAttackPercentSum: nextWeaponAttackPercentSum,
+    baseAttackFlatSum: nextBaseAttackFlatSum,
     baseAttackPercentSum: nextBaseAttackPercentSum,
     displayedBaseAttack,
     combatPowerConstant: displayedBaseAttack * COMBAT_POWER_CONSTANT,

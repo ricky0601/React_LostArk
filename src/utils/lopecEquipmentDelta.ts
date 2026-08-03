@@ -22,6 +22,7 @@ const inferMainStat = (charStats: CharStats): number => {
   const inverted = invertMainStat({
     displayedBaseAttack: charStats.pureBaseAttack ?? 0,
     effectiveWeaponAttack: charStats.effectiveWeaponAttack ?? 0,
+    baseAttackFlatSum: charStats.baseAttackFlatSum ?? 0,
     baseAttackPercentSum: charStats.baseAttackPercentSum ?? 0,
   });
   if (inverted > 0) return inverted;
@@ -46,13 +47,14 @@ const sumNormalHoningStepDelta = (
   family: EquipmentState['equipmentFamily'],
   fromLevel: number,
   toLevel: number,
-): { readonly weaponAttack: number; readonly mainStat: number; readonly secondaryStat: number } => {
+): { readonly weaponAttack: number; readonly mainStat: number; readonly baseAttack: number; readonly secondaryStat: number } => {
   if (slot === 'armlet') {
     const from = getArmletPower(fromLevel);
     const to = getArmletPower(toLevel);
     return {
       weaponAttack: to.weaponAttack - from.weaponAttack,
       mainStat: to.mainStat - from.mainStat,
+      baseAttack: to.baseAttack - from.baseAttack,
       secondaryStat: 0,
     };
   }
@@ -79,7 +81,7 @@ const sumNormalHoningStepDelta = (
     }
   }
 
-  return { weaponAttack, mainStat, secondaryStat };
+  return { weaponAttack, mainStat, baseAttack: 0, secondaryStat };
 };
 
 /**
@@ -93,10 +95,12 @@ export const sumNormalHoningRawDeltas = ({
 }: Omit<NormalHoningBaseStatDeltaInput, 'charStats'>): {
   readonly weaponAttack: number;
   readonly mainStat: number;
+  readonly baseAttack: number;
   readonly baseAttackPercent: number;
 } => {
   let weaponAttack = 0;
   let mainStat = 0;
+  let baseAttack = 0;
   let baseAttackPercent = 0;
   for (const slot of slots) {
     const cur = currentEquip[slot];
@@ -105,11 +109,12 @@ export const sumNormalHoningRawDeltas = ({
     const delta = sumNormalHoningStepDelta(slot, cur.equipmentFamily, cur.normalLevel, mod.normalLevel);
     weaponAttack += delta.weaponAttack;
     mainStat += delta.mainStat;
+    baseAttack += delta.baseAttack;
     if (slot === 'armlet') {
       baseAttackPercent += getArmletPower(mod.normalLevel).baseAttackPercent - getArmletPower(cur.normalLevel).baseAttackPercent;
     }
   }
-  return { weaponAttack, mainStat, baseAttackPercent };
+  return { weaponAttack, mainStat, baseAttack, baseAttackPercent };
 };;
 
 export const calcNormalHoningBaseStatDelta = ({
@@ -171,12 +176,14 @@ export const calcNormalHoningBaseStatDelta = ({
 
   const currentBaseAttack = charStats.pureBaseAttack ?? Math.sqrt((currentMainStat * currentWeaponAttack) / 6);
   if (currentBaseAttack <= 0) return 1;
-  const newBaseAttack = currentBaseAttack * Math.sqrt(
-    (nextMainStat * nextWeaponAttack) / (currentMainStat * currentWeaponAttack),
-  );
   const rawDeltas = sumNormalHoningRawDeltas({ slots, currentEquip, modifiedEquip });
-  const baseAttackPercentMultiplier = 1 + rawDeltas.baseAttackPercent / 100;
-  const multiplier = (newBaseAttack / currentBaseAttack) * baseAttackPercentMultiplier;
+  const currentBaseAttackFlatSum = charStats.baseAttackFlatSum ?? 0;
+  const nextBaseAttackFlatSum = currentBaseAttackFlatSum + rawDeltas.baseAttack;
+  const nextBaseAttackPercentSum = (charStats.baseAttackPercentSum ?? 0) + rawDeltas.baseAttackPercent;
+  const newBaseAttack = (
+    Math.sqrt((nextMainStat * nextWeaponAttack) / 6) + nextBaseAttackFlatSum
+  ) * (1 + nextBaseAttackPercentSum / 100);
+  const multiplier = newBaseAttack / currentBaseAttack;
 
   if (process.env.NODE_ENV === 'development' && slotBreakdown.length > 0) {
     console.log('[SpecScore][equipment-normal-honing]', {
