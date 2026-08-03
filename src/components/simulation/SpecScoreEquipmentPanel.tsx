@@ -128,17 +128,23 @@ export const SpecScoreEquipmentPanel = ({
           if (slot === 'armlet') {
             const armletLevel = resolveArmletLevel(curNormal);
             const armletPower = ARMLET_POWER_BY_LEVEL[armletLevel];
+            const armletFrame = gradeFrame(armletPower.grade, 'bg');
             return (
               <div
                 key={slot}
                 className="flex flex-col gap-2 border-b border-gray-100 py-2 dark:border-white/5 last:border-0 sm:flex-row sm:items-stretch"
               >
                 <div className="relative w-14 flex-shrink-0">
-                  <img
-                    src={armletPower.icon}
-                    alt=""
-                    className={`h-14 w-14 rounded border border-gray-200 dark:border-white/10 ${armletLevel === 0 ? 'opacity-45 grayscale' : ''}`}
-                  />
+                  <div
+                    className={`h-14 w-14 overflow-hidden rounded border ${armletFrame.className}`}
+                    style={armletFrame.style}
+                  >
+                    <img
+                      src={armletPower.icon}
+                      alt=""
+                      className={`h-full w-full object-contain ${armletLevel === 0 ? 'opacity-45 grayscale' : ''}`}
+                    />
+                  </div>
                   <span className="absolute top-0.5 left-0.5 rounded bg-black/70 px-1 text-[9px] font-bold leading-tight text-white">
                     완갑
                   </span>
