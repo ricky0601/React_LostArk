@@ -1,4 +1,4 @@
-import React, { type ReactElement } from 'react';
+import type { ReactElement } from 'react';
 import {
   ACCESSORY_SLOTS,
   BRACELET_OPTIONS,
@@ -12,6 +12,7 @@ import {
   type PolishOption,
 } from '../../data/specScore/polishOptions';
 import type { AccessoryState, BraceletState } from '../../utils/polishState';
+import { SpecSelect, type SpecSelectItem } from './SpecSelect';
 import type { BraceletMod, PolishMod } from './specScoreSimulatorTypes';
 
 interface SpecScoreAccessoriesPanelProps {
@@ -30,6 +31,33 @@ interface SpecScoreAccessoriesPanelProps {
 
 const ACCESSORY_OPTION_INDEXES = [0, 1, 2] as const;
 const BRACELET_OPTION_INDEXES = [0, 1, 2, 3] as const;
+
+const POLISH_SELECT_ITEMS: readonly SpecSelectItem<string>[] = POLISH_OPTIONS
+  .filter((option) => !option.label.startsWith('__'))
+  .flatMap((option, optionIndex, options): SpecSelectItem<string>[] => {
+    const previous = options[optionIndex - 1];
+    const optionItem = { value: option.label, label: option.label };
+    if (optionIndex > 0 && previous?.type !== option.type) {
+      return [
+        { separator: true, key: `polish-${option.type}-${optionIndex}`, label: option.type },
+        optionItem,
+      ];
+    }
+    return [optionItem];
+  });
+
+const BRACELET_SELECT_ITEMS: readonly SpecSelectItem<string>[] = BRACELET_OPTIONS
+  .flatMap((option, optionIndex): SpecSelectItem<string>[] => {
+    const previous = BRACELET_OPTIONS[optionIndex - 1];
+    const optionItem = { value: option.label, label: option.label };
+    if (optionIndex > 1 && previous?.type !== option.type) {
+      return [
+        { separator: true, key: `bracelet-${option.type}-${optionIndex}`, label: option.type },
+        optionItem,
+      ];
+    }
+    return [optionItem];
+  });
 
 const isBraceletStatType = (value: string): value is BraceletStatType =>
   BRACELET_STAT_TYPES.some((type) => type === value);
@@ -122,28 +150,15 @@ export const SpecScoreAccessoriesPanel = ({
                       >
                         {curOpt.grade}
                       </span>
-                      <select
+                      <SpecSelect
                         value={currentLabels[idx]}
-                        onChange={(ev) =>
-                          onPolishChange(slot, idx, ev.target.value)
+                        onChange={(value) =>
+                          onPolishChange(slot, idx, value)
                         }
-                        className="spec-touch-control flex-1 min-w-0 bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded px-1.5 py-0.5"
-                      >
-                        {POLISH_OPTIONS.filter((option) => !option.label.startsWith('__')).map((option, optionIndex, options) => {
-                          const previous = options[optionIndex - 1];
-                          const shouldSeparate = optionIndex > 0 && previous?.type !== option.type;
-                          return (
-                            <React.Fragment key={option.label}>
-                              {shouldSeparate && (
-                                <option value={`__separator-${option.type}`} disabled>
-                                  ───────────────
-                                </option>
-                              )}
-                              <option value={option.label}>{option.label}</option>
-                            </React.Fragment>
-                          );
-                        })}
-                      </select>
+                        items={POLISH_SELECT_ITEMS}
+                        ariaLabel={`${slot} 연마 옵션 ${idx + 1}`}
+                        className="min-w-0 flex-1"
+                      />
                     </div>
                   );
                 })}
@@ -180,22 +195,18 @@ export const SpecScoreAccessoriesPanel = ({
                   const stat = braceletStats[idx];
                   return (
                   <div key={idx} className="flex items-stretch gap-1 rounded border border-gray-200 bg-gray-100 dark:border-white/10 dark:bg-white/5">
-                    <select
+                    <SpecSelect
                       value={stat.type}
-                      onChange={(ev) => {
-                        if (isBraceletStatType(ev.target.value)) {
-                          onBraceletStatChange(idx, { type: ev.target.value });
+                      onChange={(value) => {
+                        if (isBraceletStatType(value)) {
+                          onBraceletStatChange(idx, { type: value });
                         }
                       }}
-                      className="spec-touch-control w-16 rounded-l bg-transparent px-1.5 py-0.5 text-gray-700 dark:text-gray-300"
-                      title="팔찌 수치 옵션 선택"
-                    >
-                      {BRACELET_STAT_TYPES.map((type) => (
-                        <option key={type} value={type}>
-                          {type}
-                        </option>
-                      ))}
-                    </select>
+                      items={BRACELET_STAT_TYPES.map((type) => ({ value: type, label: type }))}
+                      ariaLabel="팔찌 수치 옵션 선택"
+                      className="w-20 flex-shrink-0"
+                      textAlign="center"
+                    />
                     <input
                       type="number"
                       value={stat.value}
@@ -216,27 +227,13 @@ export const SpecScoreAccessoriesPanel = ({
                       <span className={`flex w-5 flex-shrink-0 items-center justify-center rounded text-[10px] font-bold ${getPolishGradeColor(opt.grade)}`}>
                         {opt.grade}
                       </span>
-                      <select
+                      <SpecSelect
                         value={label}
-                        onChange={(ev) => onBraceletChange(idx, ev.target.value)}
-                        className="spec-touch-control flex-1 min-w-0 rounded border border-gray-200 bg-gray-100 px-1.5 py-0.5 dark:border-white/10 dark:bg-white/5"
-                        title="팔찌 옵션 선택"
-                      >
-                        {BRACELET_OPTIONS.map((option, optionIndex) => {
-                          const previous = BRACELET_OPTIONS[optionIndex - 1];
-                          const shouldSeparate = optionIndex > 1 && previous?.type !== option.type;
-                          return (
-                            <React.Fragment key={option.label}>
-                              {shouldSeparate && (
-                                <option value={`__separator-${option.type}`} disabled>
-                                  ───────────────
-                                </option>
-                              )}
-                              <option value={option.label}>{option.label}</option>
-                            </React.Fragment>
-                          );
-                        })}
-                      </select>
+                        onChange={(value) => onBraceletChange(idx, value)}
+                        items={BRACELET_SELECT_ITEMS}
+                        ariaLabel="팔찌 옵션 선택"
+                        className="min-w-0 flex-1"
+                      />
                     </div>
                   );
                 })}

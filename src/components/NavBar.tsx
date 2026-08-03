@@ -157,11 +157,8 @@ const NavBar: React.FC = () => {
       <Link to="/character" className={linkClass('/character')}>
         캐릭터
       </Link>
-      <Link to="/spec-simulator" className={linkClass('/spec-simulator')} aria-label="전투력 시뮬 Beta">
-        <span>전투력 시뮬</span>
-        <span className="rounded-full border border-amber-500/30 bg-amber-500/15 px-1.5 py-0.5 text-[9px] font-bold leading-none text-amber-600 dark:text-amber-400">
-          Beta
-        </span>
+      <Link to="/spec-simulator" className={linkClass('/spec-simulator')}>
+        전투력 시뮬
       </Link>
     </>
   );

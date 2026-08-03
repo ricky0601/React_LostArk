@@ -1,6 +1,7 @@
 import type { ReactElement } from 'react';
 import { stripGemName } from '../../data/specScore/gems';
 import type { GemData } from '../../types/lostark';
+import { SpecSelect } from './SpecSelect';
 import type { GemMod } from './specScoreSimulatorTypes';
 
 interface SpecScoreGemPanelProps {
@@ -46,8 +47,8 @@ export const SpecScoreGemPanel = ({
   if (!visible) return null;
 
   return (
-    <div className="glass-card p-4 sm:p-5">
-      <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
+    <div className="glass-card px-4 py-2 sm:px-5 sm:py-3">
+      <div className="mb-1.5 flex flex-wrap items-start justify-between gap-2">
         <div>
           <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">보석</h3>
           <p className="mt-0.5 text-[11px] text-gray-400 dark:text-gray-500">{summaryLabel}</p>
@@ -67,7 +68,7 @@ export const SpecScoreGemPanel = ({
           ))}
         </div>
       </div>
-      <div className="-mx-1 flex snap-x gap-2 overflow-x-auto px-1 pb-2">
+      <div className="-mx-1 grid grid-cols-[repeat(11,minmax(4rem,1fr))] snap-x gap-2 overflow-x-auto px-1 pb-1">
         {gems.Gems?.map((g) => {
           const cleanName = stripGemName(g.Name);
           const isGlow = cleanName.includes('광휘');
@@ -83,7 +84,7 @@ export const SpecScoreGemPanel = ({
           return (
             <div
               key={g.Slot}
-              className="flex w-16 flex-shrink-0 snap-start flex-col items-stretch gap-1 sm:w-[56px]"
+              className="flex min-w-0 snap-start flex-col items-stretch gap-1"
             >
               {/* 아이콘 + 레벨 뱃지 */}
               <div className="relative w-full aspect-square rounded bg-gray-50 dark:bg-white/5 border border-gray-200/60 dark:border-white/5 overflow-hidden">
@@ -94,42 +95,35 @@ export const SpecScoreGemPanel = ({
               </div>
               {/* 타입 select (광휘만 변경 가능, 외엔 readonly display) */}
               {isGlow ? (
-                <select
+                <SpecSelect
                   value={currentType === 'unknown' ? 'damage' : currentType}
-                  onChange={(e) => {
-                    const nextType = isGlowGemType(e.target.value) ? e.target.value : 'damage';
+                  onChange={(value) => {
+                    const nextType = isGlowGemType(value) ? value : 'damage';
                     onGemChange(g.Slot, { Tooltip: synthGlowTooltip(nextType) });
                   }}
-                  className="spec-touch-control bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded px-1 py-0.5 text-[10px] text-center"
-                >
-                  <option value="damage">겁화</option>
-                  <option value="cooldown">작열</option>
-                  <option value="support">지원</option>
-                </select>
+                  items={[
+                    { value: 'damage', label: '겁화' },
+                    { value: 'cooldown', label: '작열' },
+                  ]}
+                  ariaLabel={`${skill?.Name ?? '광휘 보석'} 타입`}
+                  textAlign="center"
+                />
               ) : (
                 <div className="bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded px-1 py-0.5 text-[10px] text-center text-gray-500 dark:text-gray-400">
                   {typeLabel}
                 </div>
               )}
               {/* 레벨 select */}
-              <select
+              <SpecSelect
                 value={currentLevel}
-                onChange={(e) => onGemChange(g.Slot, { Level: Number(e.target.value) })}
-                className="spec-touch-control bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded px-1 py-0.5 text-[10px] text-center"
-              >
-                {Array.from({ length: 10 }, (_, i) => i + 1).map((lv) => (
-                  <option key={lv} value={lv}>
-                    {lv}
-                  </option>
-                ))}
-              </select>
-              {/* 스킬명 (truncate) */}
-              <div
-                title={skill?.Name ?? ''}
-                className="text-[10px] text-center text-gray-500 dark:text-gray-400 truncate"
-              >
-                {skillShort || '—'}
-              </div>
+                onChange={(value) => onGemChange(g.Slot, { Level: Number(value) })}
+                items={Array.from({ length: 10 }, (_, i) => i + 1).map((level) => ({
+                  value: level,
+                  label: String(level),
+                }))}
+                ariaLabel={`${skill?.Name ?? '보석'} 레벨`}
+                textAlign="center"
+              />
             </div>
           );
         })}

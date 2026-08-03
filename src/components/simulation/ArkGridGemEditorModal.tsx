@@ -9,6 +9,7 @@ import {
   type ArkGridGemEditTarget,
   type ArkGridGemMod,
 } from './arkGridSimulatorState';
+import { SpecSelect } from './SpecSelect';
 
 interface ArkGridGemEditorModalProps {
   arkGridSlots: readonly ArkGridSlot[];
@@ -90,36 +91,40 @@ export const ArkGridGemEditorModal = ({
         </div>
 
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-          <label className="block text-[11px] font-medium text-gray-500 dark:text-gray-400">
+          <div className="block text-[11px] font-medium text-gray-500 dark:text-gray-400">
             필요 의지력
-            <select
+            <SpecSelect
               value={displayedArkGridGemState.willpower}
-              onChange={(event) => setArkGridGemDraft((prev) => ({
+              onChange={(value) => setArkGridGemDraft((prev) => ({
                 ...(prev ?? editingArkGridGemState),
-                willpower: Number(event.target.value),
+                willpower: Number(value),
               }))}
-              className="mt-1 h-9 w-full rounded-lg border border-gray-200 bg-gray-50 px-2 text-xs font-semibold text-gray-700 outline-none focus:border-la-gold dark:border-white/10 dark:bg-black/20 dark:text-gray-200"
-            >
-              {ARK_GRID_GEM_SELECT_NUMBERS.map((value) => (
-                <option key={`willpower-${value}`} value={value}>{value}</option>
-              ))}
-            </select>
-          </label>
-          <label className="block text-[11px] font-medium text-gray-500 dark:text-gray-400">
+              items={ARK_GRID_GEM_SELECT_NUMBERS.map((value) => ({
+                value,
+                label: String(value),
+              }))}
+              ariaLabel="필요 의지력"
+              className="mt-1"
+              size="default"
+            />
+          </div>
+          <div className="block text-[11px] font-medium text-gray-500 dark:text-gray-400">
             질서/혼돈 포인트
-            <select
+            <SpecSelect
               value={displayedArkGridGemState.corePoint}
-              onChange={(event) => setArkGridGemDraft((prev) => ({
+              onChange={(value) => setArkGridGemDraft((prev) => ({
                 ...(prev ?? editingArkGridGemState),
-                corePoint: Number(event.target.value),
+                corePoint: Number(value),
               }))}
-              className="mt-1 h-9 w-full rounded-lg border border-gray-200 bg-gray-50 px-2 text-xs font-semibold text-gray-700 outline-none focus:border-la-gold dark:border-white/10 dark:bg-black/20 dark:text-gray-200"
-            >
-              {ARK_GRID_GEM_SELECT_NUMBERS.map((value) => (
-                <option key={`core-point-${value}`} value={value}>{value}</option>
-              ))}
-            </select>
-          </label>
+              items={ARK_GRID_GEM_SELECT_NUMBERS.map((value) => ({
+                value,
+                label: String(value),
+              }))}
+              ariaLabel="질서/혼돈 포인트"
+              className="mt-1"
+              size="default"
+            />
+          </div>
         </div>
 
         <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -132,42 +137,40 @@ export const ArkGridGemEditorModal = ({
                 옵션 {effectIndex + 1}
               </p>
               <div className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_74px]">
-                <select
+                <SpecSelect
                   value={effect.option}
-                  onChange={(event) => setArkGridGemDraft((prev) => {
+                  onChange={(value) => setArkGridGemDraft((prev) => {
                     const draft = prev ?? editingArkGridGemState;
                     return {
                       ...draft,
                       effects: draft.effects.map((row, index) =>
-                        index === effectIndex ? { ...row, option: event.target.value } : row,
+                        index === effectIndex ? { ...row, option: value } : row,
                       ),
                     };
                   })}
-                  className="h-9 rounded-lg border border-gray-200 bg-white px-2 text-xs text-gray-700 outline-none focus:border-la-gold dark:border-white/10 dark:bg-gray-900 dark:text-gray-200"
-                  aria-label={`아크 그리드 젬 옵션 ${effectIndex + 1}`}
-                >
-                  {ARK_GRID_GEM_OPTIONS.map((option) => (
-                    <option key={option} value={option}>{option}</option>
-                  ))}
-                </select>
-                <select
+                  items={ARK_GRID_GEM_OPTIONS.map((option) => ({ value: option, label: option }))}
+                  ariaLabel={`아크 그리드 젬 옵션 ${effectIndex + 1}`}
+                  size="default"
+                />
+                <SpecSelect
                   value={effect.level}
-                  onChange={(event) => setArkGridGemDraft((prev) => {
+                  onChange={(value) => setArkGridGemDraft((prev) => {
                     const draft = prev ?? editingArkGridGemState;
                     return {
                       ...draft,
                       effects: draft.effects.map((row, index) =>
-                        index === effectIndex ? { ...row, level: Number(event.target.value) } : row,
+                        index === effectIndex ? { ...row, level: Number(value) } : row,
                       ),
                     };
                   })}
-                  className="h-9 rounded-lg border border-gray-200 bg-white px-2 text-xs font-semibold text-gray-700 outline-none focus:border-la-gold dark:border-white/10 dark:bg-gray-900 dark:text-gray-200"
-                  aria-label={`아크 그리드 젬 옵션 ${effectIndex + 1} 레벨`}
-                >
-                  {ARK_GRID_GEM_SELECT_NUMBERS.map((value) => (
-                    <option key={`effect-${effectIndex}-level-${value}`} value={value}>Lv.{value}</option>
-                  ))}
-                </select>
+                  items={ARK_GRID_GEM_SELECT_NUMBERS.map((value) => ({
+                    value,
+                    label: `Lv.${value}`,
+                  }))}
+                  ariaLabel={`아크 그리드 젬 옵션 ${effectIndex + 1} 레벨`}
+                  size="default"
+                  textAlign="center"
+                />
               </div>
             </div>
           ))}

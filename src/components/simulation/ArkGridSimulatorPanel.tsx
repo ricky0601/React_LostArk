@@ -14,6 +14,7 @@ import {
   type ArkGridGemMod,
 } from './arkGridSimulatorState';
 import { ArkGridGemEditorModal } from './ArkGridGemEditorModal';
+import { SpecSelect } from './SpecSelect';
 
 interface ArkGridSimulatorPanelProps {
   rawArkGrid: ArkGridData | null;
@@ -110,27 +111,22 @@ export const ArkGridSimulatorPanel = ({
                     </div>
 
                     <div className="min-w-0 space-y-1.5">
-                      <select
+                      <SpecSelect
                         value={displayGrade}
-                        onChange={(event) => updateArkGridCore(slot.Index, { grade: event.target.value })}
-                        className="spec-touch-control h-8 w-full rounded-lg border border-gray-200 bg-gray-50 px-2 text-[11px] font-medium text-gray-600 outline-none transition-colors hover:border-la-gold/50 focus:border-la-gold dark:border-white/10 dark:bg-black/20 dark:text-gray-300"
-                        aria-label={`${slot.Name} 코어 등급`}
-                      >
-                        {ARK_GRID_CORE_GRADE_OPTIONS.map((grade) => (
-                          <option key={grade} value={grade}>{grade} 코어</option>
-                        ))}
-                      </select>
+                        onChange={(value) => updateArkGridCore(slot.Index, { grade: value })}
+                        items={ARK_GRID_CORE_GRADE_OPTIONS.map((grade) => ({
+                          value: grade,
+                          label: `${grade} 코어`,
+                        }))}
+                        ariaLabel={`${slot.Name} 코어 등급`}
+                      />
                       {isChaos ? (
-                        <select
+                        <SpecSelect
                           value={selectedChaosName}
-                          onChange={(event) => updateArkGridCore(slot.Index, { coreName: event.target.value })}
-                          className="spec-touch-control h-8 w-full rounded-lg border border-gray-200 bg-gray-50 px-2 text-[11px] font-semibold text-gray-700 outline-none transition-colors hover:border-la-gold/50 focus:border-la-gold dark:border-white/10 dark:bg-black/20 dark:text-gray-200"
-                          aria-label={`${slot.Name} 혼돈 코어 선택`}
-                        >
-                          {chaosOptionGroup?.options.map((name) => (
-                            <option key={`${chaosOptionGroup.group}-${name}`} value={name}>{name}</option>
-                          ))}
-                        </select>
+                          onChange={(value) => updateArkGridCore(slot.Index, { coreName: value })}
+                          items={chaosOptionGroup?.options.map((name) => ({ value: name, label: name })) ?? []}
+                          ariaLabel={`${slot.Name} 혼돈 코어 선택`}
+                        />
                       ) : (
                         <div className="flex h-8 items-center rounded-lg border border-gray-200 bg-gray-50 px-2 text-[11px] font-semibold text-gray-500 dark:border-white/10 dark:bg-black/20 dark:text-gray-400">
                           질서 코어
