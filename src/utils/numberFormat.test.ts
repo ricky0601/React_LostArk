@@ -6,6 +6,6 @@ describe('roundToTwoDecimals', () => {
   });
 
   it('keeps API combat power decimals unchanged', () => {
-    expect(roundToTwoDecimals(4933.35)).toBe(4933.35);
+    expect(roundToTwoDecimals(1234.56)).toBe(1234.56);
   });
 });

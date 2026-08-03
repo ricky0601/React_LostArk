@@ -4,6 +4,7 @@ import type {
   GameEvent,
   CalendarItem,
   ArkGridData,
+  AvatarItem,
   EquipmentItem,
   GemData,
   EngravingData,
@@ -43,6 +44,9 @@ export const fetchArkGrid = (characterName: string, options?: RequestInit): Prom
 
 export const fetchEquipment = (characterName: string, options?: RequestInit): Promise<EquipmentItem[]> =>
   apiFetch(`/armories/characters/${encodeURIComponent(characterName)}/equipment`, options);
+
+export const fetchAvatars = (characterName: string, options?: RequestInit): Promise<AvatarItem[]> =>
+  apiFetch(`/armories/characters/${encodeURIComponent(characterName)}/avatars`, options);
 
 export const fetchGems = (characterName: string, options?: RequestInit): Promise<GemData> =>
   apiFetch(`/armories/characters/${encodeURIComponent(characterName)}/gems`, options);

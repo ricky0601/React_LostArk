@@ -1,7 +1,7 @@
 import type { ArkPassiveEffect } from '../types/lostark';
 import type { CharStats } from './lopecSimulator';
 
-const hasStone97Bonus = (effects: readonly ArkPassiveEffect[]): boolean => {
+export const hasStone97Bonus = (effects: readonly ArkPassiveEffect[]): boolean => {
   const totalStoneLevel = effects.reduce(
     (sum, effect) => sum + Math.max(0, Math.min(4, effect.AbilityStoneLevel ?? 0)),
     0,

@@ -6,13 +6,14 @@ import {
   lookupWeaponAdvancedAt,
   type EquipSlot,
 } from '../data/specScore/lopecCoefficients';
-import { resolveNormalHoningDelta, type EquipmentState } from './equipmentState';
+import type { EquipmentState } from './equipmentState';
 import type { AccessoryState, BraceletState } from './polishState';
 import { ACCESSORY_SLOTS, type AccessorySlot } from '../data/specScore/polishOptions';
 import { calcGemSetDelta } from './lopecGemDelta';
 import { calcArkGridDelta } from './lopecArkGridDelta';
 import { calcBraceletDelta } from './lopecBraceletDelta';
 import { calcStoneSetBonusDelta } from './lopecStoneDelta';
+import { calcNormalHoningBaseStatDelta } from './lopecEquipmentDelta';
 
 /**
  * lopec 추출 데이터 기반 정확 시뮬레이션
@@ -43,11 +44,84 @@ export interface CombatStats {
 export interface CharStats {
   W: number;
   baseAttack: number;
+  /**
+   * 공격력 툴팁의 '기본 공격력은 N'.
+   * canonical 용어로는 displayed_base_attack — 기본 공격력% 가 이미 적용된 값이라
+   * pure_base_attack 이 아니다. resolvePureBaseAttack 으로 되돌려 써야 한다.
+   */
   pureBaseAttack?: number;
+  displayedMainStat?: number;
+  avatarMainStatMultiplier?: number;
+  petMainStatMultiplier?: number;
   stoneBaseAttackBonusPercent?: number;
+  /** 무기 툴팁 공격력에 장신구 연마% + 깨달음 카르마% 를 반영한 값 */
+  effectiveWeaponAttack?: number;
+  /** 장신구 연마% + 깨달음 카르마% 합. raw 재련 델타를 증폭할 때 쓴다. */
+  weaponAttackPercentSum?: number;
+  /** 완갑 등 기본 공격력 flat 보너스 합 */
+  baseAttackFlatSum?: number;
+  /** T4 보석% + 어빌리티 스톤% 합 */
+  baseAttackPercentSum?: number;
   combatStats?: CombatStats;
 }
 
+/** 각인 계수 변화만. 어빌리티 스톤 세트 보너스(기본공격력%)는 포함하지 않는다. */
+export const calcEngravingSetDelta = (
+  currentEng: EngravingData,
+  modifiedEng: EngravingData,
+): number => {
+  const curEffs = currentEng.ArkPassiveEffects ?? [];
+  const modEffs = modifiedEng.ArkPassiveEffects ?? [];
+  const names = Array.from(new Set([...curEffs.map((e) => e.Name), ...modEffs.map((e) => e.Name)]));
+  return names.reduce((mult, name) => {
+    const cur = curEffs.find((effect) => effect.Name === name) ?? neutralEngravingEffect(name);
+    const mod = modEffs.find((effect) => effect.Name === name) ?? neutralEngravingEffect(name);
+    return mult * calcEngravingDelta(cur, mod);
+  }, 1);
+};
+
+/** 상급 재련은 슬롯별 비율을 곱하지 않고 증분으로 누적한다. */
+export const calcAdvancedHoningSetDelta = (
+  slots: readonly EquipSlot[],
+  currentEquip: Partial<Record<EquipSlot, EquipmentState>>,
+  modifiedEquip: Partial<Record<EquipSlot, EquipmentState>>,
+): number => {
+  let addDelta = 0;
+  for (const slot of slots) {
+    const cur = currentEquip[slot];
+    const mod = modifiedEquip[slot];
+    if (!cur || !mod) continue;
+    addDelta += calcAdvancedHoningDelta(slot, cur, mod) - 1;
+  }
+  return 1 + addDelta;
+};
+
+/** 연마 효과 중 직접 전투력 인자만. 무기 공격력 계열은 기본공격력 쪽에서 처리한다. */
+export const calcPolishDirectDelta = (
+  currentAccessories: Partial<Record<AccessorySlot, AccessoryState>> | undefined,
+  modifiedAccessories: Partial<Record<AccessorySlot, AccessoryState>> | undefined,
+): number => {
+  if (!currentAccessories || !modifiedAccessories) return 1;
+  let multiplier = 1;
+  for (const slot of ACCESSORY_SLOTS) {
+    const cur = currentAccessories[slot];
+    const mod = modifiedAccessories[slot];
+    if (!cur || !mod) continue;
+    for (let i = 0; i < 3; i++) {
+      const curOpt = cur.polishOptions[i];
+      const modOpt = mod.polishOptions[i];
+      if (curOpt.label === modOpt.label) continue;
+      if (isWeaponAttackPolishType(curOpt.type) || isWeaponAttackPolishType(modOpt.type)) continue;
+      const curRatio = 1 + curOpt.combatPowerIncreasePercent / 100;
+      const modRatio = 1 + modOpt.combatPowerIncreasePercent / 100;
+      if (curRatio > 0) multiplier *= modRatio / curRatio;
+    }
+  }
+  return multiplier;
+};
+
+const isWeaponAttackPolishType = (type: string): boolean =>
+  type === '무기 공격력' || type === '무기 공격력_abs';
 
 export const calcLopecDelta = (
   currentScore: number,
@@ -85,8 +159,13 @@ export const calcLopecDelta = (
   let equipMultiplier = 1;
   let equipAddDelta = 0;
   if (currentEquip && modifiedEquip) {
-    const slots: EquipSlot[] = ['weapon', 'helmet', 'shoulder', 'armor', 'pants', 'gloves'];
-    equipMultiplier = calcNormalHoningBaseStatDelta(slots, currentEquip, modifiedEquip, charStats);
+    const slots: EquipSlot[] = ['weapon', 'helmet', 'shoulder', 'armor', 'pants', 'gloves', 'armlet'];
+    equipMultiplier = calcNormalHoningBaseStatDelta({
+      slots,
+      currentEquip,
+      modifiedEquip,
+      charStats,
+    });
     for (const slot of slots) {
       const cur = currentEquip[slot];
       const mod = modifiedEquip[slot];
@@ -122,75 +201,6 @@ export const calcLopecDelta = (
   return currentScore * mult * equipMultiplier * polishMultiplier * arkGridMultiplier * (1 + equipAddDelta);
 };
 
-const inferMainStat = (charStats: CharStats): number => {
-  const baseAttackForEquipment = charStats.pureBaseAttack ?? charStats.baseAttack;
-  if (charStats.W <= 0 || baseAttackForEquipment <= 0) return 0;
-  return (baseAttackForEquipment * baseAttackForEquipment * 6) / charStats.W;
-};
-
-const calcNormalHoningBaseStatDelta = (
-  slots: EquipSlot[],
-  currentEquip: Partial<Record<EquipSlot, EquipmentState>>,
-  modifiedEquip: Partial<Record<EquipSlot, EquipmentState>>,
-  charStats?: CharStats,
-): number => {
-  if (!charStats || charStats.W <= 0 || charStats.baseAttack <= 0) return 1;
-
-  const currentMainStat = inferMainStat(charStats);
-  if (currentMainStat <= 0) return 1;
-
-  let weaponAttackDelta = 0;
-  let effectiveArmorStatDelta = 0;
-
-  for (const slot of slots) {
-    const cur = currentEquip[slot];
-    const mod = modifiedEquip[slot];
-    if (!cur || !mod || cur.normalLevel === mod.normalLevel) continue;
-
-    const normalDelta = sumNormalHoningStepDelta(slot, cur.equipmentFamily, cur.normalLevel, mod.normalLevel);
-    weaponAttackDelta += normalDelta.weaponAttack;
-    effectiveArmorStatDelta += normalDelta.mainStat;
-  }
-
-  const currentWeaponAttack = charStats.W;
-  const nextWeaponAttack = currentWeaponAttack + weaponAttackDelta;
-  const nextMainStat = currentMainStat + effectiveArmorStatDelta;
-  if (nextWeaponAttack <= 0 || nextMainStat <= 0) return 1;
-
-  return Math.sqrt((nextWeaponAttack * nextMainStat) / (currentWeaponAttack * currentMainStat));
-};
-
-const sumNormalHoningStepDelta = (
-  slot: EquipSlot,
-  family: EquipmentState['equipmentFamily'],
-  fromLevel: number,
-  toLevel: number,
-): { readonly weaponAttack: number; readonly mainStat: number; readonly secondaryStat: number } => {
-  const sign = toLevel > fromLevel ? 1 : -1;
-  const start = Math.min(fromLevel, toLevel) + 1;
-  const end = Math.max(fromLevel, toLevel);
-  let weaponAttack = 0;
-  let mainStat = 0;
-  let secondaryStat = 0;
-
-  for (let level = start; level <= end; level++) {
-    const delta = resolveNormalHoningDelta(slot, family, level);
-    if (delta?.kind === 'weapon') {
-      weaponAttack += sign * delta.weaponAttack;
-    }
-    if (delta?.kind === 'armor') {
-      mainStat += sign * delta.stats.mainStat;
-      secondaryStat += sign * (
-        delta.stats.health +
-        (delta.stats.magicDefense ?? 0) +
-        (delta.stats.physicalDefense ?? 0)
-      );
-    }
-  }
-
-  return { weaponAttack, mainStat, secondaryStat };
-};
-
 /**
  * 장신구 옵션은 검증된 독립 전투력 증가량을 우선 반영한다.
  * 무기 공격력 계열은 direct table이 아니라 기본 공격력 쪽 sqrt 공식으로 반영한다.
@@ -217,6 +227,9 @@ const neutralEngravingEffect = (name: string): ArkPassiveEffect => ({
   Name: name,
 });
 
+const isNeutralEngravingEffect = (effect: ArkPassiveEffect): boolean =>
+  effect.Grade === '' && effect.Level === 0 && effect.AbilityStoneLevel === null;
+
 const calcEngravingDelta = (cur: ArkPassiveEffect, mod: ArkPassiveEffect): number => {
   const curLevel = cur.Level;
   const modLevel = mod.Level;
@@ -225,8 +238,8 @@ const calcEngravingDelta = (cur: ArkPassiveEffect, mod: ArkPassiveEffect): numbe
   const totalEffects = LOPEC_ENGRAVING_TOTAL_EFFECTS[cur.Name];
   if (!totalEffects) return 1.0;
 
-  const currentTotalEffect = totalEffects[curLevel]?.[curStoneLevel];
-  const modifiedTotalEffect = totalEffects[modLevel]?.[modStoneLevel];
+  const currentTotalEffect = isNeutralEngravingEffect(cur) ? 0 : totalEffects[curLevel]?.[curStoneLevel];
+  const modifiedTotalEffect = isNeutralEngravingEffect(mod) ? 0 : totalEffects[modLevel]?.[modStoneLevel];
   if (currentTotalEffect === undefined || modifiedTotalEffect === undefined) return 1.0;
 
   return (1 + modifiedTotalEffect / 100) / (1 + currentTotalEffect / 100);
@@ -234,6 +247,8 @@ const calcEngravingDelta = (cur: ArkPassiveEffect, mod: ArkPassiveEffect): numbe
 
 
 const calcAdvancedHoningDelta = (slot: EquipSlot, cur: EquipmentState, mod: EquipmentState): number => {
+  if (slot === 'armlet') return 1;
+
   let mult = 1.0;
   const ignoresAdvanced = cur.isInherited || mod.isInherited;
   const curAdvanced = cur.advancedLevel;

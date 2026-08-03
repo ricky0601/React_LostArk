@@ -10,7 +10,7 @@ import { SpecScoreCorePanel } from './SpecScoreCorePanel';
 import { SpecScoreEquipmentPanel } from './SpecScoreEquipmentPanel';
 import { SpecScoreGemPanel } from './SpecScoreGemPanel';
 import { SpecScoreSummary } from './SpecScoreSummary';
-import { SLOT_ORDER } from './specScoreSimulatorModel';
+import { ITEM_LEVEL_SLOT_ORDER } from './specScoreSimulatorModel';
 import type { ActiveCategory, SpecScoreCategory, SpecScoreRawData } from './specScoreSimulatorTypes';
 import type { EquipmentState } from '../../utils/equipmentState';
 import { useSpecScoreSimulator } from './useSpecScoreSimulator';
@@ -29,7 +29,7 @@ const calculateAverageItemLevel = (
 ): number => {
   let totalItemLevel = 0;
 
-  for (const slot of SLOT_ORDER) {
+  for (const slot of ITEM_LEVEL_SLOT_ORDER) {
     const state = equipment[slot];
     if (!state) return fallbackItemLevel;
 
@@ -39,7 +39,7 @@ const calculateAverageItemLevel = (
     totalItemLevel += baseItemLevel + state.advancedLevel;
   }
 
-  return totalItemLevel / SLOT_ORDER.length;
+  return totalItemLevel / ITEM_LEVEL_SLOT_ORDER.length;
 };
 
 interface Props {
@@ -121,10 +121,96 @@ const SpecScoreSimulator: FC<Props> = ({ profile }) => {
   ];
   const showSection = (id: ActiveCategory): boolean =>
     activeCategory === 'all' || activeCategory === id;
+  const gemPanel = (
+    <SpecScoreGemPanel
+      visible={showSection('gear')}
+      gems={raw.gems}
+      gemMods={mods.gems}
+      changedCount={Object.keys(mods.gems).length}
+      summaryLabel={`${raw.gems.Gems?.length ?? 0}개 보석 중 ${Object.keys(mods.gems).length}개 변경`}
+      onGemChange={updateGemMod}
+      onApplyBulkGems={applyBulkGems}
+    />
+  );
+  const equipmentPanel = (
+    <SpecScoreEquipmentPanel
+      visible={showSection('gear')}
+      equipment={raw.equip}
+      equipmentMods={mods.equip}
+      equipmentCount={equipCount}
+      changedCount={Object.keys(mods.equip).length}
+      summaryLabel={`${equipCount}개 장비 중 ${Object.keys(mods.equip).length}개 변경`}
+      onEquipmentChange={updateEquipMod}
+      onApplyBulkEquipment={applyBulkEquip}
+    />
+  );
+  const accessoriesPanel = (
+    <SpecScoreAccessoriesPanel
+      visible={showSection('accessories')}
+      accessories={raw.accessories}
+      bracelet={raw.bracelet}
+      polishMods={mods.polish}
+      braceletMod={mods.bracelet}
+      accessoryCount={accessoryCount}
+      changedCount={accessoryChangedCount}
+      summaryLabel={`${accessoryCount}악세 · 팔찌 ${mods.bracelet ? '변경' : '대기'}`}
+      onPolishChange={updatePolishMod}
+      onBraceletChange={updateBraceletMod}
+      onBraceletStatChange={updateBraceletStatMod}
+    />
+  );
+  const corePanelProps = {
+    visible: showSection('core'),
+    engravings: raw.engravings,
+    stone: raw.stone,
+    engravingMods: mods.engs,
+    stoneMods: mods.stone,
+    onEngravingChange: updateEngMod,
+    onStoneSlotChange: updateStoneSlotMod,
+  };
+  const engravingsPanel = (
+    <SpecScoreCorePanel
+      {...corePanelProps}
+      section="engravings"
+      changedCount={Object.keys(mods.engs).length}
+      summaryLabel={`${Object.keys(mods.engs).length}각인 변경`}
+    />
+  );
+  const stonePanel = (
+    <SpecScoreCorePanel
+      {...corePanelProps}
+      section="stone"
+      changedCount={Object.keys(mods.stone).length}
+      summaryLabel={`${raw.stone?.engravings.length ?? 0}개 슬롯 중 ${Object.keys(mods.stone).length}개 변경`}
+    />
+  );
+  const combinedCorePanel = (
+    <SpecScoreCorePanel
+      {...corePanelProps}
+      section="all"
+      changedCount={coreChangedCount}
+      summaryLabel={`${Object.keys(mods.engs).length}각인 · ${Object.keys(mods.stone).length}스톤 변경`}
+    />
+  );
+  const arkGridPanel = (
+    <ArkGridSimulatorPanel
+      rawArkGrid={raw.arkGrid}
+      modifiedArkGrid={modifiedRaw?.arkGrid}
+      arkGridMods={mods.arkGrid}
+      editingArkGridGem={editingArkGridGem}
+      arkGridGemDraft={arkGridGemDraft}
+      changedCount={systemsChangedCount}
+      summaryLabel={`${arkGridCount}코어 · ${systemsChangedCount}개 변경`}
+      setEditingArkGridGem={setEditingArkGridGem}
+      setArkGridGemDraft={setArkGridGemDraft}
+      updateArkGridCore={updateArkGridCore}
+      updateArkGridGem={updateArkGridGem}
+    />
+  );
 
   return (
-    <div className="spec-simulator-layout grid grid-cols-1 gap-4 animate-fade-in sm:gap-5 xl:grid-cols-[300px_minmax(0,1fr)] xl:items-start xl:gap-6">
-      <aside className="xl:sticky xl:top-20 xl:self-start">
+    <div className="spec-simulator-layout grid grid-cols-1 items-start gap-4 animate-fade-in sm:gap-5 xl:grid-cols-[21rem_minmax(0,1fr)] xl:gap-6">
+      <aside className="min-w-0 xl:sticky xl:top-24 xl:self-start">
         <SpecScoreSummary
           sim={sim}
           hasMods={hasMods}
@@ -145,107 +231,34 @@ const SpecScoreSimulator: FC<Props> = ({ profile }) => {
           onCategoryChange={setActiveCategory}
         />
 
-        <div className={activeCategory === 'all' ? 'grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] lg:gap-5 xl:gap-6' : 'space-y-4'}>
-          {activeCategory === 'all' && (
-            <div className="lg:col-span-2">
-              <SpecScoreGemPanel
-                visible={showSection('gear')}
-                gems={raw.gems}
-                gemMods={mods.gems}
-                changedCount={Object.keys(mods.gems).length}
-                summaryLabel={`${raw.gems.Gems?.length ?? 0}개 보석 중 ${Object.keys(mods.gems).length}개 변경`}
-                onGemChange={updateGemMod}
-                onApplyBulkGems={applyBulkGems}
-              />
-            </div>
-          )}
+        <div className={activeCategory === 'all' ? 'grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(18rem,0.78fr)_minmax(0,1.22fr)] lg:gap-5' : 'space-y-4'}>
+          {activeCategory === 'all' ? (
+            <>
+              <div className="lg:col-span-2">{gemPanel}</div>
 
-          <div className="space-y-4">
-            <SpecScoreCorePanel
-              visible={showSection('core')}
-              section={activeCategory === 'all' ? 'engravings' : 'all'}
-              engravings={raw.engravings}
-              stone={raw.stone}
-              engravingMods={mods.engs}
-              stoneMods={mods.stone}
-              changedCount={coreChangedCount}
-              summaryLabel={`${Object.keys(mods.engs).length}각인 · ${Object.keys(mods.stone).length}스톤 변경`}
-              onEngravingChange={updateEngMod}
-              onStoneSlotChange={updateStoneSlotMod}
-            />
-          </div>
-          <div className="space-y-4">
-            {activeCategory !== 'all' && (
-              <SpecScoreGemPanel
-                visible={showSection('gear')}
-                gems={raw.gems}
-                gemMods={mods.gems}
-                changedCount={Object.keys(mods.gems).length}
-                summaryLabel={`${raw.gems.Gems?.length ?? 0}개 보석 중 ${Object.keys(mods.gems).length}개 변경`}
-                onGemChange={updateGemMod}
-                onApplyBulkGems={applyBulkGems}
-              />
-            )}
-            <SpecScoreEquipmentPanel
-              visible={showSection('gear')}
-              equipment={raw.equip}
-              equipmentMods={mods.equip}
-              equipmentCount={equipCount}
-              changedCount={Object.keys(mods.equip).length}
-              summaryLabel={`${equipCount}개 장비 중 ${Object.keys(mods.equip).length}개 변경`}
-              onEquipmentChange={updateEquipMod}
-              onApplyBulkEquipment={applyBulkEquip}
-            />
-          </div>
+              <div className="space-y-4">{equipmentPanel}</div>
 
-          {activeCategory === 'all' && (
-            <div className="space-y-4">
-              <SpecScoreCorePanel
-                visible={showSection('core')}
-                section="stone"
-                engravings={raw.engravings}
-                stone={raw.stone}
-                engravingMods={mods.engs}
-                stoneMods={mods.stone}
-                changedCount={Object.keys(mods.stone).length}
-                summaryLabel={`${raw.stone?.engravings.length ?? 0}개 슬롯 중 ${Object.keys(mods.stone).length}개 변경`}
-                onEngravingChange={updateEngMod}
-                onStoneSlotChange={updateStoneSlotMod}
-              />
-            </div>
-          )}
+              <div className="space-y-4">
+                {accessoriesPanel}
+                {stonePanel}
+              </div>
 
-          <div className="space-y-4">
-            <SpecScoreAccessoriesPanel
-              visible={showSection('accessories')}
-              accessories={raw.accessories}
-              bracelet={raw.bracelet}
-              polishMods={mods.polish}
-              braceletMod={mods.bracelet}
-              accessoryCount={accessoryCount}
-              changedCount={accessoryChangedCount}
-              summaryLabel={`${accessoryCount}악세 · 팔찌 ${mods.bracelet ? '변경' : '대기'}`}
-              onPolishChange={updatePolishMod}
-              onBraceletChange={updateBraceletMod}
-              onBraceletStatChange={updateBraceletStatMod}
-            />
-          </div>
-          {showSection('systems') && (
-            <div className={activeCategory === 'all' ? 'lg:col-span-2' : undefined}>
-              <ArkGridSimulatorPanel
-                rawArkGrid={raw.arkGrid}
-                modifiedArkGrid={modifiedRaw?.arkGrid}
-                arkGridMods={mods.arkGrid}
-                editingArkGridGem={editingArkGridGem}
-                arkGridGemDraft={arkGridGemDraft}
-                changedCount={systemsChangedCount}
-                summaryLabel={`${arkGridCount}코어 · ${systemsChangedCount}개 변경`}
-                setEditingArkGridGem={setEditingArkGridGem}
-                setArkGridGemDraft={setArkGridGemDraft}
-                updateArkGridCore={updateArkGridCore}
-                updateArkGridGem={updateArkGridGem}
-              />
-            </div>
+              <div className="lg:col-span-2">{engravingsPanel}</div>
+
+              {showSection('systems') && (
+                <div className="lg:col-span-2">{arkGridPanel}</div>
+              )}
+            </>
+          ) : (
+            <>
+              <div className="space-y-4">{combinedCorePanel}</div>
+              <div className="space-y-4">
+                {gemPanel}
+                {equipmentPanel}
+              </div>
+              <div className="space-y-4">{accessoriesPanel}</div>
+              {showSection('systems') && <div>{arkGridPanel}</div>}
+            </>
           )}
         </div>
       </div>

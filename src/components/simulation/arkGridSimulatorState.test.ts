@@ -16,8 +16,10 @@ const gem = (tooltip: string): ArkGridGem => ({
 
 describe('arkGridSimulatorState', () => {
   it('falls back to the first chaos option when the API sends a null core name', () => {
+    // Given / When
     const optionName = resolveArkGridChaosOptionName(3, null);
 
+    // Then
     expect(optionName).toBe('현란한 공격');
   });
 

@@ -32,7 +32,6 @@ export const getArkGridChaosOptionGroup = (slotIndex: number): typeof ARK_GRID_C
 export const resolveArkGridChaosOptionName = (slotIndex: number, coreName: string | null): string => {
   const optionGroup = getArkGridChaosOptionGroup(slotIndex);
   if (!coreName) return optionGroup.options[0];
-
   const normalizedCoreName = coreName.replace(/\s+/g, '');
   return optionGroup.options.find((option) => normalizedCoreName.includes(option.replace(/\s+/g, ''))) ?? optionGroup.options[0];
 };

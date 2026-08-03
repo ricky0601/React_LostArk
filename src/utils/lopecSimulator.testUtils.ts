@@ -2,6 +2,7 @@ import type { EquipSlot } from '../data/specScore/lopecCoefficients';
 import { findPolishOption, type AccessorySlot } from '../data/specScore/polishOptions';
 import type { ArkPassiveEffect, EngravingData, GemData, GemItem } from '../types/lostark';
 import type { EquipmentState } from './equipmentState';
+import type { CharStats } from './lopecSimulator';
 import type { AccessoryState } from './polishState';
 
 export const effect = (
@@ -42,7 +43,7 @@ export const equipment = (
   slot,
   normalLevel: 10,
   advancedLevel: 0,
-  tier: '고대',
+  tier: '업화',
   equipmentFamily: 'egir',
   isInherited: false,
   raw: {
@@ -57,6 +58,19 @@ export const equipment = (
 
 export const baseAttackFor = (weaponAttack: number, mainStat: number): number =>
   Math.sqrt((weaponAttack * mainStat) / 6);
+
+/**
+ * 퍼센트 효과가 하나도 없는 합성 캐릭터의 CharStats.
+ * 두 버킷이 모두 0 이라 표시값과 순수값이 같고, 주스탯 역산이 mainStat 을 그대로 복원한다.
+ */
+export const charStatsFor = (weaponAttack: number, mainStat: number): CharStats => ({
+  W: weaponAttack,
+  baseAttack: baseAttackFor(weaponAttack, mainStat),
+  pureBaseAttack: baseAttackFor(weaponAttack, mainStat),
+  effectiveWeaponAttack: weaponAttack,
+  weaponAttackPercentSum: 0,
+  baseAttackPercentSum: 0,
+});
 
 const polishOption = (label: string) => {
   const option = findPolishOption(label);

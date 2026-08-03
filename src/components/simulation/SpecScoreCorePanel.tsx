@@ -2,6 +2,7 @@ import type { ReactElement } from 'react';
 import { LOPEC_ENGRAVING_TOTAL_EFFECTS } from '../../data/specScore/lopecCoefficients';
 import type { EngravingData } from '../../types/lostark';
 import type { StoneState } from '../../utils/polishState';
+import { SpecSelect } from './SpecSelect';
 import type { EngMod, StoneSlotMod } from './specScoreSimulatorTypes';
 
 interface SpecScoreCorePanelProps {
@@ -100,6 +101,16 @@ const DEALER_STONE_ENGRAVING_OPTIONS = [
   '분쇄의 주먹',
 ].filter((name) => LOPEC_ENGRAVING_TOTAL_EFFECTS[name] !== undefined);
 
+const LEVEL_OPTIONS = Array.from({ length: 5 }, (_, i) => i).map((level) => ({
+  value: level,
+  label: String(level),
+}));
+
+const STONE_LEVEL_OPTIONS = [0, 1, 2, 3, 4].map((level) => ({
+  value: level,
+  label: `Lv.${level}`,
+}));
+
 export const SpecScoreCorePanel = ({
   visible,
   section = 'all',
@@ -118,6 +129,12 @@ export const SpecScoreCorePanel = ({
     ...DEALER_STONE_ENGRAVING_OPTIONS,
     ...(stone?.engravings.map((eng) => eng.name) ?? []),
   ]));
+  const commonEngravings = engravings.ArkPassiveEffects ?? [];
+  const commonEngravingOptions = Array.from(new Set([
+    ...DEALER_STONE_ENGRAVING_OPTIONS,
+    ...commonEngravings.map((eng) => eng.Name),
+  ]));
+  const selectedCommonNames = commonEngravings.map((eng) => engravingMods[eng.Name]?.Name ?? eng.Name);
   const showEngravings = section === 'all' || section === 'engravings';
   const showStone = section === 'all' || section === 'stone';
 
@@ -136,43 +153,50 @@ export const SpecScoreCorePanel = ({
         </div>
         {true && (
           <div className="space-y-1.5">
-            {engravings.ArkPassiveEffects?.map((e) => {
+            {commonEngravings.map((e, index) => {
+              const currentName = engravingMods[e.Name]?.Name ?? e.Name;
               const currentLevel = engravingMods[e.Name]?.Level ?? e.Level;
-              const icon = findEngravingIcon(engravings, e.Name, e.Icon);
+              const icon = findEngravingIcon(engravings, currentName, e.Icon);
+              const otherSelectedNames = selectedCommonNames.filter((_, selectedIndex) => selectedIndex !== index);
               return (
                 <div
                   key={e.Name}
-                  className="flex items-center gap-3 py-2 text-xs border-b border-gray-100 dark:border-white/5 last:border-0"
+                  className="flex items-center gap-2 py-2 text-xs border-b border-gray-100 dark:border-white/5 last:border-0"
                 >
                   <div className="h-9 w-9 flex-shrink-0 overflow-hidden rounded-lg border border-gray-200 bg-gray-100 dark:border-white/10 dark:bg-white/5">
                     {icon ? (
                       <img src={icon} alt="" className="h-full w-full object-cover" />
                     ) : (
                       <div className="flex h-full w-full items-center justify-center text-[10px] font-bold text-gray-400">
-                        {e.Name.slice(0, 1)}
+                        {currentName.slice(0, 1)}
                       </div>
                     )}
                   </div>
-                  <span className="min-w-0 flex-1 truncate text-gray-700 dark:text-gray-300">
-                    {e.Name}
-                    <span className="ml-1 text-gray-400">{e.Grade}</span>
-                  </span>
-                  <label className="flex flex-shrink-0 items-center gap-1 text-gray-500">
+                  <SpecSelect
+                    value={currentName}
+                    onChange={(value) => onEngravingChange(e.Name, { Name: value })}
+                    items={commonEngravingOptions.map((name) => ({
+                      value: name,
+                      label: name,
+                      disabled: otherSelectedNames.includes(name),
+                    }))}
+                    ariaLabel={`${e.Name} 각인 선택`}
+                    className="min-w-0 flex-1"
+                  />
+                  <span className="hidden text-gray-400 sm:inline">{e.Grade}</span>
+                  <div className="flex flex-shrink-0 items-center gap-1 text-gray-500">
                     단계
-                    <select
+                    <SpecSelect
                       value={currentLevel}
-                      onChange={(ev) =>
-                        onEngravingChange(e.Name, { Level: Number(ev.target.value) })
+                      onChange={(value) =>
+                        onEngravingChange(e.Name, { Level: Number(value) })
                       }
-                      className="spec-touch-control rounded border border-gray-200 bg-gray-100 px-2 py-1 text-xs dark:border-white/10 dark:bg-white/5"
-                    >
-                      {Array.from({ length: 5 }, (_, i) => i).map((lv) => (
-                        <option key={lv} value={lv}>
-                          {lv}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
+                      items={LEVEL_OPTIONS}
+                      ariaLabel={`${currentName} 각인 단계`}
+                      className="w-16 flex-shrink-0"
+                      textAlign="center"
+                    />
+                  </div>
                 </div>
               );
             })}
@@ -211,30 +235,25 @@ export const SpecScoreCorePanel = ({
                   .filter((name): name is string => name !== null);
                 return (
                   <div key={`${eng.name}-${index}`} className="flex items-stretch gap-1">
-                    <select
+                    <SpecSelect
                       value={selectedName}
-                      onChange={(ev) => onStoneSlotChange(index, { name: ev.target.value })}
-                      className="spec-touch-control min-w-0 flex-1 rounded border border-gray-200 bg-gray-100 px-1.5 py-0.5 text-gray-700 dark:border-white/10 dark:bg-white/5 dark:text-gray-300"
-                      title="어빌리티 스톤 각인 선택"
-                    >
-                      {stoneEngravingOptions.map((name) => (
-                        <option key={name} value={name} disabled={otherSelectedNames.includes(name)}>
-                          {name}
-                        </option>
-                      ))}
-                    </select>
-                    <select
+                      onChange={(value) => onStoneSlotChange(index, { name: value })}
+                      items={stoneEngravingOptions.map((name) => ({
+                        value: name,
+                        label: name,
+                        disabled: otherSelectedNames.includes(name),
+                      }))}
+                      ariaLabel="어빌리티 스톤 각인 선택"
+                      className="min-w-0 flex-1"
+                    />
+                    <SpecSelect
                       value={selectedLevel ?? 0}
-                      onChange={(ev) => onStoneSlotChange(index, { level: Number(ev.target.value) })}
-                      className="spec-touch-control w-16 rounded border border-gray-200 bg-gray-100 px-1.5 py-0.5 dark:border-white/10 dark:bg-white/5"
-                      title="어빌리티 스톤 단계 선택"
-                    >
-                      {[0, 1, 2, 3, 4].map((lv) => (
-                        <option key={lv} value={lv}>
-                          Lv.{lv}
-                        </option>
-                      ))}
-                    </select>
+                      onChange={(value) => onStoneSlotChange(index, { level: Number(value) })}
+                      items={STONE_LEVEL_OPTIONS}
+                      ariaLabel="어빌리티 스톤 단계 선택"
+                      className="w-16 flex-shrink-0"
+                      textAlign="center"
+                    />
                   </div>
                 );
               })}

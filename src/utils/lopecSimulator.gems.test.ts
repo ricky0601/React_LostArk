@@ -2,16 +2,16 @@ import { calcLopecDelta } from './lopecSimulator';
 import { engravings, gem, gems } from './lopecSimulator.testUtils';
 
 const stone97BaseAttackStats = {
-  W: 218_667,
-  baseAttack: 197_023,
-  pureBaseAttack: 180_391,
+  W: 200_000,
+  baseAttack: 150_000,
+  pureBaseAttack: 140_000,
   stoneBaseAttackBonusPercent: 1.5,
 };
 
 describe('calcLopecDelta gem combat power changes', () => {
   it('uses formula-only multipliers for one T4 gem 9 to 10', () => {
     const result = calcLopecDelta(
-      4933.35,
+      100_000,
       engravings([]),
       engravings([]),
       gems([
@@ -24,16 +24,16 @@ describe('calcLopecDelta gem combat power changes', () => {
       ]),
     );
 
-    expect(result).toBeCloseTo(4972.130752293579, 6);
+    expect(result).toBeCloseTo(100786.093674553, 6);
   });
 
   it.each([
-    [1, 5011.38086316257],
-    [5, 5335.335081529149],
-    [10, 5768.201939718693],
+    [1, 101581.701342142],
+    [5, 108148.318719109],
+    [10, 116922.617282753],
   ])('uses formula-only multipliers for %i T4 gems 8 to 10', (count, expected) => {
     const result = calcLopecDelta(
-      4933.35,
+      100_000,
       engravings([]),
       engravings([]),
       gems([
@@ -50,8 +50,8 @@ describe('calcLopecDelta gem combat power changes', () => {
     expect(result).toBeCloseTo(expected, 6);
   });
 
-  it('includes 97-stone base attack in the pool when all Hangunttun gems become level 10', () => {
-    const currentScore = 4933.35;
+  it('includes 97-stone base attack in the pool when all anonymous gems become level 10', () => {
+    const currentScore = 100_000;
     const result = calcLopecDelta(
       currentScore,
       engravings([]),
@@ -68,8 +68,8 @@ describe('calcLopecDelta gem combat power changes', () => {
       stone97BaseAttackStats,
     );
 
-    expect(result).toBeCloseTo(5810.240684386926, 6);
-    expect(result - currentScore).toBeCloseTo(876.8906843869254, 6);
+    expect(result).toBeCloseTo(117774.75112017, 6);
+    expect(result - currentScore).toBeCloseTo(17774.7511201704, 6);
   });
 
   it('uses API-style glow gem names for the current one Lv9 and ten Lv8 baseline', () => {
@@ -92,7 +92,7 @@ describe('calcLopecDelta gem combat power changes', () => {
     ]);
 
     const result = calcLopecDelta(
-      4933.35,
+      100_000,
       engravings([]),
       engravings([]),
       currentGlowGems,
@@ -104,8 +104,8 @@ describe('calcLopecDelta gem combat power changes', () => {
       stone97BaseAttackStats,
     );
 
-    expect(result).toBeCloseTo(4972.187032194468, 6);
-    expect(result - 4933.35).toBeCloseTo(38.83703219446761, 6);
+    expect(result).toBeCloseTo(100787.234479501, 6);
+    expect(result - 100_000).toBeCloseTo(787.234479501116, 6);
   });
 
   it('includes 97-stone base attack when six level 9 gems become level 10', () => {
@@ -149,7 +149,7 @@ describe('calcLopecDelta gem combat power changes', () => {
 
   it('uses formula-only multipliers for ten T4 gems 8 to 9', () => {
     const result = calcLopecDelta(
-      4933.35,
+      100_000,
       engravings([]),
       engravings([]),
       gems([
@@ -159,7 +159,7 @@ describe('calcLopecDelta gem combat power changes', () => {
       gems(Array.from({ length: 11 }, (_, slot) => gem(slot, 9, '9레벨 작열'))),
     );
 
-    expect(result).toBeCloseTo(5336.300366483832, 6);
+    expect(result).toBeCloseTo(108167.885239925, 6);
   });
 
   it('ignores gem type and skill when gem level is unchanged', () => {

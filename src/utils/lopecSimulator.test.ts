@@ -79,12 +79,27 @@ describe('calcLopecDelta engraving factor changes', () => {
 
     expect(result).toBeCloseTo(currentScore * ((1 + modifiedTotalEffect / 100) / (1 + currentTotalEffect / 100)), 6);
   });
+
+  it('uses each engraving coefficient table when a common engraving name changes', () => {
+    const currentScore = 100_000;
+    const result = calcLopecDelta(
+      currentScore,
+      engravings([effect('원한', null, 4)]),
+      engravings([effect('타격의 대가', null, 4)]),
+      emptyGems,
+      emptyGems,
+    );
+    const currentTotalEffect = LOPEC_ENGRAVING_TOTAL_EFFECTS['원한'][4][0];
+    const modifiedTotalEffect = LOPEC_ENGRAVING_TOTAL_EFFECTS['타격의 대가'][4][0];
+
+    expect(result).toBeCloseTo(currentScore * ((1 + modifiedTotalEffect / 100) / (1 + currentTotalEffect / 100)), 6);
+  });
 });
 
 describe('calcLopecDelta 97-stone base attack changes', () => {
-  it('uses profile attack tooltip facts when removing Hangunttun 97-stone base attack bonus', () => {
+  it('uses synthetic profile attack tooltip facts when removing a 97-stone base attack bonus', () => {
     const result = calcLopecDelta(
-      4933.35,
+      100_000,
       engravings([effect('원한', 2, 0), effect('예리한 둔기', 3, 0)]),
       engravings([effect('원한', 1, 0), effect('예리한 둔기', 3, 0)]),
       emptyGems,
@@ -94,14 +109,14 @@ describe('calcLopecDelta 97-stone base attack changes', () => {
       undefined,
       undefined,
       {
-        W: 218667,
-        baseAttack: 197023,
-        pureBaseAttack: 180391,
+        W: 200_000,
+        baseAttack: 150_000,
+        pureBaseAttack: 140_000,
         stoneBaseAttackBonusPercent: 1.5,
       },
     );
 
-    expect(result).toBeCloseTo(4836.62, 2);
+    expect(result).toBeCloseTo(98013.17, 2);
   });
 
   it('keeps the 97-stone base attack bonus when total stone levels stay at 5 or higher', () => {

@@ -108,7 +108,6 @@ const ACCESSORY_TYPES = ['목걸이', '귀걸이', '반지'];
 
 function shortCoreName(fullName: string | null): string {
   if (!fullName) return '이름 없음';
-
   const m = fullName.match(/^(.+?)\s*코어/);
   return m ? m[1].trim() : fullName;
 }

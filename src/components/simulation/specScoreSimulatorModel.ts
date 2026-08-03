@@ -1,4 +1,4 @@
-import type { EquipSlot } from '../../data/specScore/lopecCoefficients';
+import { ARMLET_POWER_BY_LEVEL, resolveArmletLevel, type EquipSlot } from '../../data/specScore/lopecCoefficients';
 import {
   ACCESSORY_SLOTS,
   EMPTY_BRACELET_STAT,
@@ -8,7 +8,9 @@ import {
 } from '../../data/specScore/polishOptions';
 import type { ArkPassiveData, EngravingData, GemData } from '../../types/lostark';
 import { calcLopecDelta } from '../../utils/lopecSimulator';
+import { calcCombatPowerBreakdown } from '../../utils/lopecCombatPower';
 import { roundToTwoDecimals } from '../../utils/numberFormat';
+import type { EquipmentFamily } from '../../utils/equipmentState';
 import type { AccessoryState, BraceletState } from '../../utils/polishState';
 import { buildModifiedArkGrid } from './arkGridSimulatorState';
 import type {
@@ -29,7 +31,8 @@ export const EMPTY_MODS: Mods = {
   arkGrid: {},
 };
 
-export const SLOT_ORDER: EquipSlot[] = ['weapon', 'helmet', 'shoulder', 'armor', 'pants', 'gloves'];
+export const ITEM_LEVEL_SLOT_ORDER: EquipSlot[] = ['weapon', 'helmet', 'shoulder', 'armor', 'pants', 'gloves'];
+export const SLOT_ORDER: EquipSlot[] = [...ITEM_LEVEL_SLOT_ORDER, 'armlet'];
 export const EMPTY_POLISH_LABELS: PolishOptionLabels = ['없음', '없음', '없음'];
 export const EMPTY_BRACELET_LABELS: [string, string, string, string] = ['없음', '없음', '없음', '없음'];
 export const EMPTY_BRACELET_STATS: [BraceletStatOption, BraceletStatOption, BraceletStatOption, BraceletStatOption] = [
@@ -100,6 +103,15 @@ export const replaceBraceletStat = (
   statIndex === 3 ? { ...stats[3], ...patch } : stats[3],
 ];
 
+const resolveEquipmentFamily = (tier: string): EquipmentFamily =>
+  tier === '전율' ? 'serka' : 'egir';
+
+const resolveModifiedIsInherited = (
+  equipmentFamily: EquipmentFamily,
+  currentIsInherited: boolean,
+  tierChanged: boolean,
+): boolean => tierChanged ? equipmentFamily === 'serka' : currentIsInherited;
+
 export const buildModifiedSpecScoreData = (
   raw: SpecScoreRawData,
   mods: Mods,
@@ -117,9 +129,18 @@ export const buildModifiedSpecScoreData = (
     name: mods.stone[index]?.name ?? engraving.name,
     level: mods.stone[index]?.level ?? engraving.level,
   })) ?? [];
+  const renamedOriginalEngravingNames = new Set(
+    (raw.engravings.ArkPassiveEffects ?? [])
+      .filter((effect) => {
+        const selectedName = mods.engs[effect.Name]?.Name;
+        return selectedName !== undefined && selectedName !== effect.Name;
+      })
+      .map((effect) => effect.Name),
+  );
   const modifiedArkPassiveEffects = (raw.engravings.ArkPassiveEffects ?? []).map((effect) => {
     const mod = mods.engs[effect.Name];
-    const selectedStone = stoneSelections.find((stone) => stone.name === effect.Name);
+    const selectedName = mod?.Name ?? effect.Name;
+    const selectedStone = stoneSelections.find((stone) => stone.name === selectedName);
     const stoneLevel = selectedStone
       ? selectedStone.level
       : originalStoneNames.has(effect.Name)
@@ -127,11 +148,13 @@ export const buildModifiedSpecScoreData = (
         : effect.AbilityStoneLevel;
     return {
       ...effect,
+      Name: selectedName,
       Level: mod?.Level ?? effect.Level,
       AbilityStoneLevel: mod?.AbilityStoneLevel !== undefined ? mod.AbilityStoneLevel : stoneLevel,
     };
   });
   for (const stone of stoneSelections) {
+    if (renamedOriginalEngravingNames.has(stone.name)) continue;
     if (modifiedArkPassiveEffects.some((effect) => effect.Name === stone.name)) continue;
     modifiedArkPassiveEffects.push({
       AbilityStoneLevel: stone.level,
@@ -164,14 +187,36 @@ export const buildModifiedSpecScoreData = (
     const current = raw.equip[slot];
     if (!current) continue;
     const mod = mods.equip[slot];
-    equip[slot] = mod
-      ? {
-          ...current,
-          normalLevel: mod.normalLevel ?? current.normalLevel,
-          advancedLevel: current.isInherited ? current.advancedLevel : (mod.advancedLevel ?? current.advancedLevel),
-          tier: mod.tier ?? current.tier,
-        }
-      : current;
+    if (slot === 'armlet') {
+      const normalLevel = resolveArmletLevel(mod?.normalLevel ?? current.normalLevel);
+      equip[slot] = {
+        ...current,
+        normalLevel,
+        advancedLevel: 0,
+        tier: ARMLET_POWER_BY_LEVEL[normalLevel].grade,
+      };
+      continue;
+    }
+    if (!mod) {
+      equip[slot] = current;
+      continue;
+    }
+
+    const tier = mod.tier ?? current.tier;
+    const equipmentFamily = resolveEquipmentFamily(tier);
+    const isInherited = resolveModifiedIsInherited(
+      equipmentFamily,
+      current.isInherited,
+      mod.tier !== undefined && mod.tier !== current.tier,
+    );
+    equip[slot] = {
+      ...current,
+      normalLevel: mod.normalLevel ?? current.normalLevel,
+      advancedLevel: isInherited ? current.advancedLevel : (mod.advancedLevel ?? current.advancedLevel),
+      tier,
+      equipmentFamily,
+      isInherited,
+    };
   }
   const accessories: ModifiedSpecScoreData['accessories'] = {};
   for (const slot of ACCESSORY_SLOTS) {
@@ -209,7 +254,26 @@ export const calculateSpecScore = (
   raw: SpecScoreRawData,
   modified: ModifiedSpecScoreData,
 ): ScoreSimulation => {
-  const lopecSimulated = calcLopecDelta(
+  const breakdown = calcCombatPowerBreakdown({
+    currentCombatPower: currentScore,
+    charStats: raw.charStats,
+    currentEng: raw.engravings,
+    modifiedEng: modified.engravings,
+    currentGems: raw.gems,
+    modifiedGems: modified.gems,
+    currentEquip: raw.equip,
+    modifiedEquip: modified.equip,
+    currentAccessories: raw.accessories,
+    modifiedAccessories: modified.accessories,
+    currentArkGrid: raw.arkGrid,
+    modifiedArkGrid: modified.arkGrid,
+    currentBracelet: raw.bracelet,
+    modifiedBracelet: modified.bracelet,
+  });
+
+  // 기본 공격력 계열 입력이 없으면 절대 재구성이 불가능하다.
+  // 이 경우 장비 기여분만 빠진 채로 직접 인자 비율만 반영한다.
+  const lopecSimulated = breakdown?.simulatedCombatPower ?? calcLopecDelta(
     currentScore,
     raw.engravings,
     modified.engravings,
@@ -225,6 +289,30 @@ export const calculateSpecScore = (
     raw.bracelet,
     modified.bracelet,
   );
+
+  // 계산 중간값은 화면에 노출하지 않는다. 검증은 dev 콘솔로만 한다.
+  if (process.env.NODE_ENV === 'development') {
+    console.log('[SpecScore][combat-power]', breakdown === null
+      ? { mode: 'ratio-fallback', reason: 'base attack inputs unavailable', simulated: lopecSimulated }
+      : {
+          mode: 'absolute-reconstruction',
+          combatPowerConstant: breakdown.current.combatPowerConstant,
+          factorProduct: breakdown.factorProduct,
+          directFactorRatio: breakdown.directFactorRatio,
+          effectiveWeaponAttack: breakdown.current.effectiveWeaponAttack,
+          mainStat: breakdown.current.mainStat,
+          weaponAttackPercentSum: breakdown.current.weaponAttackPercentSum,
+          baseAttackPercentSum: breakdown.current.baseAttackPercentSum,
+          simulated: {
+            combatPowerConstant: breakdown.simulated.combatPowerConstant,
+            effectiveWeaponAttack: breakdown.simulated.effectiveWeaponAttack,
+            mainStat: breakdown.simulated.mainStat,
+            baseAttackPercentSum: breakdown.simulated.baseAttackPercentSum,
+          },
+          combatPower: { current: currentScore, simulated: lopecSimulated },
+        });
+  }
+
   return {
     current: roundToTwoDecimals(currentScore),
     simulated: roundToTwoDecimals(lopecSimulated),
