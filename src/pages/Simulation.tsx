@@ -816,7 +816,7 @@ const Simulation: React.FC = () => {
                                         onRaidSelectionChange={(keys) => {
                                             setCustomRaidSelection((prev) => {
                                                 const next = { ...prev };
-                                                const currentKeys = prev[result.characterName] ?? [];
+                                                const currentKeys = prev[result.characterName]?.length ? prev[result.characterName] : selectedRaidKeys;
                                                 const normalizedKeys = normalizeRaidSelection(currentKeys, keys);
                                                 if (normalizedKeys.length === 0) {
                                                     delete next[result.characterName];

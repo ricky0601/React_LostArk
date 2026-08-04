@@ -69,4 +69,19 @@ describe('CharacterRaidCard raid simulation flow', () => {
 
     expect(normalizeRaidSelection(currentKeys, nextKeys)).toEqual(['벨가르딘 (그림자)::하드']);
   });
+
+  it('uses the current default raid selection when adding a first custom difficulty', () => {
+    const currentKeys = [
+      '벨가르딘 (그림자)::나이트메어',
+      '세르카 (그림자)::나이트메어',
+      '지평의 성당 (어비스)::1750',
+    ];
+    const nextKeys = [...currentKeys, '벨가르딘 (그림자)::하드'];
+
+    expect(normalizeRaidSelection(currentKeys, nextKeys)).toEqual([
+      '세르카 (그림자)::나이트메어',
+      '지평의 성당 (어비스)::1750',
+      '벨가르딘 (그림자)::하드',
+    ]);
+  });
 });
