@@ -135,12 +135,12 @@ const ChangelogBell: React.FC = () => {
                     to={ROUTES.changelog}
                     className="flex flex-col gap-0.5 rounded-lg px-2 py-2 transition-colors hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-la-gold/40 dark:hover:bg-white/5"
                   >
-                    <span className="flex min-w-0 items-center gap-1.5">
-                      <span className="break-keep text-sm font-medium text-gray-800 dark:text-gray-200">
+                    <span className="flex min-w-0 items-start gap-1.5">
+                      <span className="min-w-0 flex-1 break-keep text-sm font-medium leading-5 text-gray-800 dark:text-gray-200">
                         {entry.title}
                       </span>
                       {highlightIds.includes(entry.id) && (
-                        <span className="rounded-full border border-la-gold/25 bg-la-gold/10 px-1.5 py-0.5 text-[9px] font-bold leading-none text-la-gold-deep dark:text-la-gold">
+                        <span className="mt-0.5 inline-flex h-4 flex-none items-center rounded-full border border-la-gold/25 bg-la-gold/10 px-1.5 text-[9px] font-bold leading-none text-la-gold-deep dark:text-la-gold">
                           새 소식
                         </span>
                       )}
