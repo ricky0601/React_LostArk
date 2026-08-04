@@ -40,8 +40,6 @@ const SelectedRaidRow: React.FC<SelectedRaidRowProps> = ({
     <article>
       <div
         className={`flex min-h-24 min-w-0 overflow-hidden rounded-xl border bg-white shadow-sm transition-colors dark:bg-la-dark-card sm:min-h-28 ${
-          completed ? 'opacity-60' : ''
-        } ${
           raid.isBound
             ? 'border-sky-200/80 dark:border-sky-700/40'
             : 'border-yellow-200/80 dark:border-yellow-700/40'
@@ -56,7 +54,7 @@ const SelectedRaidRow: React.FC<SelectedRaidRowProps> = ({
             alt={`${raid.raidName} 레이드`}
             width={352}
             height={224}
-            className={`h-full w-full object-cover transition-[filter,opacity] duration-200 ${completed ? 'grayscale' : ''}`}
+            className={`h-full w-full object-cover transition-[filter,opacity] duration-200 ${completed ? 'grayscale opacity-60' : ''}`}
           />
           <div
             aria-hidden="true"
@@ -76,7 +74,7 @@ const SelectedRaidRow: React.FC<SelectedRaidRowProps> = ({
               }}
               className={`absolute bottom-2 left-2 flex min-h-10 items-center gap-1.5 rounded-lg border px-2.5 text-[11px] font-bold shadow-sm backdrop-blur-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-la-gold/70 ${
                 completed
-                  ? 'border-green-300/70 bg-green-500/90 text-white'
+                  ? 'border-green-200 bg-green-700 text-white'
                   : 'border-white/40 bg-black/55 text-white hover:border-la-gold/80 hover:bg-black/70'
               }`}
             >
@@ -100,7 +98,7 @@ const SelectedRaidRow: React.FC<SelectedRaidRowProps> = ({
           aria-expanded={expanded}
           onClick={toggleExpanded}
           disabled={dimmed}
-          className="flex min-w-0 flex-1 flex-col justify-between gap-2 px-3 py-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-la-gold/50 disabled:cursor-default sm:flex-row sm:items-center sm:gap-4 sm:px-4"
+          className={`flex min-w-0 flex-1 flex-col justify-between gap-2 px-3 py-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-la-gold/50 disabled:cursor-default sm:flex-row sm:items-center sm:gap-4 sm:px-4 ${completed ? 'opacity-60' : ''}`}
         >
           <span className="flex min-w-0 flex-col gap-1.5">
             <span className="flex min-w-0 items-center gap-2">
