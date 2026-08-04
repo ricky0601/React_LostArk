@@ -92,7 +92,8 @@ const NOT_FOUND_SEO: RouteSeoEntry = {
 };
 
 function findSeoEntry(pathname: string): RouteSeoEntry {
-  return ROUTE_SEO.find((entry) => entry.path === pathname) ?? NOT_FOUND_SEO;
+  const normalizedPathname = pathname === '/' ? pathname : pathname.replace(/\/+$/, '');
+  return ROUTE_SEO.find((entry) => entry.path === normalizedPathname) ?? NOT_FOUND_SEO;
 }
 
 function setNamedMeta(name: string, content: string): void {

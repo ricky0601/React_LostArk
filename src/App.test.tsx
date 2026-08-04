@@ -27,6 +27,7 @@ jest.mock('./pages/Compare', () => () => <div>Compare Page</div>);
 jest.mock('./pages/Enhancement', () => () => <div>Enhancement Page</div>);
 jest.mock('./pages/Market', () => () => <div>Market Page</div>);
 jest.mock('./pages/Spending', () => () => <div>Spending Page</div>);
+jest.mock('./pages/Changelog', () => () => <div>Changelog Page</div>);
 jest.mock('./pages/NotFound', () => () => <div>Not Found Page</div>);
 
 import App from './App';
@@ -71,10 +72,28 @@ test('marks unknown routes as noindex without reusing the home canonical', () =>
   );
 });
 
+test('normalizes the changelog trailing slash for metadata and canonical URL', () => {
+  mockPathname = '/changelog/';
+
+  render(<App />);
+
+  expect(document.title).toBe('업데이트 내역 - 로아끼욧');
+  expect(document.querySelector('meta[name="description"]')).toHaveAttribute(
+    'content',
+    '로아끼욧에 추가되거나 개선된 기능을 날짜순으로 확인하세요.',
+  );
+  expect(document.querySelector('meta[name="robots"]')).toHaveAttribute('content', 'index, follow');
+  expect(document.querySelector('link[rel="canonical"]')).toHaveAttribute(
+    'href',
+    'https://lokki.vercel.app/changelog',
+  );
+});
+
 test('keeps the sitemap scoped to the SPA root document', () => {
   const sitemap = readFileSync(join(process.cwd(), 'public', 'sitemap.xml'), 'utf8');
 
   expect(sitemap).toContain('<loc>https://lokki.vercel.app/</loc>');
   expect(sitemap).not.toContain('<loc>https://lokki.vercel.app/market</loc>');
   expect(sitemap).not.toContain('<loc>https://lokki.vercel.app/character</loc>');
+  expect(sitemap).not.toContain('<loc>https://lokki.vercel.app/changelog</loc>');
 });
