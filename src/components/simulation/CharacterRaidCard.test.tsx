@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { calculateCharacterGold, RAID_COLUMNS } from '../../data/raidGold';
 import CharacterRaidCard from './CharacterRaidCard';
+import { normalizeRaidSelection } from '../../utils/simulationKeys';
 
 describe('CharacterRaidCard raid simulation flow', () => {
   it('renders Belgardin from raid data in default selection and the raid picker', async () => {
@@ -60,5 +61,12 @@ describe('CharacterRaidCard raid simulation flow', () => {
     expect(onRaidSelectionChange).toHaveBeenCalledWith(
       selectedRaidKeys.filter((key) => key !== '벨가르딘 (그림자)::나이트메어'),
     );
+  });
+
+  it('keeps only one Belgardin difficulty selected when adding a second one', () => {
+    const currentKeys = ['벨가르딘 (그림자)::나이트메어'];
+    const nextKeys = ['벨가르딘 (그림자)::나이트메어', '벨가르딘 (그림자)::하드'];
+
+    expect(normalizeRaidSelection(currentKeys, nextKeys)).toEqual(['벨가르딘 (그림자)::하드']);
   });
 });

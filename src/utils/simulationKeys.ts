@@ -7,6 +7,7 @@ export const KEY_SEP = '';
 
 // 이전 버전 separator. 현재 주차의 사용자 진행 상황을 보존하기 위해 로드 시 한 번 마이그레이션.
 const LEGACY_KEY_SEP = '::';
+const RAID_SELECTION_KEY_SEP = '::';
 
 export const bonusKey = (charName: string, raidName: string, difficulty: string, gate: number): string =>
   `${charName}${KEY_SEP}${raidName}${KEY_SEP}${difficulty}${KEY_SEP}${gate}`;
@@ -25,4 +26,15 @@ export const migrateLegacyKeys = (keys: unknown): string[] => {
 export const filterPersistedStringArray = (value: unknown): string[] => {
   if (!Array.isArray(value)) return [];
   return value.filter((entry): entry is string => typeof entry === 'string' && entry.length > 0);
+};
+
+export const normalizeRaidSelection = (currentKeys: readonly string[], nextKeys: readonly string[]): string[] => {
+  if (nextKeys.length <= currentKeys.length) return [...nextKeys];
+
+  const currentSet = new Set(currentKeys);
+  const addedKey = nextKeys.find((key) => !currentSet.has(key));
+  if (!addedKey) return [...nextKeys];
+
+  const [addedRaidName] = addedKey.split(RAID_SELECTION_KEY_SEP);
+  return nextKeys.filter((key) => key === addedKey || key.split(RAID_SELECTION_KEY_SEP)[0] !== addedRaidName);
 };
