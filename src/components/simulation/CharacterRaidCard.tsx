@@ -56,8 +56,8 @@ const CharacterRaidCard: React.FC<CharacterRaidCardProps> = ({
       className={`glass-card overflow-x-hidden p-4 animate-slide-up md:p-5 ${dimmed ? 'opacity-50' : ''}`}
       style={{ animationDelay: `${index * 0.05}s`, animationFillMode: 'both' }}
     >
-      <div className="flex min-w-0 flex-col gap-4 md:flex-row md:items-start">
-        <aside className="min-w-0 rounded-xl border border-gray-200/80 bg-gray-50/70 p-3 shadow-sm shadow-gray-900/5 dark:border-white/10 dark:bg-black/20 dark:shadow-black/20 md:w-60 md:flex-none">
+      <div className="flex min-w-0 flex-col gap-4 lg:flex-row lg:items-start">
+        <aside className="min-w-0 rounded-xl border border-gray-200/80 bg-gray-50/70 p-3 shadow-sm shadow-gray-900/5 dark:border-white/10 dark:bg-black/20 dark:shadow-black/20 lg:w-60 lg:flex-none">
           <div className="flex min-w-0 items-center gap-3">
             <div className="relative h-16 w-16 flex-none overflow-hidden rounded-xl border border-white/50 bg-gray-100 shadow-sm dark:border-white/10 dark:bg-white/5">
               <img
@@ -167,7 +167,7 @@ const CharacterRaidCard: React.FC<CharacterRaidCardProps> = ({
           )}
         </div>
 
-        <div className="min-w-0 flex-none rounded-xl border border-gray-200/80 bg-gray-50/70 px-3 py-3 text-right dark:border-white/10 dark:bg-black/20 md:w-40">
+        <div className="min-w-0 flex-none rounded-xl border border-gray-200/80 bg-gray-50/70 px-3 py-3 text-right dark:border-white/10 dark:bg-black/20 lg:w-40">
           <p className="text-[10px] font-bold uppercase tracking-wide text-gray-400 dark:text-gray-500">주간 골드</p>
           {characterBoundGold > 0 ? (
             <p className="mt-1 text-base font-black leading-tight md:text-lg">
