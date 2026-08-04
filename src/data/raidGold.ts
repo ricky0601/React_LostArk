@@ -2,7 +2,7 @@
  * 로스트아크 레이드 골드 데이터 (2026-06 Summer 골드 하향 조정 반영)
  *
  * - 기본 규칙: T4 레이드는 거래가능 50% + 귀속 50%
- * - 예외 1 (전액 거래가능): 카제로스 종막 하드 / 세르카 그림자 하드·나이트메어 / 아르모체 4막 하드
+ * - 예외 1 (전액 거래가능): 벨가르딘 그림자 전 난이도 / 카제로스 종막 하드 / 세르카 그림자 하드·나이트메어 / 아르모체 4막 하드
  * - 예외 2 (전액 귀속): 지평의 성당(어비스), 에키드나 서막 노말(1620 저레벨)
  * - 주당 캐릭터당 최대 3개 레이드 골드 획득 가능
  * - 계정당 최대 6캐릭터 골드 획득 가능
@@ -76,7 +76,43 @@ export interface RaidColumn {
 }
 
 export const RAIDS: Raid[] = [
-    // === T4 카제로스 레이드 (종막 → 서막 순서) ===
+    // === T4 그림자/카제로스 레이드 (최신 → 이전 순서) ===
+    {
+        name: '벨가르딘 (그림자)',
+        tier: 4,
+        difficulties: [
+            {
+                difficulty: '나이트메어',
+                requiredLevel: 1780,
+                gates: [
+                    { gate: 1, gold: 30000, bonusCost: 9600, coreReward: 4 },
+                    { gate: 2, gold: 45000, bonusCost: 14400, coreReward: 4 },
+                ],
+                totalGold: 75000,
+                isBound: false,
+            },
+            {
+                difficulty: '하드',
+                requiredLevel: 1770,
+                gates: [
+                    { gate: 1, gold: 25000, bonusCost: 8000, coreReward: 3 },
+                    { gate: 2, gold: 37000, bonusCost: 11840, coreReward: 3 },
+                ],
+                totalGold: 62000,
+                isBound: false,
+            },
+            {
+                difficulty: '노말',
+                requiredLevel: 1750,
+                gates: [
+                    { gate: 1, gold: 20000, bonusCost: 6400, coreReward: 3 },
+                    { gate: 2, gold: 30000, bonusCost: 9600, coreReward: 3 },
+                ],
+                totalGold: 50000,
+                isBound: false,
+            },
+        ],
+    },
     {
         name: '지평의 성당 (어비스)',
         tier: 4,
