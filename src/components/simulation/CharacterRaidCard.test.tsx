@@ -8,6 +8,7 @@ describe('CharacterRaidCard raid simulation flow', () => {
   it('renders Belgardin from raid data in default selection and the raid picker', async () => {
     const result = calculateCharacterGold('1780', '버서커', '1780.00', 'img');
     const selectedRaidKeys = result.selectedRaids.map((raid) => `${raid.raidName}::${raid.difficulty}`);
+    const onRaidSelectionChange = jest.fn();
 
     render(
       <MemoryRouter>
@@ -24,7 +25,7 @@ describe('CharacterRaidCard raid simulation flow', () => {
           completedRaids={new Set()}
           onToggleComplete={jest.fn()}
           selectedRaidKeys={selectedRaidKeys}
-          onRaidSelectionChange={jest.fn()}
+          onRaidSelectionChange={onRaidSelectionChange}
           onResetRaidSelection={jest.fn()}
           hasCustomRaids={false}
           allRaids={RAID_COLUMNS}
@@ -33,6 +34,8 @@ describe('CharacterRaidCard raid simulation flow', () => {
     );
 
     expect(screen.getByText('벨가르딘 (그림자)')).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: '벨가르딘 (그림자) 레이드' }))
+      .toHaveAttribute('src', '/images/raids/belgardin2.webp');
     expect(screen.getAllByText('나이트메어').length).toBeGreaterThan(1);
     expect(screen.getByText('75,000G')).toBeInTheDocument();
     expect(screen.getByText('코어 16')).toBeInTheDocument();
@@ -48,7 +51,14 @@ describe('CharacterRaidCard raid simulation flow', () => {
     await userEvent.click(screen.getByRole('button', { name: '레이드 변경' }));
 
     expect(screen.getAllByText('벨가르딘 (그림자)').length).toBeGreaterThan(1);
+    expect(screen.getAllByRole('img', { name: '벨가르딘 (그림자) 레이드' })).toHaveLength(4);
     expect(screen.getByText('62,000G')).toBeInTheDocument();
     expect(screen.getAllByText('50,000G').length).toBeGreaterThan(1);
+
+    await userEvent.click(screen.getByRole('checkbox', { name: /벨가르딘 \(그림자\) 나이트메어/ }));
+
+    expect(onRaidSelectionChange).toHaveBeenCalledWith(
+      selectedRaidKeys.filter((key) => key !== '벨가르딘 (그림자)::나이트메어'),
+    );
   });
 });
