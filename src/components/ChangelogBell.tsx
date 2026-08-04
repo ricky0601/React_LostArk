@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useLocation } from 'react-router-dom';
 import { CHANGELOG, formatChangelogDate } from '../data/changelog';
@@ -34,42 +34,71 @@ const ChangelogBell: React.FC = () => {
     setUnseenIds(readUnseenEntries().map((entry) => entry.id));
   }, [pathname]);
 
-  useEffect(() => {
-    if (!isOpen) return;
+  useLayoutEffect(() => {
+    if (!isOpen) {
+      setHighlightIds([]);
+      setPosition(null);
+      return;
+    }
 
+    const panel = panelRef.current;
+    if (!(panel instanceof HTMLElement)) return;
+
+    const focusableSelector = 'a[href], button:not([disabled])';
     const updatePosition = () => {
       const rect = buttonRef.current?.getBoundingClientRect();
       if (!rect) return;
+
+      const viewportPadding = 8;
+      const maxRight = Math.max(viewportPadding, window.innerWidth - panel.offsetWidth - viewportPadding);
       setPosition({
-        top: rect.bottom + 8,
-        right: Math.max(window.innerWidth - rect.right, 8),
+        top: rect.bottom + viewportPadding,
+        right: Math.min(Math.max(window.innerWidth - rect.right, viewportPadding), maxRight),
       });
     };
 
     const handlePointerDown = (event: PointerEvent) => {
       const target = event.target;
       if (!(target instanceof Node)) return;
-      if (buttonRef.current?.contains(target) || panelRef.current?.contains(target)) return;
+      if (buttonRef.current?.contains(target) || panel.contains(target)) return;
       setIsOpen(false);
     };
 
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape') return;
-      setIsOpen(false);
-      buttonRef.current?.focus();
+      if (event.key === 'Escape') {
+        setIsOpen(false);
+        return;
+      }
+      if (event.key !== 'Tab') return;
+
+      const focusables = Array.from(panel.querySelectorAll<HTMLElement>(focusableSelector));
+      const first = focusables.at(0);
+      const last = focusables.at(-1);
+      if (!(first instanceof HTMLElement) || !(last instanceof HTMLElement)) return;
+
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
     };
 
     updatePosition();
+    panel.querySelector<HTMLElement>(focusableSelector)?.focus();
     window.addEventListener('resize', updatePosition);
     window.addEventListener('scroll', updatePosition, true);
     document.addEventListener('pointerdown', handlePointerDown);
     document.addEventListener('keydown', handleKeyDown);
 
+    const toggleButton = buttonRef.current;
     return () => {
       window.removeEventListener('resize', updatePosition);
       window.removeEventListener('scroll', updatePosition, true);
       document.removeEventListener('pointerdown', handlePointerDown);
       document.removeEventListener('keydown', handleKeyDown);
+      toggleButton?.focus();
     };
   }, [isOpen]);
 
@@ -80,16 +109,20 @@ const ChangelogBell: React.FC = () => {
     const willOpen = !isOpen;
 
     // setState updater는 순수해야 하며 StrictMode에서 두 번 호출된다. 저장은 updater 밖에서 한 번만.
-    if (willOpen && unseenCount > 0) {
-      setHighlightIds(unseenIds);
-      markChangelogSeen();
-      setUnseenIds([]);
+    const visibleUnseenIds = previewEntries
+      .map((entry) => entry.id)
+      .filter((id) => unseenIds.includes(id));
+
+    if (willOpen && visibleUnseenIds.length > 0) {
+      setHighlightIds(visibleUnseenIds);
+      markChangelogSeen(visibleUnseenIds);
+      setUnseenIds(unseenIds.filter((id) => !visibleUnseenIds.includes(id)));
     }
 
     setIsOpen(willOpen);
   };
 
-  const panel = isOpen && position && typeof document !== 'undefined'
+  const panel = isOpen && typeof document !== 'undefined'
     ? createPortal(
         <div
           id="navbar-changelog-panel"
@@ -97,7 +130,7 @@ const ChangelogBell: React.FC = () => {
           role="dialog"
           aria-label="최근 업데이트"
           className="fixed z-50 w-72 max-w-[calc(100vw-1rem)] rounded-xl border border-gray-200/70 bg-white p-2 shadow-lg shadow-black/5 dark:border-white/10 dark:bg-la-dark dark:shadow-black/30"
-          style={{ top: position.top, right: position.right }}
+          style={{ top: position?.top ?? 0, right: position?.right ?? 8 }}
         >
           <p className="px-2 pb-1 pt-1 text-xs font-bold uppercase tracking-wide text-gray-400 dark:text-gray-500">
             최근 업데이트
@@ -122,8 +155,8 @@ const ChangelogBell: React.FC = () => {
                         </span>
                       )}
                     </span>
-                    <time dateTime={entry.id} className="text-xs text-gray-400 dark:text-gray-500">
-                      {formatChangelogDate(entry.id)}
+                    <time dateTime={entry.date} className="text-xs text-gray-400 dark:text-gray-500">
+                      {formatChangelogDate(entry.date)}
                     </time>
                   </Link>
                 </li>
@@ -148,6 +181,7 @@ const ChangelogBell: React.FC = () => {
         type="button"
         className="relative inline-flex h-10 w-10 items-center justify-center rounded-lg text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-white/10 dark:hover:text-white"
         aria-label={unseenCount > 0 ? `업데이트 알림, 새 소식 ${unseenCount}건` : '업데이트 알림, 새 소식 없음'}
+        aria-haspopup="dialog"
         aria-controls={isOpen ? 'navbar-changelog-panel' : undefined}
         aria-expanded={isOpen}
         onClick={handleToggle}

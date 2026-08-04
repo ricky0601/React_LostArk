@@ -38,10 +38,10 @@ const Changelog: React.FC = () => {
                 <GlassCard className="p-5 animate-fade-in">
                   <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
                     <time
-                      dateTime={entry.id}
+                      dateTime={entry.date}
                       className="text-xs font-bold text-la-gold-dark dark:text-la-gold"
                     >
-                      {formatChangelogDate(entry.id)}
+                      {formatChangelogDate(entry.date)}
                     </time>
                     <h2 className="text-base font-bold text-gray-900 dark:text-white">{entry.title}</h2>
                   </div>
