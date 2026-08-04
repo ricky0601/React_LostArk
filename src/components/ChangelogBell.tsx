@@ -24,7 +24,9 @@ const ChangelogBell: React.FC = () => {
   useEffect(() => {
     setIsOpen(false);
 
-    if (pathname === CHANGELOG_PATH) {
+    const normalizedPathname = pathname === '/' ? pathname : pathname.replace(/\/+$/, '');
+
+    if (normalizedPathname === CHANGELOG_PATH) {
       markChangelogSeen();
       setUnseenIds([]);
       setHighlightIds([]);
@@ -44,16 +46,17 @@ const ChangelogBell: React.FC = () => {
     const panel = panelRef.current;
     if (!(panel instanceof HTMLElement)) return;
 
-    const focusableSelector = 'a[href], button:not([disabled])';
     const updatePosition = () => {
       const rect = buttonRef.current?.getBoundingClientRect();
       if (!rect) return;
 
       const viewportPadding = 8;
-      const maxRight = Math.max(viewportPadding, window.innerWidth - panel.offsetWidth - viewportPadding);
+      const viewportWidth = document.documentElement.clientWidth || window.innerWidth;
+      const panelWidth = panel.getBoundingClientRect().width;
+      const maxRight = Math.max(viewportPadding, viewportWidth - Math.ceil(panelWidth) - viewportPadding);
       setPosition({
         top: rect.bottom + viewportPadding,
-        right: Math.min(Math.max(window.innerWidth - rect.right, viewportPadding), maxRight),
+        right: Math.min(Math.max(viewportWidth - rect.right, viewportPadding), maxRight),
       });
     };
 
@@ -65,28 +68,10 @@ const ChangelogBell: React.FC = () => {
     };
 
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setIsOpen(false);
-        return;
-      }
-      if (event.key !== 'Tab') return;
-
-      const focusables = Array.from(panel.querySelectorAll<HTMLElement>(focusableSelector));
-      const first = focusables.at(0);
-      const last = focusables.at(-1);
-      if (!(first instanceof HTMLElement) || !(last instanceof HTMLElement)) return;
-
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
+      if (event.key === 'Escape') setIsOpen(false);
     };
 
     updatePosition();
-    panel.querySelector<HTMLElement>(focusableSelector)?.focus();
     window.addEventListener('resize', updatePosition);
     window.addEventListener('scroll', updatePosition, true);
     document.addEventListener('pointerdown', handlePointerDown);
@@ -127,26 +112,26 @@ const ChangelogBell: React.FC = () => {
         <div
           id="navbar-changelog-panel"
           ref={panelRef}
-          role="dialog"
+          role="region"
           aria-label="최근 업데이트"
           className="fixed z-50 w-72 max-w-[calc(100vw-1rem)] rounded-xl border border-gray-200/70 bg-white p-2 shadow-lg shadow-black/5 dark:border-white/10 dark:bg-la-dark dark:shadow-black/30"
           style={{ top: position?.top ?? 0, right: position?.right ?? 8 }}
         >
-          <p className="px-2 pb-1 pt-1 text-xs font-bold uppercase tracking-wide text-gray-400 dark:text-gray-500">
+          <p className="px-2 pb-1 pt-1 text-xs font-bold uppercase tracking-wide text-gray-600 dark:text-gray-300">
             최근 업데이트
           </p>
           {previewEntries.length === 0 ? (
-            <p className="px-2 py-3 text-sm text-gray-500 dark:text-gray-400">등록된 내역이 없습니다.</p>
+            <p className="px-2 py-3 text-sm text-gray-600 dark:text-gray-300">등록된 내역이 없습니다.</p>
           ) : (
             <ul className="flex flex-col">
               {previewEntries.map((entry) => (
                 <li key={entry.id}>
                   <Link
                     to={CHANGELOG_PATH}
-                    className="flex flex-col gap-0.5 rounded-lg px-2 py-2 transition-colors hover:bg-gray-100 dark:hover:bg-white/5"
+                    className="flex flex-col gap-0.5 rounded-lg px-2 py-2 transition-colors hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-la-gold/40 dark:hover:bg-white/5"
                   >
-                    <span className="flex items-center gap-1.5">
-                      <span className="text-sm font-medium text-gray-800 dark:text-gray-200">
+                    <span className="flex min-w-0 items-center gap-1.5">
+                      <span className="break-keep text-sm font-medium text-gray-800 dark:text-gray-200">
                         {entry.title}
                       </span>
                       {highlightIds.includes(entry.id) && (
@@ -155,7 +140,7 @@ const ChangelogBell: React.FC = () => {
                         </span>
                       )}
                     </span>
-                    <time dateTime={entry.date} className="text-xs text-gray-400 dark:text-gray-500">
+                    <time dateTime={entry.date} className="text-xs text-gray-600 dark:text-gray-300">
                       {formatChangelogDate(entry.date)}
                     </time>
                   </Link>
@@ -165,7 +150,7 @@ const ChangelogBell: React.FC = () => {
           )}
           <Link
             to={CHANGELOG_PATH}
-            className="mt-1 block rounded-lg px-2 py-2 text-center text-xs font-bold text-la-gold-dark transition-colors hover:bg-la-gold/10 dark:text-la-gold"
+            className="mt-1 block rounded-lg px-2 py-2 text-center text-xs font-bold text-la-gold-dark transition-colors hover:bg-la-gold/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-la-gold/40 dark:text-la-gold"
           >
             전체 업데이트 내역 보기
           </Link>
@@ -179,9 +164,8 @@ const ChangelogBell: React.FC = () => {
       <button
         ref={buttonRef}
         type="button"
-        className="relative inline-flex h-10 w-10 items-center justify-center rounded-lg text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-white/10 dark:hover:text-white"
+        className="relative inline-flex h-10 w-10 items-center justify-center rounded-lg text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-la-gold/40 dark:text-gray-300 dark:hover:bg-white/10 dark:hover:text-white"
         aria-label={unseenCount > 0 ? `업데이트 알림, 새 소식 ${unseenCount}건` : '업데이트 알림, 새 소식 없음'}
-        aria-haspopup="dialog"
         aria-controls={isOpen ? 'navbar-changelog-panel' : undefined}
         aria-expanded={isOpen}
         onClick={handleToggle}

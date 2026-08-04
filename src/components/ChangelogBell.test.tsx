@@ -1,5 +1,7 @@
-import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+
+let mockPathname = '/';
 
 jest.mock(
   'react-router-dom',
@@ -11,7 +13,7 @@ jest.mock(
           {children}
         </a>
       ),
-      useLocation: () => ({ pathname: '/' }),
+      useLocation: () => ({ pathname: mockPathname }),
     };
   },
   { virtual: true },
@@ -28,24 +30,25 @@ afterEach(() => {
   jest.restoreAllMocks();
 });
 
-test('moves focus into the portal and cycles Tab within the open panel', async () => {
+beforeEach(() => {
+  mockPathname = '/';
+});
+
+test('exposes a non-modal region without trapping Tab in the open panel', async () => {
   jest.spyOn(changelogState, 'readUnseenEntries').mockReturnValue([]);
-  renderBell();
+  render(
+    <>
+      <ChangelogBell />
+      <button type="button">다음 탐색 대상</button>
+    </>,
+  );
 
-  await userEvent.click(screen.getByRole('button', { name: '업데이트 알림, 새 소식 없음' }));
-  const panel = await screen.findByRole('dialog', { name: '최근 업데이트' });
-  const links = within(panel).getAllByRole('link');
-  const firstLink = links.at(0);
-  const lastLink = links.at(-1);
-  if (!(firstLink instanceof HTMLElement) || !(lastLink instanceof HTMLElement)) {
-    throw new TypeError('Expected focusable changelog links');
-  }
+  const toggleButton = screen.getByRole('button', { name: '업데이트 알림, 새 소식 없음' });
+  await userEvent.click(toggleButton);
+  await screen.findByRole('region', { name: '최근 업데이트' });
 
-  await waitFor(() => expect(document.activeElement).toBe(firstLink));
-  await userEvent.tab({ shift: true });
-  expect(document.activeElement).toBe(lastLink);
   await userEvent.tab();
-  expect(document.activeElement).toBe(firstLink);
+  expect(document.activeElement).toBe(screen.getByRole('button', { name: '다음 탐색 대상' }));
 });
 
 test('restores button focus and clears NEW labels after closing', async () => {
@@ -79,6 +82,7 @@ test('marks only visible unseen preview revisions when opening', async () => {
 test('clamps the portal panel within a narrow viewport', async () => {
   jest.spyOn(changelogState, 'readUnseenEntries').mockReturnValue([]);
   const initialInnerWidth = window.innerWidth;
+  const initialClientWidth = document.documentElement.clientWidth;
   const buttonRect: DOMRect = {
     bottom: 40,
     height: 40,
@@ -93,14 +97,41 @@ test('clamps the portal panel within a narrow viewport', async () => {
 
   try {
     Object.defineProperty(window, 'innerWidth', { configurable: true, value: 320 });
-    jest.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(288);
-    jest.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue(buttonRect);
+    Object.defineProperty(document.documentElement, 'clientWidth', { configurable: true, value: 320 });
+    const panelRect: DOMRect = {
+      bottom: 0,
+      height: 100,
+      left: 0,
+      right: 288,
+      top: 0,
+      width: 288,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    };
+    jest.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement): DOMRect {
+      return this.id === 'navbar-changelog-panel' ? panelRect : buttonRect;
+    });
     renderBell();
     await userEvent.click(screen.getByRole('button', { name: '업데이트 알림, 새 소식 없음' }));
-    const panel = await screen.findByRole('dialog', { name: '최근 업데이트' });
+    const panel = await screen.findByRole('region', { name: '최근 업데이트' });
 
-    expect(Number.parseFloat(panel.style.right)).toBeLessThanOrEqual(24);
+    expect(Number.parseFloat(panel.style.right)).toBe(24);
   } finally {
     Object.defineProperty(window, 'innerWidth', { configurable: true, value: initialInnerWidth });
+    Object.defineProperty(document.documentElement, 'clientWidth', { configurable: true, value: initialClientWidth });
   }
+});
+
+test('treats the changelog trailing slash as the changelog route', () => {
+  mockPathname = '/changelog/';
+  const latestEntry = CHANGELOG[0];
+  if (!latestEntry) throw new TypeError('Expected at least one changelog entry');
+  jest.spyOn(changelogState, 'readUnseenEntries').mockReturnValue([latestEntry]);
+  const markSeen = jest.spyOn(changelogState, 'markChangelogSeen');
+
+  renderBell();
+
+  expect(markSeen).toHaveBeenCalledWith();
+  expect(screen.getByRole('button', { name: '업데이트 알림, 새 소식 없음' })).toBeInTheDocument();
 });
