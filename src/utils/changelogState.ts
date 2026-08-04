@@ -7,9 +7,20 @@ import { safeLocalStorage } from './safeStorage';
 
 // 기존 키 컨벤션(ThemeContext의 'isDarkMode')에 맞춰 접두사 없는 camelCase를 사용.
 const SEEN_IDS_KEY = 'changelogLastSeenId';
+const LEGACY_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
+const isValidLegacyDate = (value: string): boolean => {
+  if (!LEGACY_DATE_PATTERN.test(value)) return false;
+
+  const parsedDate = new Date(`${value}T00:00:00Z`);
+  return !Number.isNaN(parsedDate.getTime()) && parsedDate.toISOString().startsWith(value);
+};
 
 const parseSeenIds = (storedValue: string | null): readonly string[] => {
   if (storedValue === null) return [];
+  if (isValidLegacyDate(storedValue)) {
+    return CHANGELOG.filter((entry) => entry.date <= storedValue).map((entry) => entry.id);
+  }
   if (!storedValue.startsWith('[')) return [storedValue];
 
   try {
@@ -23,7 +34,16 @@ const parseSeenIds = (storedValue: string | null): readonly string[] => {
   }
 };
 
-const readSeenIds = (): readonly string[] => parseSeenIds(safeLocalStorage.getItem(SEEN_IDS_KEY));
+const readSeenIds = (): readonly string[] => {
+  const storedValue = safeLocalStorage.getItem(SEEN_IDS_KEY);
+  const seenIds = parseSeenIds(storedValue);
+
+  if (storedValue !== null && isValidLegacyDate(storedValue)) {
+    safeLocalStorage.setItem(SEEN_IDS_KEY, JSON.stringify(seenIds));
+  }
+
+  return seenIds;
+};
 
 /** 지정한 항목을 확인한 것으로 표시. 생략하면 전체 내역의 모든 revision id를 저장한다. */
 export const markChangelogSeen = (seenIds: readonly string[] = CHANGELOG.map((entry) => entry.id)): void => {
