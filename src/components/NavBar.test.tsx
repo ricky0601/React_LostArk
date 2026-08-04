@@ -27,6 +27,17 @@ const renderNavBar = () =>
     </ThemeProvider>,
   );
 
+beforeEach(() => {
+  // NavBar가 ChangelogBell을 통해 읽음 상태를 읽으므로 테스트 간 저장소를 격리한다.
+  window.localStorage.clear();
+});
+
+test('renders the changelog bell in the header', () => {
+  renderNavBar();
+
+  expect(screen.getByRole('button', { name: /업데이트 알림/ })).toBeInTheDocument();
+});
+
 test('theme toggle button switches label and root class on click', async () => {
   renderNavBar();
 
