@@ -3,8 +3,8 @@
  *
  *  작성 규칙:
  *  - 개발 용어가 아니라 사용자가 체감하는 변화를 쓴다. ("리팩터링" X, "계산이 더 정확해졌습니다" O)
- *  - id는 'YYYY-MM-DD'. 사전순 비교가 곧 시간순 비교라서 확인 여부 판정에 파싱이 필요 없다.
- *    (semver를 쓰면 '1.10.0' < '1.9.0'이 true가 되어 문자열 비교가 깨진다.)
+ *  - id는 날짜와 분리된 불변 revision id로 작성하며 중복하지 않는다.
+ *  - date는 화면에 표시할 'YYYY-MM-DD' 형식이다.
  *  - CHANGELOG는 항상 최신 항목이 먼저 오도록 내림차순 유지. */
 
 export type ChangelogTag = 'added' | 'improved' | 'fixed';
@@ -15,8 +15,10 @@ export type ChangelogItem = {
 };
 
 export type ChangelogEntry = {
-  /** 확인 상태 비교 및 정렬 기준. 'YYYY-MM-DD' 형식. */
+  /** 확인 상태와 React key에 사용하는 불변 revision id. */
   readonly id: string;
+  /** 화면에 표시할 날짜. 'YYYY-MM-DD' 형식. */
+  readonly date: string;
   /** 목록에 표시할 한 줄 요약. */
   readonly title: string;
   readonly items: readonly ChangelogItem[];
@@ -30,7 +32,8 @@ export const CHANGELOG_TAG_LABEL: Readonly<Record<ChangelogTag, string>> = {
 
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
-    id: '2026-08-03',
+    id: 'release-004',
+    date: '2026-08-03',
     title: '전투력 시뮬레이터 편집과 계산 보정',
     items: [
       { tag: 'added', text: '업데이트 내역 페이지와 새 소식 알림을 추가했습니다.' },
@@ -40,16 +43,17 @@ export const CHANGELOG: readonly ChangelogEntry[] = [
     ],
   },
   {
-    id: '2026-07-31',
+    id: 'release-003',
+    date: '2026-07-31',
     title: '전투력 시뮬레이터 장비 계산 확장',
     items: [
       { tag: 'added', text: '완갑 장비를 시뮬레이션에 포함해 전투력 변화를 확인할 수 있게 했습니다.' },
-      { tag: 'improved', text: '전투력 기준 계산 경로를 보강해 LoPEC 기준 수치와 비교하기 쉬워졌습니다.' },
       { tag: 'fixed', text: '보석과 연마 효과가 전투력 계산에 반영되는 방식을 보정했습니다.' },
     ],
   },
   {
-    id: '2026-07-28',
+    id: 'release-002',
+    date: '2026-07-28',
     title: '전투력 시뮬레이터 계산 보완',
     items: [
       { tag: 'improved', text: '전투력 시뮬레이터의 아크 그리드 계산 정확도를 높였습니다.' },
@@ -57,7 +61,8 @@ export const CHANGELOG: readonly ChangelogEntry[] = [
     ],
   },
   {
-    id: '2026-07-20',
+    id: 'release-001',
+    date: '2026-07-20',
     title: '전투력 시뮬레이터 공개 (Beta)',
     items: [
       { tag: 'added', text: '장비·보석·각인·아크 그리드를 바꿔가며 전투력 변화를 확인할 수 있습니다.' },
