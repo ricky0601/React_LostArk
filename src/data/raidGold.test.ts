@@ -7,6 +7,26 @@ import {
 } from './raidGold';
 
 describe('raidGold data integrity', () => {
+  it('모든 레이드는 식별용 이미지 경로를 RAID_COLUMNS와 SelectedRaid에 전달', () => {
+    expect(RAIDS.map(({ name, imagePath }) => ({ name, imagePath }))).toEqual([
+      { name: '벨가르딘 (그림자)', imagePath: '/images/raids/belgardin2.webp' },
+      { name: '지평의 성당 (어비스)', imagePath: '/images/raids/horizon-cathedral.webp' },
+      { name: '세르카 (그림자)', imagePath: '/images/raids/serka-shadow.webp' },
+      { name: '카제로스 (종막)', imagePath: '/images/raids/kazeros-finale.webp' },
+      { name: '아르모체 (4막)', imagePath: '/images/raids/armoce-act4.webp' },
+      { name: '모르둠 (3막)', imagePath: '/images/raids/mordum-act3.jpeg' },
+      { name: '아브렐슈드 (2막)', imagePath: '/images/raids/brelshaza-act2.webp' },
+      { name: '에기르 (1막)', imagePath: '/images/raids/aegir-act1.webp' },
+      { name: '에키드나 (서막)', imagePath: '/images/raids/echidna-prelude.webp' },
+      { name: '베히모스', imagePath: '/images/raids/behemoth.webp' },
+    ]);
+
+    expect(RAID_COLUMNS.find((raid) => raid.raidName === '벨가르딘 (그림자)')?.imagePath)
+      .toBe('/images/raids/belgardin2.webp');
+    expect(getRaidDataByKey('벨가르딘 (그림자)', '나이트메어')?.imagePath)
+      .toBe('/images/raids/belgardin2.webp');
+  });
+
   it('베히모스 노말 더보기 비용은 보상 골드보다 작아야 함 (회귀 방지)', () => {
     const behemoth = RAIDS.find((r) => r.name === '베히모스');
     expect(behemoth).toBeDefined();
@@ -23,6 +43,50 @@ describe('raidGold data integrity', () => {
       { gate: 1, gold: 2200, bonusCost: 1480, coreReward: 0 },
       { gate: 2, gold: 5000, bonusCost: 3370, coreReward: 0 },
     ]);
+  });
+
+  it('벨가르딘 그림자 레이드 데이터는 확정된 골드/더보기/코어/유통 골드 값을 사용', () => {
+    const belgardin = RAIDS.find((r) => r.name === '벨가르딘 (그림자)');
+    expect(belgardin).toBeDefined();
+
+    expect(belgardin?.difficulties).toEqual([
+      {
+        difficulty: '나이트메어',
+        requiredLevel: 1780,
+        gates: [
+          { gate: 1, gold: 30000, bonusCost: 9600, coreReward: 4 },
+          { gate: 2, gold: 45000, bonusCost: 14400, coreReward: 4 },
+        ],
+        totalGold: 75000,
+        isBound: false,
+      },
+      {
+        difficulty: '하드',
+        requiredLevel: 1770,
+        gates: [
+          { gate: 1, gold: 25000, bonusCost: 8000, coreReward: 3 },
+          { gate: 2, gold: 37000, bonusCost: 11840, coreReward: 3 },
+        ],
+        totalGold: 62000,
+        isBound: false,
+      },
+      {
+        difficulty: '노말',
+        requiredLevel: 1750,
+        gates: [
+          { gate: 1, gold: 20000, bonusCost: 6400, coreReward: 3 },
+          { gate: 2, gold: 30000, bonusCost: 9600, coreReward: 3 },
+        ],
+        totalGold: 50000,
+        isBound: false,
+      },
+    ]);
+  });
+
+  it('벨가르딘 그림자 레이드는 전액 유통 골드로 계산', () => {
+    const nightmare = getRaidDataByKey('벨가르딘 (그림자)', '나이트메어');
+    expect(nightmare?.isBound).toBe(false);
+    expect(nightmare?.boundGold).toBe(0);
   });
 
   it('모든 레이드의 더보기 비용은 게이트 골드보다 작거나 같음 (데이터 무결성)', () => {
@@ -65,6 +129,16 @@ describe('calculateCharacterGold', () => {
     for (let i = 1; i < result.selectedRaids.length; i++) {
       expect(result.selectedRaids[i - 1].totalGold).toBeGreaterThanOrEqual(result.selectedRaids[i].totalGold);
     }
+  });
+
+  it('1780 캐릭은 벨가르딘 나이트메어를 포함한 골드 상위 3개 레이드를 자동 선택', () => {
+    const result = calculateCharacterGold('1780', '버서커', '1780.00', 'img');
+    expect(result.selectedRaids.map((raid) => `${raid.raidName}::${raid.difficulty}`)).toEqual([
+      '벨가르딘 (그림자)::나이트메어',
+      '세르카 (그림자)::나이트메어',
+      '지평의 성당 (어비스)::1750',
+    ]);
+    expect(result.totalGold).toBe(179000);
   });
 
   it('아이템 레벨 1600 이하는 참여 가능한 레이드 없음', () => {

@@ -8,7 +8,7 @@ import NicknameSearchBar from '../components/NicknameSearchBar';
 import CharacterRaidCard from '../components/simulation/CharacterRaidCard';
 import GoldLoadingSkeleton from '../components/simulation/GoldLoadingSkeleton';
 import { fetchSiblings, fetchProfile, LS_NICKNAME } from '../utils/api';
-import { KEY_SEP, bonusKey, completedKey, filterPersistedStringArray, migrateLegacyKeys } from '../utils/simulationKeys';
+import { KEY_SEP, bonusKey, completedKey, filterPersistedStringArray, migrateLegacyKeys, normalizeRaidSelection } from '../utils/simulationKeys';
 import { safeLocalStorage } from '../utils/safeStorage';
 import {
     calculateCharacterGold,
@@ -816,10 +816,12 @@ const Simulation: React.FC = () => {
                                         onRaidSelectionChange={(keys) => {
                                             setCustomRaidSelection((prev) => {
                                                 const next = { ...prev };
-                                                if (keys.length === 0) {
+                                                const currentKeys = prev[result.characterName]?.length ? prev[result.characterName] : selectedRaidKeys;
+                                                const normalizedKeys = normalizeRaidSelection(currentKeys, keys);
+                                                if (normalizedKeys.length === 0) {
                                                     delete next[result.characterName];
                                                 } else {
-                                                    next[result.characterName] = keys;
+                                                    next[result.characterName] = normalizedKeys;
                                                 }
                                                 return next;
                                             });
