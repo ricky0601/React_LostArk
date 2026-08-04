@@ -7,6 +7,26 @@ import {
 } from './raidGold';
 
 describe('raidGold data integrity', () => {
+  it('모든 레이드는 식별용 이미지 경로를 RAID_COLUMNS와 SelectedRaid에 전달', () => {
+    expect(RAIDS.map(({ name, imagePath }) => ({ name, imagePath }))).toEqual([
+      { name: '벨가르딘 (그림자)', imagePath: '/images/raids/belgardin2.webp' },
+      { name: '지평의 성당 (어비스)', imagePath: '/images/raids/horizon-cathedral.webp' },
+      { name: '세르카 (그림자)', imagePath: '/images/raids/serka-shadow.webp' },
+      { name: '카제로스 (종막)', imagePath: '/images/raids/kazeros-finale.webp' },
+      { name: '아르모체 (4막)', imagePath: '/images/raids/armoce-act4.webp' },
+      { name: '모르둠 (3막)', imagePath: '/images/raids/mordum-act3.jpeg' },
+      { name: '아브렐슈드 (2막)', imagePath: '/images/raids/brelshaza-act2.webp' },
+      { name: '에기르 (1막)', imagePath: '/images/raids/aegir-act1.webp' },
+      { name: '에키드나 (서막)', imagePath: '/images/raids/echidna-prelude.webp' },
+      { name: '베히모스', imagePath: '/images/raids/behemoth.webp' },
+    ]);
+
+    expect(RAID_COLUMNS.find((raid) => raid.raidName === '벨가르딘 (그림자)')?.imagePath)
+      .toBe('/images/raids/belgardin2.webp');
+    expect(getRaidDataByKey('벨가르딘 (그림자)', '나이트메어')?.imagePath)
+      .toBe('/images/raids/belgardin2.webp');
+  });
+
   it('베히모스 노말 더보기 비용은 보상 골드보다 작아야 함 (회귀 방지)', () => {
     const behemoth = RAIDS.find((r) => r.name === '베히모스');
     expect(behemoth).toBeDefined();

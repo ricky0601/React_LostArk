@@ -28,6 +28,7 @@ export interface RaidDifficulty {
 
 export interface Raid {
     name: string;
+    readonly imagePath: string;
     tier: 4 | 3;
     difficulties: RaidDifficulty[];
 }
@@ -41,6 +42,7 @@ export interface SelectedRaidGate {
 
 export interface SelectedRaid {
     raidName: string;
+    readonly imagePath: string;
     difficulty: string;
     totalGold: number;
     isBound: boolean;
@@ -70,6 +72,7 @@ export const MAX_GOLD_CHARACTERS = 6;
 /** 테이블 헤더용: 레이드별 난이도 1개씩, 골드 높은 순 */
 export interface RaidColumn {
     raidName: string;
+    readonly imagePath: string;
     difficulty: string;
     requiredLevel: number;
     totalGold: number;
@@ -79,6 +82,7 @@ export const RAIDS: Raid[] = [
     // === T4 그림자/카제로스 레이드 (최신 → 이전 순서) ===
     {
         name: '벨가르딘 (그림자)',
+        imagePath: '/images/raids/belgardin2.webp',
         tier: 4,
         difficulties: [
             {
@@ -115,6 +119,7 @@ export const RAIDS: Raid[] = [
     },
     {
         name: '지평의 성당 (어비스)',
+        imagePath: '/images/raids/horizon-cathedral.webp',
         tier: 4,
         difficulties: [
             {
@@ -154,6 +159,7 @@ export const RAIDS: Raid[] = [
     },
     {
         name: '세르카 (그림자)',
+        imagePath: '/images/raids/serka-shadow.webp',
         tier: 4,
         difficulties: [
             {
@@ -202,6 +208,7 @@ export const RAIDS: Raid[] = [
     },
     {
         name: '카제로스 (종막)',
+        imagePath: '/images/raids/kazeros-finale.webp',
         tier: 4,
         difficulties: [
             {
@@ -240,6 +247,7 @@ export const RAIDS: Raid[] = [
     },
     {
         name: '아르모체 (4막)',
+        imagePath: '/images/raids/armoce-act4.webp',
         tier: 4,
         difficulties: [
             {
@@ -278,6 +286,7 @@ export const RAIDS: Raid[] = [
     },
     {
         name: '모르둠 (3막)',
+        imagePath: '/images/raids/mordum-act3.jpeg',
         tier: 4,
         difficulties: [
             {
@@ -320,6 +329,7 @@ export const RAIDS: Raid[] = [
     },
     {
         name: '아브렐슈드 (2막)',
+        imagePath: '/images/raids/brelshaza-act2.webp',
         tier: 4,
         difficulties: [
             {
@@ -359,6 +369,7 @@ export const RAIDS: Raid[] = [
     },
     {
         name: '에기르 (1막)',
+        imagePath: '/images/raids/aegir-act1.webp',
         tier: 4,
         difficulties: [
             {
@@ -398,6 +409,7 @@ export const RAIDS: Raid[] = [
     },
     {
         name: '에키드나 (서막)',
+        imagePath: '/images/raids/echidna-prelude.webp',
         tier: 4,
         difficulties: [
             {
@@ -436,6 +448,7 @@ export const RAIDS: Raid[] = [
     },
     {
         name: '베히모스',
+        imagePath: '/images/raids/behemoth.webp',
         tier: 4,
         difficulties: [
             {
@@ -460,6 +473,7 @@ export const RAID_COLUMNS: RaidColumn[] = (() => {
         for (const diff of raid.difficulties) {
             cols.push({
                 raidName: raid.name,
+                imagePath: raid.imagePath,
                 difficulty: diff.difficulty,
                 requiredLevel: diff.requiredLevel,
                 totalGold: diff.totalGold,
@@ -480,6 +494,7 @@ export function getRaidDataByKey(raidName: string, difficulty: string): Selected
             const boundGold = diff.boundGold ?? (diff.isBound ? diff.totalGold : 0);
             return {
                 raidName: raid.name,
+                imagePath: raid.imagePath,
                 difficulty: diff.difficulty,
                 totalGold: diff.totalGold,
                 isBound: diff.isBound,
@@ -510,6 +525,7 @@ function getAvailableRaids(itemLevel: number): SelectedRaid[] {
                 const boundGold = diff.boundGold ?? (diff.isBound ? diff.totalGold : 0);
                 available.push({
                     raidName: raid.name,
+                    imagePath: raid.imagePath,
                     difficulty: diff.difficulty,
                     totalGold: diff.totalGold,
                     isBound: diff.isBound,
