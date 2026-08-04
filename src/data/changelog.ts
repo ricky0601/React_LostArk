@@ -32,6 +32,17 @@ export const CHANGELOG_TAG_LABEL: Readonly<Record<ChangelogTag, string>> = {
 
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
+    id: 'release-005',
+    date: '2026-08-04',
+    title: '벨가르딘 레이드 골드와 카드 화면 추가',
+    items: [
+      { tag: 'added', text: '주간 골드 계산기에 벨가르딘 그림자 레이드 골드와 코어 보상을 추가했습니다.' },
+      { tag: 'improved', text: '레이드 카드에 대표 이미지를 더해 선택한 레이드를 더 쉽게 구분할 수 있게 했습니다.' },
+      { tag: 'improved', text: '레이드 변경 화면에서 참여 가능한 레이드와 선택 상태를 더 보기 좋게 정리했습니다.' },
+      { tag: 'fixed', text: '같은 레이드의 여러 난이도가 동시에 골드 계산에 들어가지 않도록 조정했습니다.' },
+    ],
+  },
+  {
     id: 'release-004',
     date: '2026-08-03',
     title: '전투력 시뮬레이터 편집과 계산 보정',
