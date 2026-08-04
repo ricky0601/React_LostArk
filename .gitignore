@@ -35,7 +35,6 @@ AGENTS.md
 .omo/
 .sisyphus/
 .playwright-mcp/
-.omo/
 
 # Local Lost Ark research fixtures
 docs/lostark-api-*.json
