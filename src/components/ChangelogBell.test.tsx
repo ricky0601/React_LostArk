@@ -1,137 +1,153 @@
-import { cleanup, render, screen } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
-let mockPathname = '/';
-
-jest.mock(
-  'react-router-dom',
-  () => {
-    const React = require('react');
-    return {
-      Link: ({ to, children, ...rest }: { to: string; children: React.ReactNode }) => (
-        <a href={to} {...rest}>
-          {children}
-        </a>
-      ),
-      useLocation: () => ({ pathname: mockPathname }),
-    };
-  },
-  { virtual: true },
-);
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
 
 import { CHANGELOG } from '../data/changelog';
-import * as changelogState from '../utils/changelogState';
 import ChangelogBell from './ChangelogBell';
 
-const renderBell = () => render(<ChangelogBell />);
+const SEEN_IDS_KEY = 'changelogSeenIds';
+const PREVIEW_COUNT = 3;
 
-afterEach(() => {
-  cleanup();
-  jest.restoreAllMocks();
-});
+const readStoredIds = (): unknown => JSON.parse(window.localStorage.getItem(SEEN_IDS_KEY) ?? 'null');
 
-beforeEach(() => {
-  mockPathname = '/';
-});
-
-test('exposes a non-modal region without trapping Tab in the open panel', async () => {
-  jest.spyOn(changelogState, 'readUnseenEntries').mockReturnValue([]);
+/** 실제 react-router-dom을 사용한다. useLocation을 stub하면 "라우트 진입 시 읽음 처리"가
+ *  라우팅이 아니라 stub을 검증하게 되어 회귀를 잡지 못한다. */
+const renderBell = (initialPath = '/', extra?: React.ReactNode) =>
   render(
-    <>
+    <MemoryRouter initialEntries={[initialPath]}>
       <ChangelogBell />
-      <button type="button">다음 탐색 대상</button>
-    </>,
+      {extra}
+      <Routes>
+        <Route path="/" element={<p>홈 화면</p>} />
+        <Route path="/changelog" element={<p>업데이트 내역 화면</p>} />
+      </Routes>
+    </MemoryRouter>,
   );
 
-  const toggleButton = screen.getByRole('button', { name: '업데이트 알림, 새 소식 없음' });
-  await userEvent.click(toggleButton);
+const allSeenLabel = '업데이트 알림, 새 소식 없음';
+const unseenLabel = (count: number) => `업데이트 알림, 새 소식 ${count}건`;
+
+beforeEach(() => {
+  window.localStorage.clear();
+});
+
+test('counts every unread entry in the accessible name and shows the unread dot', () => {
+  const { container } = renderBell();
+
+  expect(screen.getByRole('button', { name: unseenLabel(CHANGELOG.length) })).toBeInTheDocument();
+  expect(container.querySelector('span[aria-hidden]')).toBeInTheDocument();
+});
+
+test('Tab moves from the toggle button straight into the open panel', async () => {
+  renderBell('/', <button type="button">다음 탐색 대상</button>);
+
+  const toggleButton = screen.getByRole('button', { name: unseenLabel(CHANGELOG.length) });
+  userEvent.click(toggleButton);
+
+  const panel = await screen.findByRole('region', { name: '최근 업데이트' });
+  const firstPanelLink = panel.querySelector('a');
+
+  userEvent.tab();
+
+  expect(document.activeElement).toBe(firstPanelLink);
+});
+
+test('opening marks the whole changelog seen so no unread remainder is stranded', async () => {
+  const { container } = renderBell();
+
+  userEvent.click(screen.getByRole('button', { name: unseenLabel(CHANGELOG.length) }));
+
+  expect(readStoredIds()).toEqual(CHANGELOG.map((entry) => entry.id));
+  expect(screen.getByRole('button', { name: allSeenLabel })).toBeInTheDocument();
+  expect(container.querySelector('span[aria-hidden]')).not.toBeInTheDocument();
+});
+
+test('keeps NEW markers visible in the panel after the badge clears, then drops them on reopen', async () => {
+  renderBell();
+
+  const button = screen.getByRole('button', { name: unseenLabel(CHANGELOG.length) });
+  userEvent.click(button);
+
+  expect(await screen.findAllByText('새 소식')).toHaveLength(PREVIEW_COUNT);
+
+  userEvent.click(screen.getByRole('button', { name: allSeenLabel }));
+  userEvent.click(screen.getByRole('button', { name: allSeenLabel }));
+
+  expect(screen.queryByText('새 소식')).not.toBeInTheDocument();
+});
+
+test('read state survives a remount', async () => {
+  const { unmount } = renderBell();
+  userEvent.click(screen.getByRole('button', { name: unseenLabel(CHANGELOG.length) }));
+  unmount();
+
+  renderBell();
+
+  expect(screen.getByRole('button', { name: allSeenLabel })).toBeInTheDocument();
+});
+
+test('Escape closes the panel and returns focus to the toggle button', async () => {
+  renderBell();
+
+  const button = screen.getByRole('button', { name: unseenLabel(CHANGELOG.length) });
+  userEvent.click(button);
   await screen.findByRole('region', { name: '최근 업데이트' });
 
-  await userEvent.tab();
-  expect(document.activeElement).toBe(screen.getByRole('button', { name: '다음 탐색 대상' }));
+  userEvent.keyboard('{Escape}');
+
+  expect(screen.queryByRole('region', { name: '최근 업데이트' })).not.toBeInTheDocument();
+  expect(document.activeElement).toBe(screen.getByRole('button', { name: allSeenLabel }));
 });
 
-test('restores button focus and clears NEW labels after closing', async () => {
-  const latestEntry = CHANGELOG[0];
-  if (!latestEntry) throw new TypeError('Expected at least one changelog entry');
-  jest.spyOn(changelogState, 'readUnseenEntries').mockReturnValue([latestEntry]);
+test('an outside click closes the panel without stealing focus from the clicked element', async () => {
+  renderBell('/', <button type="button">바깥 버튼</button>);
+
+  userEvent.click(screen.getByRole('button', { name: unseenLabel(CHANGELOG.length) }));
+  await screen.findByRole('region', { name: '최근 업데이트' });
+
+  const outsideButton = screen.getByRole('button', { name: '바깥 버튼' });
+  userEvent.click(outsideButton);
+
+  expect(screen.queryByRole('region', { name: '최근 업데이트' })).not.toBeInTheDocument();
+  expect(document.activeElement).toBe(outsideButton);
+});
+
+test('a click inside the panel does not close it', async () => {
   renderBell();
 
-  const button = screen.getByRole('button', { name: '업데이트 알림, 새 소식 1건' });
-  await userEvent.click(button);
-  expect(await screen.findByText('NEW')).toBeInTheDocument();
+  userEvent.click(screen.getByRole('button', { name: unseenLabel(CHANGELOG.length) }));
+  const panel = await screen.findByRole('region', { name: '최근 업데이트' });
 
-  await userEvent.keyboard('{Escape}');
-  expect(document.activeElement).toBe(button);
-  await userEvent.click(button);
+  userEvent.click(screen.getByText('최근 업데이트'));
 
-  expect(screen.queryByText('NEW')).not.toBeInTheDocument();
+  expect(panel).toBeInTheDocument();
 });
 
-test('marks only visible unseen preview revisions when opening', async () => {
-  jest.spyOn(changelogState, 'readUnseenEntries').mockReturnValue(CHANGELOG);
-  const markSeen = jest.spyOn(changelogState, 'markChangelogSeen');
+test('following a preview link navigates to the changelog and closes the panel', () => {
   renderBell();
 
-  await userEvent.click(screen.getByRole('button', { name: `업데이트 알림, 새 소식 ${CHANGELOG.length}건` }));
+  userEvent.click(screen.getByRole('button', { name: unseenLabel(CHANGELOG.length) }));
+  const [newest] = CHANGELOG;
+  if (!newest) throw new TypeError('Expected a changelog entry');
 
-  expect(markSeen).toHaveBeenCalledWith(CHANGELOG.slice(0, 3).map((entry) => entry.id));
+  userEvent.click(screen.getByRole('link', { name: new RegExp(newest.title) }));
+
+  expect(screen.getByText('업데이트 내역 화면')).toBeInTheDocument();
+  expect(screen.queryByRole('region', { name: '최근 업데이트' })).not.toBeInTheDocument();
+  expect(readStoredIds()).toEqual(CHANGELOG.map((entry) => entry.id));
 });
 
+test('entering the changelog route marks everything seen', () => {
+  renderBell('/changelog');
 
-test('clamps the portal panel within a narrow viewport', async () => {
-  jest.spyOn(changelogState, 'readUnseenEntries').mockReturnValue([]);
-  const initialInnerWidth = window.innerWidth;
-  const initialClientWidth = document.documentElement.clientWidth;
-  const buttonRect: DOMRect = {
-    bottom: 40,
-    height: 40,
-    left: 200,
-    right: 240,
-    top: 0,
-    width: 40,
-    x: 200,
-    y: 0,
-    toJSON: () => ({}),
-  };
-
-  try {
-    Object.defineProperty(window, 'innerWidth', { configurable: true, value: 320 });
-    Object.defineProperty(document.documentElement, 'clientWidth', { configurable: true, value: 320 });
-    const panelRect: DOMRect = {
-      bottom: 0,
-      height: 100,
-      left: 0,
-      right: 288,
-      top: 0,
-      width: 288,
-      x: 0,
-      y: 0,
-      toJSON: () => ({}),
-    };
-    jest.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement): DOMRect {
-      return this.id === 'navbar-changelog-panel' ? panelRect : buttonRect;
-    });
-    renderBell();
-    await userEvent.click(screen.getByRole('button', { name: '업데이트 알림, 새 소식 없음' }));
-    const panel = await screen.findByRole('region', { name: '최근 업데이트' });
-
-    expect(Number.parseFloat(panel.style.right)).toBe(24);
-  } finally {
-    Object.defineProperty(window, 'innerWidth', { configurable: true, value: initialInnerWidth });
-    Object.defineProperty(document.documentElement, 'clientWidth', { configurable: true, value: initialClientWidth });
-  }
+  expect(readStoredIds()).toEqual(CHANGELOG.map((entry) => entry.id));
+  expect(screen.getByRole('button', { name: allSeenLabel })).toBeInTheDocument();
 });
 
 test('treats the changelog trailing slash as the changelog route', () => {
-  mockPathname = '/changelog/';
-  const latestEntry = CHANGELOG[0];
-  if (!latestEntry) throw new TypeError('Expected at least one changelog entry');
-  jest.spyOn(changelogState, 'readUnseenEntries').mockReturnValue([latestEntry]);
-  const markSeen = jest.spyOn(changelogState, 'markChangelogSeen');
+  renderBell('/changelog/');
 
-  renderBell();
-
-  expect(markSeen).toHaveBeenCalledWith();
-  expect(screen.getByRole('button', { name: '업데이트 알림, 새 소식 없음' })).toBeInTheDocument();
+  expect(readStoredIds()).toEqual(CHANGELOG.map((entry) => entry.id));
+  expect(screen.getByRole('button', { name: allSeenLabel })).toBeInTheDocument();
 });
