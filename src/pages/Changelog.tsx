@@ -11,7 +11,7 @@ import {
 
 const TAG_CLASS: Readonly<Record<ChangelogTag, string>> = {
   added: 'border-emerald-500/25 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400',
-  improved: 'border-la-gold/25 bg-la-gold/10 text-la-gold-dark dark:text-la-gold',
+  improved: 'border-la-gold/25 bg-la-gold/10 text-la-gold-deep dark:text-la-gold',
   fixed: 'border-sky-500/25 bg-sky-500/10 text-sky-700 dark:text-sky-400',
 };
 
@@ -39,7 +39,7 @@ const Changelog: React.FC = () => {
                   <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
                     <time
                       dateTime={entry.date}
-                      className="text-xs font-bold text-la-gold-dark dark:text-la-gold"
+                      className="text-xs font-bold text-la-gold-deep dark:text-la-gold"
                     >
                       {formatChangelogDate(entry.date)}
                     </time>
@@ -68,7 +68,7 @@ const Changelog: React.FC = () => {
         <div className="mt-8 text-center">
           <Link
             to="/"
-            className="text-sm font-medium text-gray-500 transition-colors hover:text-la-gold-dark dark:text-gray-400 dark:hover:text-la-gold"
+            className="text-sm font-medium text-gray-500 transition-colors hover:text-la-gold-deep dark:text-gray-400 dark:hover:text-la-gold"
           >
             홈으로 돌아가기
           </Link>

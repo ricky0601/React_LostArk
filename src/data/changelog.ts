@@ -71,8 +71,5 @@ export const CHANGELOG: readonly ChangelogEntry[] = [
   },
 ];
 
-/** 최신 항목의 id. 사용자가 전체 내역을 확인했을 때 저장할 기준값. */
-export const LATEST_CHANGELOG_ID: string = CHANGELOG[0]?.id ?? '';
-
-/** 표시용 날짜 문자열. id('2026-07-28')를 '2026.07.28'로 변환. */
-export const formatChangelogDate = (id: string): string => id.split('-').join('.');
+/** 표시용 날짜 문자열. entry.date('2026-07-28')를 '2026.07.28'로 변환. */
+export const formatChangelogDate = (date: string): string => date.split('-').join('.');

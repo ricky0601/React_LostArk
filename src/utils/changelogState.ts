@@ -1,56 +1,45 @@
 /** 업데이트 내역 확인 상태 관리.
  *  사용자가 확인한 revision id 목록을 저장하고, 저장되지 않은 항목을 미확인으로 본다.
- *  드롭다운은 표시된 항목만 읽음 처리하고, 전체 페이지는 모든 항목을 읽음 처리한다. */
+ *  드롭다운을 열거나 전체 페이지에 진입하면 모든 항목을 읽음 처리한다. */
 
 import { CHANGELOG, type ChangelogEntry } from '../data/changelog';
 import { safeLocalStorage } from './safeStorage';
 
 // 기존 키 컨벤션(ThemeContext의 'isDarkMode')에 맞춰 접두사 없는 camelCase를 사용.
-const SEEN_IDS_KEY = 'changelogLastSeenId';
-const LEGACY_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+const SEEN_IDS_KEY = 'changelogSeenIds';
 
-const isValidLegacyDate = (value: string): boolean => {
-  if (!LEGACY_DATE_PATTERN.test(value)) return false;
+/** 현재 changelog에 실제로 존재하는 revision id. 저장 대상은 이 집합으로 한정한다. */
+const KNOWN_IDS: readonly string[] = CHANGELOG.map((entry) => entry.id);
 
-  const parsedDate = new Date(`${value}T00:00:00Z`);
-  return !Number.isNaN(parsedDate.getTime()) && parsedDate.toISOString().startsWith(value);
-};
-
+/** 저장된 값을 revision id 목록으로 해석한다.
+ *  이 키는 changelog 기능과 함께 도입되어 이전 포맷이 존재하지 않으므로,
+ *  string[] 이외의 값은 마이그레이션 대상이 아니라 손상된 상태로 보고 버린다. */
 const parseSeenIds = (storedValue: string | null): readonly string[] => {
   if (storedValue === null) return [];
-  if (isValidLegacyDate(storedValue)) {
-    return CHANGELOG.filter((entry) => entry.date <= storedValue).map((entry) => entry.id);
-  }
-  if (!storedValue.startsWith('[')) return [storedValue];
 
   try {
     const parsed: unknown = JSON.parse(storedValue);
-    if (!Array.isArray(parsed)) return [storedValue];
+    if (!Array.isArray(parsed)) return [];
 
     return parsed.filter((entry): entry is string => typeof entry === 'string');
-  } catch (error) {
-    if (error instanceof SyntaxError) return [storedValue];
-    throw error;
+  } catch {
+    return [];
   }
 };
 
-const readSeenIds = (): readonly string[] => {
-  const storedValue = safeLocalStorage.getItem(SEEN_IDS_KEY);
-  const seenIds = parseSeenIds(storedValue);
-
-  if (storedValue !== null && isValidLegacyDate(storedValue)) {
-    safeLocalStorage.setItem(SEEN_IDS_KEY, JSON.stringify(seenIds));
-  }
-
-  return seenIds;
-};
+const readSeenIds = (): readonly string[] => parseSeenIds(safeLocalStorage.getItem(SEEN_IDS_KEY));
 
 /** 지정한 항목을 확인한 것으로 표시. 생략하면 전체 내역의 모든 revision id를 저장한다. */
-export const markChangelogSeen = (seenIds: readonly string[] = CHANGELOG.map((entry) => entry.id)): void => {
+export const markChangelogSeen = (seenIds: readonly string[] = KNOWN_IDS): void => {
   if (seenIds.length === 0) return;
 
-  const mergedSeenIds = Array.from(new Set([...readSeenIds(), ...seenIds]));
-  safeLocalStorage.setItem(SEEN_IDS_KEY, JSON.stringify(mergedSeenIds));
+  // 기존 저장값과 병합해 부분 확인(일부 id만 전달)에도 이전 상태가 남게 한다.
+  // KNOWN_IDS로 필터링해 (1) 손상되거나 삭제된 id가 눌러앉지 않게 하고
+  // (2) 저장 크기를 현재 changelog 길이로 묶으며 (3) 저장 순서를 결정론적으로 만든다.
+  const mergedSeenIds = new Set([...readSeenIds(), ...seenIds]);
+  const nextSeenIds: readonly string[] = KNOWN_IDS.filter((id) => mergedSeenIds.has(id));
+
+  safeLocalStorage.setItem(SEEN_IDS_KEY, JSON.stringify(nextSeenIds));
 };
 
 /**
