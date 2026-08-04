@@ -12,6 +12,7 @@ import Market from './pages/Market';
 import Changelog from './pages/Changelog';
 import NotFound from './pages/NotFound';
 import { RouteSeo } from './components/RouteSeo';
+import { ROUTES } from './utils/routes';
 import { PwaChunkProvider, usePwaChunk } from './context/PwaChunkContext';
 import { ThemeProvider } from './context/ThemeContext';
 
@@ -56,7 +57,7 @@ const AppContent: React.FC = () => {
           <Route path="/enhancement" element={<Enhancement />} />
           <Route path="/market" element={<Market />} />
           <Route path="/spending" element={<Spending />} />
-          <Route path="/changelog" element={<Changelog />} />
+          <Route path={ROUTES.changelog} element={<Changelog />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </div>

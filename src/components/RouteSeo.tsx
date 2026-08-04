@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import type { FC } from 'react';
 import { useLocation } from 'react-router-dom';
+import { ROUTES, normalizePathname } from '../utils/routes';
 
 type RouteSeoEntry = {
   readonly path: string;
@@ -76,7 +77,7 @@ const ROUTE_SEO: readonly RouteSeoEntry[] = [
     robots: 'index, follow',
   },
   {
-    path: '/changelog',
+    path: ROUTES.changelog,
     title: '업데이트 내역 - 로아끼욧',
     description:
       '로아끼욧에 추가되거나 개선된 기능을 날짜순으로 확인하세요.',
@@ -92,7 +93,7 @@ const NOT_FOUND_SEO: RouteSeoEntry = {
 };
 
 function findSeoEntry(pathname: string): RouteSeoEntry {
-  const normalizedPathname = pathname === '/' ? pathname : pathname.replace(/\/+$/, '');
+  const normalizedPathname = normalizePathname(pathname);
   return ROUTE_SEO.find((entry) => entry.path === normalizedPathname) ?? NOT_FOUND_SEO;
 }
 
