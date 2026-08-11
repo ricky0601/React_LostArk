@@ -1,4 +1,4 @@
-import { ARMLET_POWER_BY_LEVEL, resolveArmletLevel, type EquipSlot } from '../data/specScore/lopecCoefficients';
+import { ARMLET_POWER_BY_LEVEL, resolveArmletCombatLevel, type EquipSlot } from '../data/specScore/lopecCoefficients';
 import { resolveNormalHoningDelta, type EquipmentState } from './equipmentState';
 import { invertMainStat } from './lopecBaseAttack';
 import type { CharStats } from './lopecSimulator';
@@ -11,7 +11,7 @@ interface NormalHoningBaseStatDeltaInput {
 }
 
 const getArmletPower = (level: number) => {
-  const armletLevel = resolveArmletLevel(level);
+  const armletLevel = resolveArmletCombatLevel(level);
   return armletLevel === null ? null : ARMLET_POWER_BY_LEVEL[armletLevel];
 };
 

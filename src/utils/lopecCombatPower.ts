@@ -1,5 +1,5 @@
 import type { ArkGridData, EngravingData, GemData } from '../types/lostark';
-import { ARMLET_POWER_BY_LEVEL, ARMLET_UNEQUIPPED_LEVEL, resolveArmletLevel, type EquipSlot } from '../data/specScore/lopecCoefficients';
+import { ARMLET_POWER_BY_LEVEL, ARMLET_UNEQUIPPED_LEVEL, resolveArmletCombatLevel, type EquipSlot } from '../data/specScore/lopecCoefficients';
 import type { AccessorySlot } from '../data/specScore/polishOptions';
 import type { EquipmentState } from './equipmentState';
 import type { AccessoryState, BraceletState } from './polishState';
@@ -42,14 +42,14 @@ const EQUIP_SLOTS: EquipSlot[] = ['weapon', 'helmet', 'shoulder', 'armor', 'pant
 const sumArmletBaseAttackPercent = (
   equipment: Partial<Record<EquipSlot, EquipmentState>> | undefined,
 ): number => {
-  const level = resolveArmletLevel(equipment?.armlet?.normalLevel ?? ARMLET_UNEQUIPPED_LEVEL);
+  const level = resolveArmletCombatLevel(equipment?.armlet?.normalLevel ?? ARMLET_UNEQUIPPED_LEVEL);
   return level === null ? 0 : ARMLET_POWER_BY_LEVEL[level].baseAttackPercent;
 };
 
 const sumArmletWeaponAttack = (
   equipment: Partial<Record<EquipSlot, EquipmentState>> | undefined,
 ): number => {
-  const level = resolveArmletLevel(equipment?.armlet?.normalLevel ?? ARMLET_UNEQUIPPED_LEVEL);
+  const level = resolveArmletCombatLevel(equipment?.armlet?.normalLevel ?? ARMLET_UNEQUIPPED_LEVEL);
   return level === null ? 0 : ARMLET_POWER_BY_LEVEL[level].weaponAttack;
 };
 
