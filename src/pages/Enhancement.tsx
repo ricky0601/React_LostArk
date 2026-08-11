@@ -14,6 +14,7 @@ import {
   AEGIR_WEAPON_STEPS,
   SERKA_ARMOR_STEPS,
   SERKA_WEAPON_STEPS,
+  ARMLET_STEPS,
   ADV_ARMOR_STAGES,
   ADV_WEAPON_STAGES,
   ADV_STAGE_XP,
@@ -33,9 +34,10 @@ import {
 
 const ARMOR_SLOTS = ['투구', '어깨', '상의', '하의', '장갑'] as const;
 type ArmorSlot = (typeof ARMOR_SLOTS)[number];
-type SlotName = '무기' | ArmorSlot;
+type SlotName = '무기' | ArmorSlot | '완갑';
 
-const ALL_SLOTS: SlotName[] = ['무기', '투구', '어깨', '상의', '하의', '장갑'];
+const ALL_SLOTS: SlotName[] = ['무기', '완갑', '투구', '어깨', '상의', '하의', '장갑'];
+const ITEM_LEVEL_SLOTS = ['무기', ...ARMOR_SLOTS] as const;
 
 const ITEM_LEVEL_PER_STEP = 5; // 일반 재련 1단계당 아이템 레벨 증가량
 
@@ -246,9 +248,12 @@ const findCheapestAdv = (
 };
 
 const getStepsForSlot = (slot: SlotName, isInherited: boolean) => {
+  if (slot === '완갑') return ARMLET_STEPS;
   if (slot === '무기') return isInherited ? SERKA_WEAPON_STEPS : AEGIR_WEAPON_STEPS;
   return isInherited ? SERKA_ARMOR_STEPS : AEGIR_ARMOR_STEPS;
 };
+
+const supportsAdvancedHoning = (slot: SlotName): boolean => slot !== '완갑';
 
 const calcStepData = (
   steps: typeof AEGIR_ARMOR_STEPS,
@@ -316,7 +321,7 @@ const Toggle: React.FC<{
 const Enhancement: React.FC = () => {
   // ── 캐릭터 검색 ─────────────────────────────
   const [charInput, setCharInput] = useState('');
-  const [armorMap, setArmorMap] = useState<Partial<Record<ArmorSlot, number>>>({});
+  const [armorMap, setArmorMap] = useState<Partial<Record<ArmorSlot | '완갑', number>>>({});
   const [weaponLevel, setWeaponLevel] = useState<number | undefined>(undefined);
   const [slotIconMap, setSlotIconMap] = useState<Partial<Record<SlotName, string>>>({});
   const [slotInheritedMap, setSlotInheritedMap] = useState<Partial<Record<SlotName, boolean>>>({});
@@ -397,6 +402,7 @@ const Enhancement: React.FC = () => {
   // ── 슬롯별 현재 레벨 ─────────────────────────
   const slotCurrentLevel = useMemo<Record<SlotName, number>>(() => ({
     '무기': weaponLevel ?? 10,
+    '완갑': armorMap['완갑'] ?? 0,
     '투구': armorMap['투구'] ?? 10,
     '어깨': armorMap['어깨'] ?? 10,
     '상의': armorMap['상의'] ?? 10,
@@ -406,6 +412,7 @@ const Enhancement: React.FC = () => {
 
   const slotHasData = useMemo<Record<SlotName, boolean>>(() => ({
     '무기': weaponLevel !== undefined,
+    '완갑': armorMap['완갑'] !== undefined,
     '투구': armorMap['투구'] !== undefined,
     '어깨': armorMap['어깨'] !== undefined,
     '상의': armorMap['상의'] !== undefined,
@@ -418,6 +425,9 @@ const Enhancement: React.FC = () => {
     () => ALL_SLOTS.filter((s) => targetMap[s] != null && targetMap[s]! > slotCurrentLevel[s]),
     [targetMap, slotCurrentLevel],
   );
+  const activeIncludesArmlet = activeSlots.includes('완갑');
+  const effectiveUseBreath = activeIncludesArmlet ? false : useBreath;
+  const effectiveCostMode = activeIncludesArmlet ? 'average' : costMode;
 
   // ── 슬롯별 필터된 steps 캐시 ─────────────────
   const slotFilteredSteps = useMemo(() => {
@@ -466,7 +476,7 @@ const Enhancement: React.FC = () => {
     setTargetMap({});
     try {
       const equipment = await fetchEquipment(name.trim());
-      const map: Partial<Record<ArmorSlot, number>> = {};
+      const map: Partial<Record<ArmorSlot | '완갑', number>> = {};
       const iconMap: Partial<Record<SlotName, string>> = {};
       const inheritedMap: Partial<Record<SlotName, boolean>> = {};
       const advMap: Partial<Record<SlotName, number>> = {};
@@ -478,6 +488,10 @@ const Enhancement: React.FC = () => {
           if (isInherited) inheritedMap[item.Type as ArmorSlot] = true;
           if (advLevel > 0) advMap[item.Type as ArmorSlot] = advLevel;
         }
+        if (item.Type === '완갑') {
+          map['완갑'] = parseEnhLevel(item.Name);
+          if (item.Icon) iconMap['완갑'] = item.Icon;
+        }
         if (item.Type === '무기') {
           setWeaponLevel(parseEnhLevel(item.Name));
           if (item.Icon) iconMap['무기'] = item.Icon;
@@ -486,6 +500,7 @@ const Enhancement: React.FC = () => {
           if (advLevel > 0) advMap['무기'] = advLevel;
         }
       }
+      if (map['완갑'] === undefined) map['완갑'] = 0;
       setArmorMap(map);
       setSlotIconMap(iconMap);
       setSlotInheritedMap(inheritedMap);
@@ -526,8 +541,8 @@ const Enhancement: React.FC = () => {
   const perSlotStepData = useMemo(() => {
     const result = new Map<SlotName, ReturnType<typeof calcStepData>>();
     slotFilteredSteps.forEach((steps, slot) => {
-      const data = calcStepData(steps, useBook, useBreath, prices);
-      if (costMode === 'ceiling') {
+      const data = calcStepData(steps, useBook, effectiveUseBreath, prices);
+      if (effectiveCostMode === 'ceiling') {
         result.set(slot, data.map((d) => ({
           ...d,
           exp: d.ceiling,
@@ -541,7 +556,7 @@ const Enhancement: React.FC = () => {
       }
     });
     return result;
-  }, [slotFilteredSteps, useBook, useBreath, prices, costMode]);
+  }, [slotFilteredSteps, useBook, effectiveUseBreath, prices, effectiveCostMode]);
 
   // ── 슬롯별 소계 ──────────────────────────────
   const slotTotals = useMemo(() => {
@@ -624,6 +639,7 @@ const Enhancement: React.FC = () => {
   // ── 상급 재련 활성 슬롯 ───────────────────────
   const activeAdvSlots = useMemo(
     () => ALL_SLOTS.filter((s) => {
+      if (!supportsAdvancedHoning(s)) return false;
       const target = advTargetMap[s];
       return target != null && target > (advLevelMap[s] ?? 0);
     }),
@@ -651,6 +667,7 @@ const Enhancement: React.FC = () => {
 
     // 일반 재련: 1강당 +5 아이템 레벨
     const normalIncrease = activeSlots.reduce((sum, slot) => {
+      if (!(ITEM_LEVEL_SLOTS as readonly string[]).includes(slot)) return sum;
       const steps = (targetMap[slot] ?? slotCurrentLevel[slot]) - slotCurrentLevel[slot];
       return sum + steps * ITEM_LEVEL_PER_STEP;
     }, 0);
@@ -806,7 +823,7 @@ const Enhancement: React.FC = () => {
   const hasOwnedInput = Object.values(ownedMaterials).some((v) => (v ?? 0) > 0);
   // 상급 재련 가능한 슬롯이 1개 이상 존재 (에기르이고 40단계 미만)
   const hasAnyAdvSlotAvailable = ALL_SLOTS.some(
-    (s) => slotHasData[s] && !slotInheritedMap[s] && (advLevelMap[s] ?? 0) < 40,
+    (s) => supportsAdvancedHoning(s) && slotHasData[s] && !slotInheritedMap[s] && (advLevelMap[s] ?? 0) < 40,
   );
 
   // ─────────────────────────────────────────────
@@ -855,7 +872,7 @@ const Enhancement: React.FC = () => {
           )}
 
           {/* 슬롯 카드 - 현재 강화 수치 표시 */}
-          <div className="grid grid-cols-2 sm:grid-cols-6 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-7 gap-2">
             {ALL_SLOTS.map((slot) => {
               const hasData = slotHasData[slot];
               const level = slotCurrentLevel[slot];
@@ -895,7 +912,7 @@ const Enhancement: React.FC = () => {
                   }`}>
                     {hasData ? `+${level}` : '—'}
                   </span>
-                  {!slotInheritedMap[slot] && hasData && (
+                  {supportsAdvancedHoning(slot) && !slotInheritedMap[slot] && hasData && (
                     <span className={`text-[10px] leading-none ${
                       advTargetMap[slot] != null
                         ? 'text-purple-500 dark:text-purple-400'
@@ -926,7 +943,7 @@ const Enhancement: React.FC = () => {
               }}
             />
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-6 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-7 gap-2">
             {ALL_SLOTS.map((slot) => {
               const currentLvl = slotCurrentLevel[slot];
               const targetOptions = Array.from({ length: 25 - currentLvl }, (_, i) => {
@@ -964,16 +981,16 @@ const Enhancement: React.FC = () => {
                     if (val === undefined) return;
                     const targetLevel = Number(val);
                     ALL_SLOTS.forEach((slot) => {
-                      if (!slotInheritedMap[slot] && (advLevelMap[slot] ?? 0) < targetLevel) {
+                      if (supportsAdvancedHoning(slot) && !slotInheritedMap[slot] && (advLevelMap[slot] ?? 0) < targetLevel) {
                         handleAdvTargetChange(slot, targetLevel);
                       }
                     });
                   }}
                 />
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-6 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-7 gap-2">
                 {ALL_SLOTS.map((slot) => {
-                  if (slotInheritedMap[slot]) {
+                  if (!supportsAdvancedHoning(slot) || slotInheritedMap[slot]) {
                     return <div key={slot} />;
                   }
                   const currentAdv = advLevelMap[slot] ?? 0;
@@ -1031,30 +1048,32 @@ const Enhancement: React.FC = () => {
                   label={`책 ${useBook ? 'ON' : 'OFF'}`}
                   active={useBook}
                   color="gold"
-                  badge={hasPrices && isCheapest(true, useBreath) && !useBook ? '최적' : undefined}
+                  badge={hasPrices && isCheapest(true, effectiveUseBreath) && !useBook ? '최적' : undefined}
                   onClick={() => setUseBook((b) => !b)}
                 />
               )}
               <Toggle
-                label={`숨결 ${useBreath ? 'ON' : 'OFF'}`}
-                active={useBreath}
+                label={`숨결 ${effectiveUseBreath ? 'ON' : 'OFF'}`}
+                active={effectiveUseBreath}
                 color="blue"
-                badge={hasPrices && isCheapest(useBook, true) && !useBreath ? '최적' : undefined}
-                onClick={() => setUseBreath((b) => !b)}
+                badge={hasPrices && !activeIncludesArmlet && isCheapest(useBook, true) && !useBreath ? '최적' : undefined}
+                onClick={() => {
+                  if (!activeIncludesArmlet) setUseBreath((b) => !b);
+                }}
               />
               {hasPrices && (
                 <button
-                  onClick={() => { setUseBook(cheapest.useBook); setUseBreath(cheapest.useBreath); }}
+                  onClick={() => { setUseBook(cheapest.useBook); setUseBreath(activeIncludesArmlet ? false : cheapest.useBreath); }}
                   className="text-xs text-green-600 dark:text-green-400 underline underline-offset-2 hover:opacity-70"
                 >
-                  최적 세팅 (책 {cheapest.useBook ? 'ON' : 'OFF'} / 숨결 {cheapest.useBreath ? 'ON' : 'OFF'})
+                  최적 세팅 (책 {cheapest.useBook ? 'ON' : 'OFF'} / 숨결 {activeIncludesArmlet ? 'OFF' : (cheapest.useBreath ? 'ON' : 'OFF')})
                 </button>
               )}
               <div className="ml-auto inline-flex rounded-full border border-gray-200 dark:border-white/10 overflow-hidden text-xs font-medium">
                 <button
                   onClick={() => setCostMode('average')}
                   className={`px-3 py-1.5 transition-colors ${
-                    costMode === 'average'
+                    effectiveCostMode === 'average'
                       ? 'bg-la-gold/20 text-la-gold-dark dark:text-la-gold'
                       : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5'
                   }`}
@@ -1062,9 +1081,13 @@ const Enhancement: React.FC = () => {
                   평균
                 </button>
                 <button
-                  onClick={() => setCostMode('ceiling')}
-                  className={`px-3 py-1.5 transition-colors ${
-                    costMode === 'ceiling'
+                  onClick={() => {
+                    if (!activeIncludesArmlet) setCostMode('ceiling');
+                  }}
+                  disabled={activeIncludesArmlet}
+                  title={activeIncludesArmlet ? '완갑은 평균 기대 비용만 지원합니다' : undefined}
+                  className={`px-3 py-1.5 transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
+                    effectiveCostMode === 'ceiling'
                       ? 'bg-red-500/20 text-red-600 dark:text-red-400'
                       : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5'
                   }`}
@@ -1072,6 +1095,11 @@ const Enhancement: React.FC = () => {
                   장기백
                 </button>
               </div>
+              {activeIncludesArmlet && (
+                <p className="mt-2 text-[11px] text-gray-400 dark:text-gray-500">
+                  완갑은 출처 표의 평균 기대 총합만 확인되어 숨결과 장기백 계산을 제외합니다.
+                </p>
+              )}
             </div>
           </GlassCard>
         )}

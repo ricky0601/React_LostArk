@@ -92,6 +92,8 @@ export interface EnhancementStep {
   gold: number;
   /** 실링 비용 */
   silver: number;
+  /** 단계별 총합 표에서 제공되는 기대 시도 횟수 */
+  expectedAttempts?: number;
 }
 
 // ─────────────────────────────────────────────
@@ -1187,6 +1189,80 @@ export const SERKA_WEAPON_STEPS: EnhancementStep[] = [
 ];
 
 // ─────────────────────────────────────────────
+// 완갑 일반 재련
+// 출처: https://www.inven.co.kr/board/lostark/4821/110554
+// 표가 단계별 기대 총합으로 제공되어 1회 재료는 expectedAttempts로 역산한다.
+// ─────────────────────────────────────────────
+
+const createArmletStep = ({
+  from,
+  expectedAttempts,
+  shard,
+  destructionStone,
+  guardianStone,
+  leapStone,
+  fusion,
+  gold,
+  silver,
+}: {
+  readonly from: number;
+  readonly expectedAttempts: number;
+  readonly shard: number;
+  readonly destructionStone: number;
+  readonly guardianStone: number;
+  readonly leapStone: number;
+  readonly fusion: number;
+  readonly gold: number;
+  readonly silver: number;
+}): EnhancementStep => ({
+  from,
+  baseSuccessRate: 1,
+  rateIncreasePerFailure: 0,
+  maxBaseSuccessRate: 1,
+  bookBonus: 0,
+  breathBonus: 0,
+  ceiling: { none: Math.ceil(expectedAttempts) },
+  expectedAttempts,
+  baseMaterials: [
+    { type: '운명의 파편', amount: shard / expectedAttempts },
+    { type: '운명의 파괴석 결정', amount: destructionStone / expectedAttempts },
+    { type: '운명의 수호석 결정', amount: guardianStone / expectedAttempts },
+    { type: '위대한 운명의 돌파석', amount: leapStone / expectedAttempts },
+    { type: '상급 아비도스 융화', amount: fusion / expectedAttempts },
+  ],
+  gold: gold / expectedAttempts,
+  silver: silver / expectedAttempts,
+});
+
+export const ARMLET_STEPS: EnhancementStep[] = [
+  createArmletStep({ from: 0, expectedAttempts: 4.85, shard: 215325, destructionStone: 2910, guardianStone: 8730, leapStone: 146, fusion: 107, gold: 25220, silver: 1838000 }),
+  createArmletStep({ from: 1, expectedAttempts: 4.85, shard: 217750, destructionStone: 3007, guardianStone: 9021, leapStone: 150, fusion: 112, gold: 26190, silver: 1838000 }),
+  createArmletStep({ from: 2, expectedAttempts: 4.85, shard: 220806, destructionStone: 3104, guardianStone: 9336, leapStone: 155, fusion: 116, gold: 27209, silver: 1838000 }),
+  createArmletStep({ from: 3, expectedAttempts: 4.85, shard: 223958, destructionStone: 3201, guardianStone: 9652, leapStone: 160, fusion: 121, gold: 28276, silver: 1838000 }),
+  createArmletStep({ from: 4, expectedAttempts: 4.85, shard: 227256, destructionStone: 3298, guardianStone: 9967, leapStone: 165, fusion: 126, gold: 29391, silver: 1838000 }),
+  createArmletStep({ from: 5, expectedAttempts: 6.64, shard: 265329, destructionStone: 4648, guardianStone: 14110, leapStone: 239, fusion: 179, gold: 41832, silver: 2011200 }),
+  createArmletStep({ from: 6, expectedAttempts: 6.64, shard: 288242, destructionStone: 4781, guardianStone: 14575, leapStone: 252, fusion: 186, gold: 43492, silver: 2244320 }),
+  createArmletStep({ from: 7, expectedAttempts: 6.64, shard: 293355, destructionStone: 4947, guardianStone: 15073, leapStone: 266, fusion: 193, gold: 45218, silver: 2244320 }),
+  createArmletStep({ from: 8, expectedAttempts: 6.64, shard: 301667, destructionStone: 5113, guardianStone: 15571, leapStone: 279, fusion: 199, gold: 47011, silver: 2274320 }),
+  createArmletStep({ from: 9, expectedAttempts: 6.64, shard: 342178, destructionStone: 5279, guardianStone: 16102, leapStone: 292, fusion: 206, gold: 48870, silver: 2624320 }),
+  createArmletStep({ from: 10, expectedAttempts: 11.44, shard: 455019, destructionStone: 9381, guardianStone: 28657, leapStone: 526, fusion: 366, gold: 87516, silver: 3076720 }),
+  createArmletStep({ from: 11, expectedAttempts: 11.44, shard: 485430, destructionStone: 9667, guardianStone: 29630, leapStone: 549, fusion: 378, gold: 90948, silver: 3276720 }),
+  createArmletStep({ from: 12, expectedAttempts: 11.44, shard: 522183, destructionStone: 9953, guardianStone: 30659, leapStone: 572, fusion: 389, gold: 94494, silver: 3536720 }),
+  createArmletStep({ from: 13, expectedAttempts: 11.44, shard: 555394, destructionStone: 10296, guardianStone: 31689, leapStone: 606, fusion: 412, gold: 98270, silver: 3756720 }),
+  createArmletStep({ from: 14, expectedAttempts: 11.44, shard: 598063, destructionStone: 10639, guardianStone: 32776, leapStone: 641, fusion: 435, gold: 102159, silver: 4066720 }),
+  createArmletStep({ from: 15, expectedAttempts: 17.47, shard: 792702, destructionStone: 16771, guardianStone: 51799, leapStone: 1031, fusion: 699, gold: 162122, silver: 4817360 }),
+  createArmletStep({ from: 16, expectedAttempts: 17.47, shard: 844094, destructionStone: 17295, guardianStone: 53546, leapStone: 1083, fusion: 734, gold: 168586, silver: 5416880 }),
+  createArmletStep({ from: 17, expectedAttempts: 17.47, shard: 892359, destructionStone: 17819, guardianStone: 55380, leapStone: 1136, fusion: 769, gold: 175224, silver: 5696880 }),
+  createArmletStep({ from: 18, expectedAttempts: 17.47, shard: 945498, destructionStone: 18431, guardianStone: 57302, leapStone: 1188, fusion: 804, gold: 182212, silver: 6016880 }),
+  createArmletStep({ from: 19, expectedAttempts: 17.47, shard: 994510, destructionStone: 19042, guardianStone: 59223, leapStone: 1258, fusion: 839, gold: 189375, silver: 6985680 }),
+  createArmletStep({ from: 20, expectedAttempts: 32.36, shard: 1536554, destructionStone: 36405, guardianStone: 113422, leapStone: 2459, fusion: 1618, gold: 364697, silver: 9459840 }),
+  createArmletStep({ from: 21, expectedAttempts: 32.36, shard: 1613887, destructionStone: 37538, guardianStone: 117305, leapStone: 2589, fusion: 1715, gold: 379259, silver: 11343120 }),
+  createArmletStep({ from: 22, expectedAttempts: 32.36, shard: 1687838, destructionStone: 38832, guardianStone: 121350, leapStone: 2718, fusion: 1812, gold: 394145, silver: 11623120 }),
+  createArmletStep({ from: 23, expectedAttempts: 32.36, shard: 1768731, destructionStone: 40126, guardianStone: 125557, leapStone: 2880, fusion: 1909, gold: 409678, silver: 13506400 }),
+  createArmletStep({ from: 24, expectedAttempts: 32.36, shard: 1851889, destructionStone: 41421, guardianStone: 129925, leapStone: 3042, fusion: 2006, gold: 425858, silver: 13836400 }),
+];
+
+// ─────────────────────────────────────────────
 // 유틸
 // ─────────────────────────────────────────────
 
@@ -1239,6 +1315,8 @@ export const calcExpectedAttempts = (
   useBook: boolean,
   useBreath: boolean,
 ): number => {
+  if (step.expectedAttempts !== undefined) return step.expectedAttempts;
+
   const ceiling = getCeiling(step, useBook, useBreath);
   let expected = 0;
   let probAllFailed = 1;
