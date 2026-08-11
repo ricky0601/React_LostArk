@@ -23,6 +23,7 @@ import {
 } from '../utils/api';
 import { type EffectSegment, stripHtml, parseBraceletLine } from '../utils/tooltipParser';
 import { gradeFrame, gradeText, gradeStyles, qualityTextColor, qualityBgColor } from '../utils/equipmentColors';
+import { COMBAT_EQUIPMENT_TYPES } from '../utils/characterEquipment';
 
 /* ================================================================
    Types
@@ -62,7 +63,7 @@ function shortCoreName(fullName: string | null): string {
 interface DetailLine { text: string; segments?: EffectSegment[] }
 
 /** 장비 슬롯 순서 */
-const ARMOR_SLOTS = ['무기', '투구', '상의', '하의', '장갑', '어깨'];
+const ARMOR_SLOTS = COMBAT_EQUIPMENT_TYPES;
 const ACCESSORY_SLOTS = ['목걸이', '귀걸이', '귀걸이', '반지', '반지'];
 const EXTRA_SLOTS = ['어빌리티 스톤', '팔찌'];
 
@@ -120,7 +121,7 @@ function parseEquipDetails(tooltip: string, type: string): DetailLine[] {
   }
 }
 
-function findEquipBySlots(items: EquipmentItem[], slots: string[]): (EquipmentItem | null)[] {
+function findEquipBySlots(items: EquipmentItem[], slots: readonly string[]): (EquipmentItem | null)[] {
   const remaining = [...items];
   return slots.map((slot) => {
     const idx = remaining.findIndex((i) => i.Type === slot);

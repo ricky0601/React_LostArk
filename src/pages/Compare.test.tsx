@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import Compare from './Compare';
-import type { CharacterProfile } from '../types/lostark';
+import type { CharacterProfile, EquipmentItem } from '../types/lostark';
 import {
   fetchArkGrid,
   fetchEngravings,
@@ -57,11 +57,19 @@ const validProfile: CharacterProfile = {
   CombatPower: null,
 };
 
+const equipment = (type: string, name: string): EquipmentItem => ({
+  Type: type,
+  Name: name,
+  Icon: 'https://example.com/icon.png',
+  Grade: '고대',
+  Tooltip: '{}',
+});
+
 describe('Compare', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockedFetchProfile.mockImplementation(async (name) => {
-      if (name === '정상캐릭터') return validProfile;
+      if (name === '정상캐릭터' || name === '비교캐릭터') return { ...validProfile, CharacterName: name };
       return null as unknown as CharacterProfile;
     });
     mockedFetchEquipment.mockResolvedValue([]);
@@ -79,5 +87,22 @@ describe('Compare', () => {
 
     expect(await screen.findByText('"ㅎㅎㅎ" 캐릭터를 조회하지 못해 비교할 수 없습니다. 닉네임을 확인해주세요.')).toBeInTheDocument();
     await waitFor(() => expect(screen.queryByText('기본 정보')).not.toBeInTheDocument());
+  });
+
+  it('완갑 장비를 장비 비교 섹션에 표시한다', async () => {
+    mockedFetchEquipment.mockImplementation(async (name) => (
+      name === '정상캐릭터'
+        ? [equipment('완갑', '+9 운명의 전율 완갑')]
+        : []
+    ));
+
+    render(<Compare />);
+
+    fireEvent.change(screen.getByPlaceholderText('캐릭터 닉네임'), { target: { value: '정상캐릭터' } });
+    fireEvent.change(screen.getByPlaceholderText('비교할 캐릭터'), { target: { value: '비교캐릭터' } });
+    fireEvent.click(screen.getByRole('button', { name: '비교하기' }));
+
+    expect(await screen.findByText('+9 운명의 전율 완갑')).toBeInTheDocument();
+    expect(screen.getByText('완갑')).toBeInTheDocument();
   });
 });
