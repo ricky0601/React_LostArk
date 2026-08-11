@@ -282,6 +282,29 @@ describe('fetchSpecScoreRawData weapon attack parsing', () => {
     expect(result.charStats.effectiveWeaponAttack).toBeCloseTo(264_890.248, 3);
   });
 
+  it('uses the lower combat baseline when parsing an unsupported armlet level', async () => {
+    // Given
+    const armlet: EquipmentItem = {
+      Type: '완갑',
+      Name: '+13 운명의 전율 완갑',
+      Icon: '',
+      Grade: '영웅',
+      Tooltip: '{}',
+    };
+    setupApiMocks([
+      equipment('무기', '무기 공격력 +100,000'),
+      armlet,
+    ], []);
+
+    // When
+    const result = await fetchSpecScoreRawData(profile);
+
+    // Then
+    expect(result.equip.armlet?.normalLevel).toBe(13);
+    expect(result.charStats.effectiveWeaponAttack).toBe(110_969);
+    expect(result.charStats.baseAttackFlatSum).toBe(2030);
+  });
+
   it('does not invent the 97-stone base attack fallback for ordinary stones', async () => {
     // Given
     setupApiMocks([

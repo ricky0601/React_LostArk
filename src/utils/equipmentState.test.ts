@@ -108,6 +108,25 @@ describe('parseEquipmentState normal honing power tables', () => {
     });
   });
 
+  it('attaches the lower combat baseline to unsupported armlet API levels', () => {
+    // Given
+    const state = parseEquipmentState(equipment('{}', {
+      Type: '완갑',
+      Name: '+13 운명의 전율 완갑',
+      Grade: '영웅',
+    }));
+
+    // When / Then
+    expect(state?.normalLevel).toBe(13);
+    expect(state?.normalHoningDelta).toEqual({
+      kind: 'armlet',
+      weaponAttack: 10969,
+      mainStat: 34746,
+      baseAttack: 2030,
+      baseAttackPercent: 0,
+    });
+  });
+
   it('attaches Egir armor tooltip stat delta for the current normal level', () => {
     const tooltip = JSON.stringify({
       Element_001: { value: { slotData: { petBorder: 3 } } },

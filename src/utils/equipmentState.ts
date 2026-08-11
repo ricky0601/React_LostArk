@@ -11,7 +11,7 @@ import {
   ARMLET_UNEQUIPPED_LEVEL,
   EQUIP_TYPE_TO_SLOT,
   extractEquipTier,
-  resolveArmletLevel,
+  resolveArmletCombatLevel,
   type EquipSlot,
 } from '../data/specScore/lopecCoefficients';
 
@@ -106,7 +106,7 @@ export const resolveNormalHoningDelta = (
   normalLevel: number,
 ): EquipmentNormalHoningDelta | undefined => {
   if (slot === 'armlet') {
-    const armletLevel = resolveArmletLevel(normalLevel);
+    const armletLevel = resolveArmletCombatLevel(normalLevel);
     if (armletLevel === null) return undefined;
     const power = ARMLET_POWER_BY_LEVEL[armletLevel];
     return {
