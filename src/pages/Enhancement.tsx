@@ -425,12 +425,6 @@ const Enhancement: React.FC = () => {
     () => ALL_SLOTS.filter((s) => targetMap[s] != null && targetMap[s]! > slotCurrentLevel[s]),
     [targetMap, slotCurrentLevel],
   );
-  const activeIncludesArmlet = activeSlots.includes('완갑');
-  const armletIsOnlyActiveSlot = activeSlots.length === 1 && activeSlots[0] === '완갑';
-
-  useEffect(() => {
-    if (armletIsOnlyActiveSlot) setCostMode('average');
-  }, [armletIsOnlyActiveSlot]);
 
   // ── 슬롯별 필터된 steps 캐시 ─────────────────
   const slotFilteredSteps = useMemo(() => {
@@ -543,9 +537,8 @@ const Enhancement: React.FC = () => {
   const perSlotStepData = useMemo(() => {
     const result = new Map<SlotName, ReturnType<typeof calcStepData>>();
     slotFilteredSteps.forEach((steps, slot) => {
-      const useSlotBreath = slot !== '완갑' && useBreath;
-      const data = calcStepData(steps, useBook, useSlotBreath, prices);
-      if (costMode === 'ceiling' && slot !== '완갑') {
+      const data = calcStepData(steps, useBook, useBreath, prices);
+      if (costMode === 'ceiling') {
         result.set(slot, data.map((d) => ({
           ...d,
           exp: d.ceiling,
@@ -1082,12 +1075,8 @@ const Enhancement: React.FC = () => {
                   평균
                 </button>
                 <button
-                  onClick={() => {
-                    if (!armletIsOnlyActiveSlot) setCostMode('ceiling');
-                  }}
-                  disabled={armletIsOnlyActiveSlot}
-                  title={armletIsOnlyActiveSlot ? '완갑은 평균 기대 비용만 지원합니다' : undefined}
-                  className={`px-3 py-1.5 transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
+                  onClick={() => setCostMode('ceiling')}
+                  className={`px-3 py-1.5 transition-colors ${
                     costMode === 'ceiling'
                       ? 'bg-red-500/20 text-red-600 dark:text-red-400'
                       : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5'
@@ -1096,11 +1085,6 @@ const Enhancement: React.FC = () => {
                   장기백
                 </button>
               </div>
-              {activeIncludesArmlet && (
-                <p className="mt-2 text-[11px] text-gray-400 dark:text-gray-500">
-                  완갑은 출처 표의 평균 기대 총합을 사용하며, 숨결과 장기백 설정은 함께 선택한 다른 장비에만 적용됩니다.
-                </p>
-              )}
             </div>
           </GlassCard>
         )}

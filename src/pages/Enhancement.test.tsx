@@ -86,7 +86,7 @@ describe('Enhancement armlet calculations', () => {
     expect(armletCard).not.toHaveTextContent('+0');
   });
 
-  it('applies breath and ceiling to a weapon without changing the armlet average', async () => {
+  it('applies breath and ceiling to the armlet calculation', async () => {
     mockedFetchEquipment.mockResolvedValue([
       equipment('무기', 10),
       equipment('완갑', 0),
@@ -119,7 +119,7 @@ describe('Enhancement armlet calculations', () => {
 
     const armletRow = within(slotSummary).getByText('완갑').closest('tr');
     const weaponRow = within(slotSummary).getByText('무기').closest('tr');
-    expect(armletRow).toHaveTextContent(`${calcExpectedAttempts(ARMLET_STEPS[0], false, false).toFixed(1)}트`);
+    expect(armletRow).toHaveTextContent(`${getCeiling(ARMLET_STEPS[0], false, true).toFixed(1)}트`);
     expect(weaponRow).toHaveTextContent(`${getCeiling(AEGIR_WEAPON_STEPS[0], false, true).toFixed(1)}트`);
   });
 });
