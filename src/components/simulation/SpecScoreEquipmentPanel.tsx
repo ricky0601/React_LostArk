@@ -129,7 +129,8 @@ export const SpecScoreEquipmentPanel = ({
             const armletLevel = resolveArmletLevel(curNormal);
             const armletPower = armletLevel === null ? null : ARMLET_POWER_BY_LEVEL[armletLevel];
             const armletIsUnequipped = curNormal === ARMLET_UNEQUIPPED_LEVEL;
-            const armletIsModified = m?.normalLevel !== undefined;
+            // 등급/아이콘 출처는 API가 권위다. 값이 실제로 달라진 경우에만 계수 테이블로 넘어간다.
+            const armletIsModified = curNormal !== cur.normalLevel;
             const armletGrade = armletIsUnequipped
               ? ARMLET_POWER_BY_LEVEL[ARMLET_UNEQUIPPED_LEVEL].grade
               : armletIsModified && armletPower !== null
