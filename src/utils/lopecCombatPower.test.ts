@@ -1,6 +1,7 @@
 import { ARMLET_POWER_BY_LEVEL } from '../data/specScore/lopecCoefficients';
 import { findBraceletOption } from '../data/specScore/polishOptions';
 import { calcCombatPowerBreakdown, COMBAT_POWER_CONSTANT } from './lopecCombatPower';
+import { sumNormalHoningRawDeltas } from './lopecEquipmentDelta';
 import { calcLopecDelta } from './lopecSimulator';
 import { emptyGems, engravings, equipment } from './lopecSimulator.testUtils';
 import type { CharStats } from './lopecSimulator';
@@ -101,10 +102,10 @@ describe('calcCombatPowerBreakdown current snapshot', () => {
 
 
 describe('calcCombatPowerBreakdown armlet weapon attack', () => {
-  it('keeps unchanged armlet weapon attack in the simulated snapshot', () => {
+  it('keeps unsupported armlet levels on their combat baseline in the simulated snapshot', () => {
     // Given
-    const armletLevel = 25;
-    const armletPower = ARMLET_POWER_BY_LEVEL[armletLevel];
+    const armletLevel = 13;
+    const armletPower = ARMLET_POWER_BY_LEVEL[10];
     const weaponAttack = 230_000;
     const mainStat = 700_000;
     const displayedBaseAttack = (Math.sqrt((mainStat * (weaponAttack + armletPower.weaponAttack)) / 6) + armletPower.baseAttack) *
@@ -134,6 +135,27 @@ describe('calcCombatPowerBreakdown armlet weapon attack', () => {
     if (breakdown === null) throw new TypeError('Expected a combat-power breakdown');
     expect(breakdown.simulated.effectiveWeaponAttack).toBeCloseTo(breakdown.current.effectiveWeaponAttack, 6);
     expect(breakdown.simulatedCombatPower).toBeCloseTo(currentCombatPower, 6);
+  });
+
+  it('scores an unsupported-to-supported armlet step from the lower combat baseline', () => {
+    // Given
+    const currentEquip = { armlet: equipment('armlet', { normalLevel: 13 }) };
+    const modifiedEquip = { armlet: equipment('armlet', { normalLevel: 15 }) };
+
+    // When
+    const delta = sumNormalHoningRawDeltas({
+      slots: ['armlet'],
+      currentEquip,
+      modifiedEquip,
+    });
+
+    // Then
+    expect(delta).toEqual({
+      weaponAttack: ARMLET_POWER_BY_LEVEL[15].weaponAttack - ARMLET_POWER_BY_LEVEL[10].weaponAttack,
+      mainStat: ARMLET_POWER_BY_LEVEL[15].mainStat - ARMLET_POWER_BY_LEVEL[10].mainStat,
+      baseAttack: ARMLET_POWER_BY_LEVEL[15].baseAttack - ARMLET_POWER_BY_LEVEL[10].baseAttack,
+      baseAttackPercent: ARMLET_POWER_BY_LEVEL[15].baseAttackPercent - ARMLET_POWER_BY_LEVEL[10].baseAttackPercent,
+    });
   });
 });
 

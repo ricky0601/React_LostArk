@@ -46,21 +46,42 @@ describe('parseEquipmentState normal honing power tables', () => {
 
     expect(result.armlet).toMatchObject({
       slot: 'armlet',
-      normalLevel: 0,
+      normalLevel: -1,
       advancedLevel: 0,
       tier: '미착용',
     });
   });
 
-  it('parses armlet only at supported public simulation levels', () => {
+  it('parses equipped +0 armlet separately from unequipped', () => {
+    const state = parseEquipmentState(equipment('{}', {
+      Type: '완갑',
+      Name: '운명의 전율 완갑',
+      Icon: 'https://example.com/armlet0.png',
+      Grade: '영웅',
+    }));
+
+    expect(state?.normalLevel).toBe(0);
+    expect(state?.tier).toBe('영웅');
+    expect(state?.normalHoningDelta).toEqual({
+      kind: 'armlet',
+      weaponAttack: 3500,
+      mainStat: 10500,
+      baseAttack: 0,
+      baseAttackPercent: 0,
+    });
+  });
+
+  it('keeps the armlet API level and icon for display', () => {
     const supported = parseEquipmentState(equipment('{}', {
       Type: '완갑',
       Name: '+15 운명의 전용 완갑',
+      Icon: 'https://example.com/armlet15.png',
       Grade: '전설',
     }));
-    const unsupported = parseEquipmentState(equipment('{}', {
+    const intermediate = parseEquipmentState(equipment('{}', {
       Type: '완갑',
-      Name: '+13 운명의 전용 완갑',
+      Name: '+9 운명의 전율 완갑',
+      Icon: 'https://cdn-lostark.game.onstove.com/efui_iconatlas/bracer/bracer_2.png',
       Grade: '영웅',
     }));
 
@@ -74,8 +95,36 @@ describe('parseEquipmentState normal honing power tables', () => {
       baseAttack: 3690,
       baseAttackPercent: 1.0,
     });
-    expect(unsupported?.normalLevel).toBe(0);
-    expect(unsupported?.tier).toBe('미착용');
+    expect(supported?.raw.Icon).toBe('https://example.com/armlet15.png');
+    expect(intermediate?.normalLevel).toBe(9);
+    expect(intermediate?.tier).toBe('영웅');
+    expect(intermediate?.raw.Icon).toBe('https://cdn-lostark.game.onstove.com/efui_iconatlas/bracer/bracer_2.png');
+    expect(intermediate?.normalHoningDelta).toEqual({
+      kind: 'armlet',
+      weaponAttack: 10969,
+      mainStat: 34746,
+      baseAttack: 850,
+      baseAttackPercent: 0,
+    });
+  });
+
+  it('attaches the lower combat baseline to unsupported armlet API levels', () => {
+    // Given
+    const state = parseEquipmentState(equipment('{}', {
+      Type: '완갑',
+      Name: '+13 운명의 전율 완갑',
+      Grade: '영웅',
+    }));
+
+    // When / Then
+    expect(state?.normalLevel).toBe(13);
+    expect(state?.normalHoningDelta).toEqual({
+      kind: 'armlet',
+      weaponAttack: 10969,
+      mainStat: 34746,
+      baseAttack: 2030,
+      baseAttackPercent: 0,
+    });
   });
 
   it('attaches Egir armor tooltip stat delta for the current normal level', () => {

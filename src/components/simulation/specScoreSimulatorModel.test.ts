@@ -1,4 +1,5 @@
 import { buildModifiedSpecScoreData, EMPTY_MODS } from './specScoreSimulatorModel';
+import { ARMLET_POWER_BY_LEVEL } from '../../data/specScore/lopecCoefficients';
 import type { Mods, SpecScoreRawData } from './specScoreSimulatorTypes';
 import { charStatsFor, effect, emptyGems, engravings, equipment } from '../../utils/lopecSimulator.testUtils';
 import type { StoneState } from '../../utils/polishState';
@@ -125,5 +126,79 @@ describe('buildModifiedSpecScoreData equipment tier changes', () => {
       equipmentFamily: 'egir',
       isInherited: false,
     }));
+  });
+});
+
+describe('buildModifiedSpecScoreData armlet levels', () => {
+  const armletAt = (normalLevel: number, grade = '고대') =>
+    equipment('armlet', {
+      normalLevel,
+      tier: grade,
+      raw: {
+        Type: '완갑',
+        Name: `+${normalLevel} 운명의 전율 완갑`,
+        Icon: 'https://example.com/armlet.png',
+        Grade: grade,
+        Tooltip: '{}',
+      },
+    });
+
+  it('keeps an unsupported API level and its API grade when the armlet is untouched', () => {
+    // Given: +13은 ARMLET_SELECT_LEVELS에 없는 실제 착용 레벨이다.
+    const raw = { ...createRawData(), equip: { armlet: armletAt(13) } };
+
+    // When
+    const modified = buildModifiedSpecScoreData(raw, EMPTY_MODS);
+
+    // Then: 표시 레벨은 API 원본 그대로, 등급도 테이블로 대체되지 않는다.
+    expect(modified.equip.armlet).toEqual(expect.objectContaining({
+      normalLevel: 13,
+      advancedLevel: 0,
+      tier: '고대',
+    }));
+  });
+
+  it('applies a supported level selected from an unsupported current level', () => {
+    // Given
+    const raw = { ...createRawData(), equip: { armlet: armletAt(13) } };
+    const mods: Mods = { ...EMPTY_MODS, equip: { armlet: { normalLevel: 15 } } };
+
+    // When
+    const modified = buildModifiedSpecScoreData(raw, mods);
+
+    // Then
+    expect(modified.equip.armlet).toEqual(expect.objectContaining({
+      normalLevel: 15,
+      advancedLevel: 0,
+      tier: ARMLET_POWER_BY_LEVEL[15].grade,
+    }));
+  });
+
+  it('keeps the API grade for an untouched armlet on a supported level', () => {
+    // Given: +9는 지원 레벨이라 계수 테이블에도 grade가 있지만,
+    // 실제 착용 중인 아이템의 등급은 API가 권위다.
+    const raw = { ...createRawData(), equip: { armlet: armletAt(9) } };
+    expect(ARMLET_POWER_BY_LEVEL[9].grade).not.toBe('고대');
+
+    // When
+    const modified = buildModifiedSpecScoreData(raw, EMPTY_MODS);
+
+    // Then
+    expect(modified.equip.armlet).toEqual(expect.objectContaining({
+      normalLevel: 9,
+      tier: '고대',
+    }));
+  });
+
+  it('keeps the API grade when the same level is re-selected', () => {
+    // Given: 값이 같은 재선택은 상태 변화가 아니다.
+    const raw = { ...createRawData(), equip: { armlet: armletAt(9) } };
+    const mods: Mods = { ...EMPTY_MODS, equip: { armlet: { normalLevel: 9 } } };
+
+    // When
+    const modified = buildModifiedSpecScoreData(raw, mods);
+
+    // Then
+    expect(modified.equip.armlet).toEqual(expect.objectContaining({ tier: '고대' }));
   });
 });

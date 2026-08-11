@@ -88,10 +88,14 @@ export interface EnhancementStep {
   bookMaterial?: MaterialAmount;
   /** 빙하의 숨결 (선택, 사용 시 비용 추가) */
   breathMaterial?: MaterialAmount;
+  /** 복수 숨결 재료 (완갑처럼 빙하/용암을 함께 쓰는 경우) */
+  breathMaterials?: MaterialAmount[];
   /** 직접 골드 비용 */
   gold: number;
   /** 실링 비용 */
   silver: number;
+  /** 단계별 총합 표에서 제공되는 기대 시도 횟수 */
+  expectedAttempts?: number;
 }
 
 // ─────────────────────────────────────────────
@@ -1187,8 +1191,112 @@ export const SERKA_WEAPON_STEPS: EnhancementStep[] = [
 ];
 
 // ─────────────────────────────────────────────
+// 완갑 일반 재련
+// 출처: https://www.inven.co.kr/board/lostark/4821/110554
+// 표가 단계별 기대 총합으로 제공되어 1회 재료는 expectedAttempts로 역산한다.
+// ─────────────────────────────────────────────
+
+const createArmletStep = ({
+  from,
+  shard,
+  destructionStone,
+  guardianStone,
+  leapStone,
+  fusion,
+  gold,
+  silver,
+}: {
+  readonly from: number;
+  readonly shard: number;
+  readonly destructionStone: number;
+  readonly guardianStone: number;
+  readonly leapStone: number;
+  readonly fusion: number;
+  readonly gold: number;
+  readonly silver: number;
+}): EnhancementStep => {
+  const rateBand = from < 5
+    ? { expectedAttempts: 4.85, baseSuccessRate: 0.15, rateIncreasePerFailure: 0.015, maxBaseSuccessRate: 0.30, breathCount: 20, ceiling: { none: 11, partial: 8 } }
+    : from < 10
+      ? { expectedAttempts: 6.64, baseSuccessRate: 0.10, rateIncreasePerFailure: 0.01, maxBaseSuccessRate: 0.20, breathCount: 25, ceiling: { none: 15, partial: 10 } }
+      : from < 15
+        ? { expectedAttempts: 11.44, baseSuccessRate: 0.05, rateIncreasePerFailure: 0.005, maxBaseSuccessRate: 0.10, breathCount: 25, ceiling: { none: 26, partial: 18 } }
+        : from < 20
+          ? { expectedAttempts: 17.47, baseSuccessRate: 0.03, rateIncreasePerFailure: 0.003, maxBaseSuccessRate: 0.06, breathCount: 30, ceiling: { none: 40, partial: 27 } }
+          : { expectedAttempts: 32.36, baseSuccessRate: 0.015, rateIncreasePerFailure: 0.0015, maxBaseSuccessRate: 0.03, breathCount: 30, ceiling: { none: 76, partial: 51 } };
+
+  return {
+    from,
+    baseSuccessRate: rateBand.baseSuccessRate,
+    rateIncreasePerFailure: rateBand.rateIncreasePerFailure,
+    maxBaseSuccessRate: rateBand.maxBaseSuccessRate,
+    bookBonus: 0,
+    breathBonus: rateBand.baseSuccessRate,
+    ceiling: rateBand.ceiling,
+    baseMaterials: [
+      { type: '운명의 파편', amount: shard / rateBand.expectedAttempts },
+      { type: '운명의 파괴석 결정', amount: destructionStone / rateBand.expectedAttempts },
+      { type: '운명의 수호석 결정', amount: guardianStone / rateBand.expectedAttempts },
+      { type: '위대한 운명의 돌파석', amount: leapStone / rateBand.expectedAttempts },
+      { type: '상급 아비도스 융화', amount: fusion / rateBand.expectedAttempts },
+    ],
+    breathMaterials: [
+      { type: '빙하의 숨결', amount: rateBand.breathCount },
+      { type: '용암의 숨결', amount: rateBand.breathCount },
+    ],
+    gold: gold / rateBand.expectedAttempts,
+    silver: silver / rateBand.expectedAttempts,
+    expectedAttempts: rateBand.expectedAttempts,
+  };
+};
+
+export const ARMLET_STEPS: EnhancementStep[] = [
+  createArmletStep({ from: 0, shard: 215325, destructionStone: 2910, guardianStone: 8730, leapStone: 146, fusion: 107, gold: 25220, silver: 1838000 }),
+  createArmletStep({ from: 1, shard: 217750, destructionStone: 3007, guardianStone: 9021, leapStone: 150, fusion: 112, gold: 26190, silver: 1838000 }),
+  createArmletStep({ from: 2, shard: 220806, destructionStone: 3104, guardianStone: 9336, leapStone: 155, fusion: 116, gold: 27209, silver: 1838000 }),
+  createArmletStep({ from: 3, shard: 223958, destructionStone: 3201, guardianStone: 9652, leapStone: 160, fusion: 121, gold: 28276, silver: 1838000 }),
+  createArmletStep({ from: 4, shard: 227256, destructionStone: 3298, guardianStone: 9967, leapStone: 165, fusion: 126, gold: 29391, silver: 1838000 }),
+  createArmletStep({ from: 5, shard: 265329, destructionStone: 4648, guardianStone: 14110, leapStone: 239, fusion: 179, gold: 41832, silver: 2011200 }),
+  createArmletStep({ from: 6, shard: 288242, destructionStone: 4781, guardianStone: 14575, leapStone: 252, fusion: 186, gold: 43492, silver: 2244320 }),
+  createArmletStep({ from: 7, shard: 293355, destructionStone: 4947, guardianStone: 15073, leapStone: 266, fusion: 193, gold: 45218, silver: 2244320 }),
+  createArmletStep({ from: 8, shard: 301667, destructionStone: 5113, guardianStone: 15571, leapStone: 279, fusion: 199, gold: 47011, silver: 2274320 }),
+  createArmletStep({ from: 9, shard: 342178, destructionStone: 5279, guardianStone: 16102, leapStone: 292, fusion: 206, gold: 48870, silver: 2624320 }),
+  createArmletStep({ from: 10, shard: 455019, destructionStone: 9381, guardianStone: 28657, leapStone: 526, fusion: 366, gold: 87516, silver: 3076720 }),
+  createArmletStep({ from: 11, shard: 485430, destructionStone: 9667, guardianStone: 29630, leapStone: 549, fusion: 378, gold: 90948, silver: 3276720 }),
+  createArmletStep({ from: 12, shard: 522183, destructionStone: 9953, guardianStone: 30659, leapStone: 572, fusion: 389, gold: 94494, silver: 3536720 }),
+  createArmletStep({ from: 13, shard: 555394, destructionStone: 10296, guardianStone: 31689, leapStone: 606, fusion: 412, gold: 98270, silver: 3756720 }),
+  createArmletStep({ from: 14, shard: 598063, destructionStone: 10639, guardianStone: 32776, leapStone: 641, fusion: 435, gold: 102159, silver: 4066720 }),
+  createArmletStep({ from: 15, shard: 792702, destructionStone: 16771, guardianStone: 51799, leapStone: 1031, fusion: 699, gold: 162122, silver: 4817360 }),
+  createArmletStep({ from: 16, shard: 844094, destructionStone: 17295, guardianStone: 53546, leapStone: 1083, fusion: 734, gold: 168586, silver: 5416880 }),
+  createArmletStep({ from: 17, shard: 892359, destructionStone: 17819, guardianStone: 55380, leapStone: 1136, fusion: 769, gold: 175224, silver: 5696880 }),
+  createArmletStep({ from: 18, shard: 945498, destructionStone: 18431, guardianStone: 57302, leapStone: 1188, fusion: 804, gold: 182212, silver: 6016880 }),
+  createArmletStep({ from: 19, shard: 994510, destructionStone: 19042, guardianStone: 59223, leapStone: 1258, fusion: 839, gold: 189375, silver: 6985680 }),
+  createArmletStep({ from: 20, shard: 1536554, destructionStone: 36405, guardianStone: 113422, leapStone: 2459, fusion: 1618, gold: 364697, silver: 9459840 }),
+  createArmletStep({ from: 21, shard: 1613887, destructionStone: 37538, guardianStone: 117305, leapStone: 2589, fusion: 1715, gold: 379259, silver: 11343120 }),
+  createArmletStep({ from: 22, shard: 1687838, destructionStone: 38832, guardianStone: 121350, leapStone: 2718, fusion: 1812, gold: 394145, silver: 11623120 }),
+  createArmletStep({ from: 23, shard: 1768731, destructionStone: 40126, guardianStone: 125557, leapStone: 2880, fusion: 1909, gold: 409678, silver: 13506400 }),
+  createArmletStep({ from: 24, shard: 1851889, destructionStone: 41421, guardianStone: 129925, leapStone: 3042, fusion: 2006, gold: 425858, silver: 13836400 }),
+];
+
+// ─────────────────────────────────────────────
 // 유틸
 // ─────────────────────────────────────────────
+
+/**
+ * 단계가 실제로 지원하는 부스터만 남긴다.
+ *
+ * 완갑처럼 bookMaterial이 없는 단계에 useBook: true가 들어오면
+ * 확률은 그대로인 채 partial 천장만 낮아져 재료 없이 비용이 줄어든다.
+ * 계산 진입부에서 한 번 정규화해 호출자가 같은 가드를 반복하지 않게 한다.
+ */
+const resolveBoosters = (
+  step: EnhancementStep,
+  useBook: boolean,
+  useBreath: boolean,
+): { book: boolean; breath: boolean } => ({
+  book: useBook && step.bookMaterial != null,
+  breath: useBreath && (step.breathMaterial != null || (step.breathMaterials?.length ?? 0) > 0),
+});
 
 /**
  * n번째 시도의 성공 확률 (실패 누적 반영)
@@ -1203,11 +1311,12 @@ export const calcAttemptRate = (
   useBook: boolean,
   useBreath: boolean,
 ): number => {
+  const booster = resolveBoosters(step, useBook, useBreath);
   const base = Math.min(
     step.maxBaseSuccessRate,
     step.baseSuccessRate + attemptIndex * step.rateIncreasePerFailure,
   );
-  const boosters = (useBook ? step.bookBonus : 0) + (useBreath ? step.breathBonus : 0);
+  const boosters = (booster.book ? step.bookBonus : 0) + (booster.breath ? step.breathBonus : 0);
   return Math.min(1, base + boosters);
 };
 
@@ -1222,8 +1331,9 @@ export const getCeiling = (
   useBook: boolean,
   useBreath: boolean,
 ): number => {
-  const useBoth = useBook && useBreath;
-  const useAny  = useBook || useBreath;
+  const booster = resolveBoosters(step, useBook, useBreath);
+  const useBoth = booster.book && booster.breath;
+  const useAny  = booster.book || booster.breath;
   if (useBoth   && step.ceiling.both    != null) return step.ceiling.both;
   if (useAny    && step.ceiling.partial != null) return step.ceiling.partial;
   return step.ceiling.none;
@@ -1239,12 +1349,15 @@ export const calcExpectedAttempts = (
   useBook: boolean,
   useBreath: boolean,
 ): number => {
-  const ceiling = getCeiling(step, useBook, useBreath);
+  const booster = resolveBoosters(step, useBook, useBreath);
+  if (!booster.book && !booster.breath && step.expectedAttempts !== undefined) return step.expectedAttempts;
+
+  const ceiling = getCeiling(step, booster.book, booster.breath);
   let expected = 0;
   let probAllFailed = 1;
 
   for (let i = 0; i < ceiling - 1; i++) {
-    const rate = calcAttemptRate(step, i, useBook, useBreath);
+    const rate = calcAttemptRate(step, i, booster.book, booster.breath);
     expected += (i + 1) * probAllFailed * rate;
     probAllFailed *= (1 - rate);
   }
@@ -1262,11 +1375,15 @@ export const getAttemptMaterials = (
   step: EnhancementStep,
   useBook: boolean,
   useBreath: boolean,
-): MaterialAmount[] => [
-  ...step.baseMaterials,
-  ...(useBook   && step.bookMaterial   ? [step.bookMaterial]   : []),
-  ...(useBreath && step.breathMaterial ? [step.breathMaterial] : []),
-];
+): MaterialAmount[] => {
+  const booster = resolveBoosters(step, useBook, useBreath);
+  return [
+    ...step.baseMaterials,
+    ...(booster.book   && step.bookMaterial    ? [step.bookMaterial]   : []),
+    ...(booster.breath && step.breathMaterial  ? [step.breathMaterial] : []),
+    ...(booster.breath && step.breathMaterials ? step.breathMaterials  : []),
+  ];
+};
 
 // ─────────────────────────────────────────────
 // 상급 재련 (에기르 전용)

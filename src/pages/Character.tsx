@@ -18,6 +18,7 @@ import { fetchProfile, fetchEquipment, fetchGems, fetchEngravings, fetchArkGrid,
 import { type EffectSegment, stripHtml, htmlColorToGrade, parseBraceletLine } from '../utils/tooltipParser';
 import { gradeFrame, gradeStyles, EFFECT_GRADE_COLORS, qualityTextColor, qualityBgColor } from '../utils/equipmentColors';
 import { safeLocalStorage } from '../utils/safeStorage';
+import { getCombatEquipmentItems, isCombatEquipment } from '../utils/characterEquipment';
 
 interface EquipmentEffect { grade: string | null; text: string; segments?: EffectSegment[] }
 
@@ -103,7 +104,6 @@ function parseEquipmentInfo(itemName: string, tooltip: string): ParsedEquipmentI
 }
 
 /* ── 장비 그룹 ── */
-const ARMOR_TYPES = ['무기', '투구', '어깨', '상의', '하의', '장갑'];
 const ACCESSORY_TYPES = ['목걸이', '귀걸이', '반지'];
 
 function shortCoreName(fullName: string | null): string {
@@ -520,13 +520,13 @@ const SectionLabel: React.FC<{ label: string }> = ({ label }) => (
 const EquipmentCard: React.FC<{ items: EquipmentItem[] }> = ({ items }) => {
   if (items.length === 0) return null;
 
-  const armor       = items.filter((it) => ARMOR_TYPES.some((t) => it.Type.includes(t)));
+  const armor       = getCombatEquipmentItems(items);
   const accessories = items.filter((it) => ACCESSORY_TYPES.some((t) => it.Type.includes(t)));
   const stone       = items.filter((it) => it.Type === '어빌리티 스톤');
   const bracelet    = items.filter((it) => it.Type === '팔찌');
   const extras      = items.filter(
     (it) =>
-      !ARMOR_TYPES.some((t) => it.Type.includes(t)) &&
+      !isCombatEquipment(it) &&
       !ACCESSORY_TYPES.some((t) => it.Type.includes(t)) &&
       it.Type !== '어빌리티 스톤' &&
       it.Type !== '팔찌'

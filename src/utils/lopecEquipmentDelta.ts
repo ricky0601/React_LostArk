@@ -1,4 +1,4 @@
-import { ARMLET_POWER_BY_LEVEL, resolveArmletLevel, type EquipSlot } from '../data/specScore/lopecCoefficients';
+import { ARMLET_POWER_BY_LEVEL, resolveArmletCombatLevel, type EquipSlot } from '../data/specScore/lopecCoefficients';
 import { resolveNormalHoningDelta, type EquipmentState } from './equipmentState';
 import { invertMainStat } from './lopecBaseAttack';
 import type { CharStats } from './lopecSimulator';
@@ -10,7 +10,10 @@ interface NormalHoningBaseStatDeltaInput {
   readonly charStats: CharStats | undefined;
 }
 
-const getArmletPower = (level: number) => ARMLET_POWER_BY_LEVEL[resolveArmletLevel(level)];
+const getArmletPower = (level: number) => {
+  const armletLevel = resolveArmletCombatLevel(level);
+  return armletLevel === null ? null : ARMLET_POWER_BY_LEVEL[armletLevel];
+};
 
 /**
  * 주스탯 산출 우선순위 (docs/lostark-combat-power-research.md > Serka Equipment Status)
@@ -51,6 +54,9 @@ const sumNormalHoningStepDelta = (
   if (slot === 'armlet') {
     const from = getArmletPower(fromLevel);
     const to = getArmletPower(toLevel);
+    if (from === null || to === null) {
+      return { weaponAttack: 0, mainStat: 0, baseAttack: 0, secondaryStat: 0 };
+    }
     return {
       weaponAttack: to.weaponAttack - from.weaponAttack,
       mainStat: to.mainStat - from.mainStat,
@@ -111,7 +117,11 @@ export const sumNormalHoningRawDeltas = ({
     mainStat += delta.mainStat;
     baseAttack += delta.baseAttack;
     if (slot === 'armlet') {
-      baseAttackPercent += getArmletPower(mod.normalLevel).baseAttackPercent - getArmletPower(cur.normalLevel).baseAttackPercent;
+      const currentPower = getArmletPower(cur.normalLevel);
+      const modifiedPower = getArmletPower(mod.normalLevel);
+      if (currentPower !== null && modifiedPower !== null) {
+        baseAttackPercent += modifiedPower.baseAttackPercent - currentPower.baseAttackPercent;
+      }
     }
   }
   return { weaponAttack, mainStat, baseAttack, baseAttackPercent };

@@ -90,7 +90,7 @@ describe('calcLopecDelta equipment API/table formula changes', () => {
     const currentScore = 100_000;
     const weaponAttack = 200_000;
     const mainStat = 900_000;
-    const current = equipment('armlet', { normalLevel: 0, tier: '미착용' });
+    const current = equipment('armlet', { normalLevel: -1, tier: '미착용' });
     const modified = { ...current, normalLevel: 10, tier: '영웅' };
 
     const result = calcLopecDelta(
@@ -107,6 +107,56 @@ describe('calcLopecDelta equipment API/table formula changes', () => {
     );
     const currentBaseAttack = Math.sqrt((weaponAttack * mainStat) / 6);
     const modifiedBaseAttack = Math.sqrt(((weaponAttack + 10969) * (mainStat + 34746)) / 6) + 2030;
+
+    expect(result).toBeCloseTo(currentScore * (modifiedBaseAttack / currentBaseAttack), 6);
+  });
+
+  it('applies equipped +0 armlet separately from unequipped armlet', () => {
+    const currentScore = 100_000;
+    const weaponAttack = 200_000;
+    const mainStat = 900_000;
+    const current = equipment('armlet', { normalLevel: -1, tier: '미착용' });
+    const modified = { ...current, normalLevel: 0, tier: '영웅' };
+
+    const result = calcLopecDelta(
+      currentScore,
+      engravings([]),
+      engravings([]),
+      emptyGems,
+      emptyGems,
+      { armlet: current },
+      { armlet: modified },
+      undefined,
+      undefined,
+      charStatsFor(weaponAttack, mainStat),
+    );
+    const currentBaseAttack = Math.sqrt((weaponAttack * mainStat) / 6);
+    const modifiedBaseAttack = Math.sqrt(((weaponAttack + 3500) * (mainStat + 10500)) / 6);
+
+    expect(result).toBeCloseTo(currentScore * (modifiedBaseAttack / currentBaseAttack), 6);
+  });
+
+  it('applies only the known flat base attack delta from +9 to +10 armlet', () => {
+    const currentScore = 100_000;
+    const weaponAttack = 200_000;
+    const mainStat = 900_000;
+    const current = equipment('armlet', { normalLevel: 9, tier: '영웅' });
+    const modified = { ...current, normalLevel: 10 };
+
+    const result = calcLopecDelta(
+      currentScore,
+      engravings([]),
+      engravings([]),
+      emptyGems,
+      emptyGems,
+      { armlet: current },
+      { armlet: modified },
+      undefined,
+      undefined,
+      charStatsFor(weaponAttack, mainStat),
+    );
+    const currentBaseAttack = Math.sqrt((weaponAttack * mainStat) / 6);
+    const modifiedBaseAttack = currentBaseAttack + 1180;
 
     expect(result).toBeCloseTo(currentScore * (modifiedBaseAttack / currentBaseAttack), 6);
   });

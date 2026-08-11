@@ -1,5 +1,5 @@
 import type { ReactElement } from 'react';
-import { ARMLET_LEVELS, ARMLET_POWER_BY_LEVEL, resolveArmletLevel, type EquipSlot } from '../../data/specScore/lopecCoefficients';
+import { ARMLET_POWER_BY_LEVEL, ARMLET_SELECT_LEVELS, ARMLET_UNEQUIPPED_LEVEL, resolveArmletLevel, type EquipSlot } from '../../data/specScore/lopecCoefficients';
 import type { EquipmentState, EquipmentTier } from '../../utils/equipmentState';
 import { gradeFrame } from '../../utils/equipmentColors';
 import { SpecSelect } from './SpecSelect';
@@ -26,7 +26,7 @@ const SLOT_LABEL: Record<EquipSlot, string> = {
   armlet: '완갑',
 };
 
-const SLOT_ORDER: EquipSlot[] = ['weapon', 'helmet', 'shoulder', 'armor', 'pants', 'gloves', 'armlet'];
+const SLOT_ORDER: EquipSlot[] = ['weapon', 'armlet', 'helmet', 'shoulder', 'armor', 'pants', 'gloves'];
 const TIER_OPTIONS = ['유물', '업화', '전율'] as const;
 const TIER_LABELS: Record<(typeof TIER_OPTIONS)[number], string> = {
   유물: '유물',
@@ -127,8 +127,21 @@ export const SpecScoreEquipmentPanel = ({
           const quality = extractQuality(cur.raw.Tooltip);
           if (slot === 'armlet') {
             const armletLevel = resolveArmletLevel(curNormal);
-            const armletPower = ARMLET_POWER_BY_LEVEL[armletLevel];
-            const armletFrame = gradeFrame(armletPower.grade, 'bg');
+            const armletPower = armletLevel === null ? null : ARMLET_POWER_BY_LEVEL[armletLevel];
+            const armletIsUnequipped = curNormal === ARMLET_UNEQUIPPED_LEVEL;
+            // 등급/아이콘 출처는 API가 권위다. 값이 실제로 달라진 경우에만 계수 테이블로 넘어간다.
+            const armletIsModified = curNormal !== cur.normalLevel;
+            const armletGrade = armletIsUnequipped
+              ? ARMLET_POWER_BY_LEVEL[ARMLET_UNEQUIPPED_LEVEL].grade
+              : armletIsModified && armletPower !== null
+                ? armletPower.grade
+                : cur.raw.Grade;
+            const armletIcon = armletIsUnequipped
+              ? ARMLET_POWER_BY_LEVEL[ARMLET_UNEQUIPPED_LEVEL].icon
+              : armletIsModified && armletPower !== null
+                ? armletPower.icon
+                : cur.raw.Icon;
+            const armletFrame = gradeFrame(armletGrade, 'bg');
             return (
               <div
                 key={slot}
@@ -140,28 +153,28 @@ export const SpecScoreEquipmentPanel = ({
                     style={armletFrame.style}
                   >
                     <img
-                      src={armletPower.icon}
+                      src={armletIcon}
                       alt=""
-                      className={`h-full w-full object-contain ${armletLevel === 0 ? 'opacity-45 grayscale' : ''}`}
+                      className={`h-full w-full object-contain ${armletIsUnequipped ? 'opacity-45 grayscale' : ''}`}
                     />
                   </div>
                   <span className="absolute top-0.5 left-0.5 rounded bg-black/70 px-1 text-[9px] font-bold leading-tight text-white">
                     완갑
                   </span>
                   <span className="absolute bottom-0.5 left-0.5 right-0.5 rounded bg-black/70 text-center text-[9px] font-bold leading-tight text-amber-300">
-                    {armletPower.grade}
+                    {armletGrade}
                   </span>
                 </div>
                 <div className="grid flex-1 grid-cols-1 gap-1 text-[11px] sm:grid-cols-2">
                   <div className="flex min-w-0 items-center gap-1">
                     <SpecSelect
-                      value={armletLevel}
+                      value={curNormal}
                       onChange={(value) => onEquipmentChange(slot, { normalLevel: Number(value) })}
-                      items={ARMLET_LEVELS.map((level) => ({
+                      items={ARMLET_SELECT_LEVELS.map((level) => ({
                         value: level,
-                        label: level === 0 ? '미착용' : String(level),
+                        label: level === ARMLET_UNEQUIPPED_LEVEL ? '미착용' : String(level),
                       }))}
-                      ariaLabel="완갑 레벨"
+                      ariaLabel={`완갑 레벨 ${armletIsUnequipped ? '미착용' : curNormal}`}
                       className="w-20 flex-shrink-0"
                     />
                   </div>

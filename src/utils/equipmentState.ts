@@ -8,9 +8,10 @@ import {
 } from '../data/specScore/equipmentPowerTables';
 import {
   ARMLET_POWER_BY_LEVEL,
+  ARMLET_UNEQUIPPED_LEVEL,
   EQUIP_TYPE_TO_SLOT,
   extractEquipTier,
-  resolveArmletLevel,
+  resolveArmletCombatLevel,
   type EquipSlot,
 } from '../data/specScore/lopecCoefficients';
 
@@ -105,7 +106,9 @@ export const resolveNormalHoningDelta = (
   normalLevel: number,
 ): EquipmentNormalHoningDelta | undefined => {
   if (slot === 'armlet') {
-    const power = ARMLET_POWER_BY_LEVEL[resolveArmletLevel(normalLevel)];
+    const armletLevel = resolveArmletCombatLevel(normalLevel);
+    if (armletLevel === null) return undefined;
+    const power = ARMLET_POWER_BY_LEVEL[armletLevel];
     return {
       kind: 'armlet',
       weaponAttack: power.weaponAttack,
@@ -143,13 +146,13 @@ export const parseEquipmentState = (item: EquipmentItem): EquipmentState | null 
   const isInherited = equipmentFamily === 'serka' && parseIsInherited(item.Tooltip);
 
   if (slot === 'armlet') {
-    const normalLevel = resolveArmletLevel(parsedNormalLevel);
+    const normalLevel = parsedNormalLevel;
     const normalHoningDelta = resolveNormalHoningDelta(slot, equipmentFamily, normalLevel);
     return {
       slot,
       normalLevel,
       advancedLevel: 0,
-      tier: ARMLET_POWER_BY_LEVEL[normalLevel].grade,
+      tier: normalLevel === ARMLET_UNEQUIPPED_LEVEL ? ARMLET_POWER_BY_LEVEL[ARMLET_UNEQUIPPED_LEVEL].grade : item.Grade,
       equipmentFamily,
       normalHoningDelta,
       isInherited,
@@ -172,19 +175,19 @@ export const parseEquipmentState = (item: EquipmentItem): EquipmentState | null 
   };
 };
 
-const createEmptyArmletState = (): EquipmentState => ({
+export const createEmptyArmletState = (): EquipmentState => ({
   slot: 'armlet',
-  normalLevel: 0,
+  normalLevel: ARMLET_UNEQUIPPED_LEVEL,
   advancedLevel: 0,
-  tier: ARMLET_POWER_BY_LEVEL[0].grade,
+  tier: ARMLET_POWER_BY_LEVEL[ARMLET_UNEQUIPPED_LEVEL].grade,
   equipmentFamily: 'egir',
-  normalHoningDelta: resolveNormalHoningDelta('armlet', 'egir', 0),
+  normalHoningDelta: resolveNormalHoningDelta('armlet', 'egir', ARMLET_UNEQUIPPED_LEVEL),
   isInherited: false,
   raw: {
     Type: '완갑',
-    Name: '+0 완갑 미착용',
-    Icon: ARMLET_POWER_BY_LEVEL[0].icon,
-    Grade: ARMLET_POWER_BY_LEVEL[0].grade,
+    Name: '완갑 미착용',
+    Icon: ARMLET_POWER_BY_LEVEL[ARMLET_UNEQUIPPED_LEVEL].icon,
+    Grade: ARMLET_POWER_BY_LEVEL[ARMLET_UNEQUIPPED_LEVEL].grade,
     Tooltip: '{}',
   },
 });

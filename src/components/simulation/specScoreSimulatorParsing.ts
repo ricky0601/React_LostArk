@@ -1,5 +1,5 @@
 import type { AvatarItem, CharacterProfile, EquipmentItem } from '../../types/lostark';
-import { ARMLET_POWER_BY_LEVEL, resolveArmletLevel } from '../../data/specScore/lopecCoefficients';
+import { ARMLET_POWER_BY_LEVEL, ARMLET_UNEQUIPPED_LEVEL, resolveArmletCombatLevel } from '../../data/specScore/lopecCoefficients';
 import { fetchArkGrid, fetchArkPassive, fetchAvatars, fetchCards, fetchEngravings, fetchEquipment, fetchGems } from '../../utils/api';
 import { parseEquipmentList } from '../../utils/equipmentState';
 import { combineAvatarPetMainStatMultiplier } from '../../utils/lopecEquipmentDelta';
@@ -182,7 +182,10 @@ export const fetchSpecScoreRawData = async (profile: CharacterProfile): Promise<
   const equip = parseEquipmentList(equipment);
   const accessories = parseAccessoryList(equipment);
   const bracelet = parseBraceletState(equipment.find((equipmentItem) => equipmentItem.Type === '팔찌'));
-  const armletPower = ARMLET_POWER_BY_LEVEL[resolveArmletLevel(equip.armlet?.normalLevel ?? 0)];
+  const armletLevel = resolveArmletCombatLevel(equip.armlet?.normalLevel ?? ARMLET_UNEQUIPPED_LEVEL);
+  const armletPower = armletLevel === null
+    ? ARMLET_POWER_BY_LEVEL[ARMLET_UNEQUIPPED_LEVEL]
+    : ARMLET_POWER_BY_LEVEL[armletLevel];
   const weaponTooltipAttack = extractWeaponAttack(weaponItem);
   const stoneBaseAttackBonusPercent = extractStoneBaseAttackBonusPercent(stoneItem);
   const weaponAttackPercentSum =

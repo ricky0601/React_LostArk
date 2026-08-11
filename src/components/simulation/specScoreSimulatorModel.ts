@@ -188,12 +188,18 @@ export const buildModifiedSpecScoreData = (
     if (!current) continue;
     const mod = mods.equip[slot];
     if (slot === 'armlet') {
-      const normalLevel = resolveArmletLevel(mod?.normalLevel ?? current.normalLevel);
+      const requestedLevel = mod?.normalLevel ?? current.normalLevel;
+      const armletLevel = resolveArmletLevel(requestedLevel);
+      // 착용 중인 완갑의 등급은 API가 권위다.
+      // 계수 테이블 grade는 사용자가 실제로 레벨을 바꿔 가상 아이템이 된 경우에만 쓴다.
+      const isLevelChanged = requestedLevel !== current.normalLevel;
       equip[slot] = {
         ...current,
-        normalLevel,
+        normalLevel: requestedLevel,
         advancedLevel: 0,
-        tier: ARMLET_POWER_BY_LEVEL[normalLevel].grade,
+        tier: isLevelChanged && armletLevel !== null
+          ? ARMLET_POWER_BY_LEVEL[armletLevel].grade
+          : current.tier,
       };
       continue;
     }

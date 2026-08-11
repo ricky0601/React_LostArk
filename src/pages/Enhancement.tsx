@@ -14,6 +14,7 @@ import {
   AEGIR_WEAPON_STEPS,
   SERKA_ARMOR_STEPS,
   SERKA_WEAPON_STEPS,
+  ARMLET_STEPS,
   ADV_ARMOR_STAGES,
   ADV_WEAPON_STAGES,
   ADV_STAGE_XP,
@@ -33,9 +34,10 @@ import {
 
 const ARMOR_SLOTS = ['투구', '어깨', '상의', '하의', '장갑'] as const;
 type ArmorSlot = (typeof ARMOR_SLOTS)[number];
-type SlotName = '무기' | ArmorSlot;
+type SlotName = '무기' | ArmorSlot | '완갑';
 
-const ALL_SLOTS: SlotName[] = ['무기', '투구', '어깨', '상의', '하의', '장갑'];
+const ALL_SLOTS: SlotName[] = ['무기', '완갑', '투구', '어깨', '상의', '하의', '장갑'];
+const ITEM_LEVEL_SLOTS = ['무기', ...ARMOR_SLOTS] as const;
 
 const ITEM_LEVEL_PER_STEP = 5; // 일반 재련 1단계당 아이템 레벨 증가량
 
@@ -180,9 +182,8 @@ const findCheapest = (
   let bestGold = Infinity;
   for (const combo of combos) {
     const gold = steps.reduce((sum, step) => {
-      const effBook = combo.useBook && !!step.bookMaterial;
-      const exp = calcExpectedAttempts(step, effBook, combo.useBreath);
-      const mats = getAttemptMaterials(step, effBook, combo.useBreath);
+      const exp = calcExpectedAttempts(step, combo.useBook, combo.useBreath);
+      const mats = getAttemptMaterials(step, combo.useBook, combo.useBreath);
       const matGold = mats.reduce((s, m) => s + m.amount * (prices[m.type] ?? 0), 0) * exp;
       return sum + step.gold * exp + matGold;
     }, 0);
@@ -246,9 +247,12 @@ const findCheapestAdv = (
 };
 
 const getStepsForSlot = (slot: SlotName, isInherited: boolean) => {
+  if (slot === '완갑') return ARMLET_STEPS;
   if (slot === '무기') return isInherited ? SERKA_WEAPON_STEPS : AEGIR_WEAPON_STEPS;
   return isInherited ? SERKA_ARMOR_STEPS : AEGIR_ARMOR_STEPS;
 };
+
+const supportsAdvancedHoning = (slot: SlotName): boolean => slot !== '완갑';
 
 const calcStepData = (
   steps: typeof AEGIR_ARMOR_STEPS,
@@ -256,10 +260,9 @@ const calcStepData = (
   breath: boolean,
   priceMap: PriceMap,
 ) => steps.map((step) => {
-  const effBook = book && !!step.bookMaterial;
-  const exp = calcExpectedAttempts(step, effBook, breath);
-  const ceiling = getCeiling(step, effBook, breath);
-  const mats = getAttemptMaterials(step, effBook, breath);
+  const exp = calcExpectedAttempts(step, book, breath);
+  const ceiling = getCeiling(step, book, breath);
+  const mats = getAttemptMaterials(step, book, breath);
   const matGoldPerAttempt = mats.reduce((s, m) => s + m.amount * (priceMap[m.type] ?? 0), 0);
   const matGold = matGoldPerAttempt * exp;
   const directGold = step.gold * exp;
@@ -316,7 +319,7 @@ const Toggle: React.FC<{
 const Enhancement: React.FC = () => {
   // ── 캐릭터 검색 ─────────────────────────────
   const [charInput, setCharInput] = useState('');
-  const [armorMap, setArmorMap] = useState<Partial<Record<ArmorSlot, number>>>({});
+  const [armorMap, setArmorMap] = useState<Partial<Record<ArmorSlot | '완갑', number>>>({});
   const [weaponLevel, setWeaponLevel] = useState<number | undefined>(undefined);
   const [slotIconMap, setSlotIconMap] = useState<Partial<Record<SlotName, string>>>({});
   const [slotInheritedMap, setSlotInheritedMap] = useState<Partial<Record<SlotName, boolean>>>({});
@@ -397,6 +400,7 @@ const Enhancement: React.FC = () => {
   // ── 슬롯별 현재 레벨 ─────────────────────────
   const slotCurrentLevel = useMemo<Record<SlotName, number>>(() => ({
     '무기': weaponLevel ?? 10,
+    '완갑': armorMap['완갑'] ?? 0,
     '투구': armorMap['투구'] ?? 10,
     '어깨': armorMap['어깨'] ?? 10,
     '상의': armorMap['상의'] ?? 10,
@@ -406,6 +410,7 @@ const Enhancement: React.FC = () => {
 
   const slotHasData = useMemo<Record<SlotName, boolean>>(() => ({
     '무기': weaponLevel !== undefined,
+    '완갑': armorMap['완갑'] !== undefined,
     '투구': armorMap['투구'] !== undefined,
     '어깨': armorMap['어깨'] !== undefined,
     '상의': armorMap['상의'] !== undefined,
@@ -466,7 +471,7 @@ const Enhancement: React.FC = () => {
     setTargetMap({});
     try {
       const equipment = await fetchEquipment(name.trim());
-      const map: Partial<Record<ArmorSlot, number>> = {};
+      const map: Partial<Record<ArmorSlot | '완갑', number>> = {};
       const iconMap: Partial<Record<SlotName, string>> = {};
       const inheritedMap: Partial<Record<SlotName, boolean>> = {};
       const advMap: Partial<Record<SlotName, number>> = {};
@@ -477,6 +482,10 @@ const Enhancement: React.FC = () => {
           const { isInherited, advLevel } = parseTooltipData(item.Tooltip);
           if (isInherited) inheritedMap[item.Type as ArmorSlot] = true;
           if (advLevel > 0) advMap[item.Type as ArmorSlot] = advLevel;
+        }
+        if (item.Type === '완갑') {
+          map['완갑'] = parseEnhLevel(item.Name);
+          if (item.Icon) iconMap['완갑'] = item.Icon;
         }
         if (item.Type === '무기') {
           setWeaponLevel(parseEnhLevel(item.Name));
@@ -610,9 +619,8 @@ const Enhancement: React.FC = () => {
     const map = new Map<MaterialType, number>();
     slotFilteredSteps.forEach((steps) => {
       steps.forEach((step) => {
-        const effBook = !!step.bookMaterial;
-        const exp = calcExpectedAttempts(step, effBook, true);
-        const mats = getAttemptMaterials(step, effBook, true);
+        const exp = calcExpectedAttempts(step, true, true);
+        const mats = getAttemptMaterials(step, true, true);
         mats.forEach((m) => {
           map.set(m.type, (map.get(m.type) ?? 0) + m.amount * exp);
         });
@@ -624,6 +632,7 @@ const Enhancement: React.FC = () => {
   // ── 상급 재련 활성 슬롯 ───────────────────────
   const activeAdvSlots = useMemo(
     () => ALL_SLOTS.filter((s) => {
+      if (!supportsAdvancedHoning(s)) return false;
       const target = advTargetMap[s];
       return target != null && target > (advLevelMap[s] ?? 0);
     }),
@@ -651,6 +660,7 @@ const Enhancement: React.FC = () => {
 
     // 일반 재련: 1강당 +5 아이템 레벨
     const normalIncrease = activeSlots.reduce((sum, slot) => {
+      if (!(ITEM_LEVEL_SLOTS as readonly string[]).includes(slot)) return sum;
       const steps = (targetMap[slot] ?? slotCurrentLevel[slot]) - slotCurrentLevel[slot];
       return sum + steps * ITEM_LEVEL_PER_STEP;
     }, 0);
@@ -806,7 +816,7 @@ const Enhancement: React.FC = () => {
   const hasOwnedInput = Object.values(ownedMaterials).some((v) => (v ?? 0) > 0);
   // 상급 재련 가능한 슬롯이 1개 이상 존재 (에기르이고 40단계 미만)
   const hasAnyAdvSlotAvailable = ALL_SLOTS.some(
-    (s) => slotHasData[s] && !slotInheritedMap[s] && (advLevelMap[s] ?? 0) < 40,
+    (s) => supportsAdvancedHoning(s) && slotHasData[s] && !slotInheritedMap[s] && (advLevelMap[s] ?? 0) < 40,
   );
 
   // ─────────────────────────────────────────────
@@ -855,7 +865,7 @@ const Enhancement: React.FC = () => {
           )}
 
           {/* 슬롯 카드 - 현재 강화 수치 표시 */}
-          <div className="grid grid-cols-2 sm:grid-cols-6 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-7 gap-2">
             {ALL_SLOTS.map((slot) => {
               const hasData = slotHasData[slot];
               const level = slotCurrentLevel[slot];
@@ -895,7 +905,7 @@ const Enhancement: React.FC = () => {
                   }`}>
                     {hasData ? `+${level}` : '—'}
                   </span>
-                  {!slotInheritedMap[slot] && hasData && (
+                  {supportsAdvancedHoning(slot) && !slotInheritedMap[slot] && hasData && (
                     <span className={`text-[10px] leading-none ${
                       advTargetMap[slot] != null
                         ? 'text-purple-500 dark:text-purple-400'
@@ -926,7 +936,7 @@ const Enhancement: React.FC = () => {
               }}
             />
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-6 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-7 gap-2">
             {ALL_SLOTS.map((slot) => {
               const currentLvl = slotCurrentLevel[slot];
               const targetOptions = Array.from({ length: 25 - currentLvl }, (_, i) => {
@@ -964,16 +974,16 @@ const Enhancement: React.FC = () => {
                     if (val === undefined) return;
                     const targetLevel = Number(val);
                     ALL_SLOTS.forEach((slot) => {
-                      if (!slotInheritedMap[slot] && (advLevelMap[slot] ?? 0) < targetLevel) {
+                      if (supportsAdvancedHoning(slot) && !slotInheritedMap[slot] && (advLevelMap[slot] ?? 0) < targetLevel) {
                         handleAdvTargetChange(slot, targetLevel);
                       }
                     });
                   }}
                 />
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-6 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-7 gap-2">
                 {ALL_SLOTS.map((slot) => {
-                  if (slotInheritedMap[slot]) {
+                  if (!supportsAdvancedHoning(slot) || slotInheritedMap[slot]) {
                     return <div key={slot} />;
                   }
                   const currentAdv = advLevelMap[slot] ?? 0;
