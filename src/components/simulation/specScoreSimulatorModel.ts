@@ -188,12 +188,13 @@ export const buildModifiedSpecScoreData = (
     if (!current) continue;
     const mod = mods.equip[slot];
     if (slot === 'armlet') {
-      const normalLevel = resolveArmletLevel(mod?.normalLevel ?? current.normalLevel);
+      const requestedLevel = mod?.normalLevel ?? current.normalLevel;
+      const armletLevel = resolveArmletLevel(requestedLevel);
       equip[slot] = {
         ...current,
-        normalLevel,
+        normalLevel: requestedLevel,
         advancedLevel: 0,
-        tier: ARMLET_POWER_BY_LEVEL[normalLevel].grade,
+        tier: armletLevel === null ? current.tier : ARMLET_POWER_BY_LEVEL[armletLevel].grade,
       };
       continue;
     }
