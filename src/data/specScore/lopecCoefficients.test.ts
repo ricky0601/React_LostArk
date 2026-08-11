@@ -1,6 +1,7 @@
 import {
   ARMLET_POWER_BY_LEVEL,
   ARMLET_UNEQUIPPED_LEVEL,
+  resolveArmletCombatLevel,
   resolveArmletLevel,
 } from './lopecCoefficients';
 
@@ -47,7 +48,15 @@ describe('armlet combat power coefficients', () => {
     }
   });
 
-  it('does not guess unsupported armlet levels', () => {
+  it('keeps UI validation strict for unsupported armlet levels', () => {
+    // Given / When / Then
     expect(resolveArmletLevel(16)).toBeNull();
+  });
+
+  it('uses the nearest supported lower level for combat scoring', () => {
+    // Given / When / Then
+    expect(resolveArmletCombatLevel(13)).toBe(10);
+    expect(resolveArmletCombatLevel(18)).toBe(15);
+    expect(resolveArmletCombatLevel(23)).toBe(20);
   });
 });

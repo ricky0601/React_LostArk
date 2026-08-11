@@ -294,6 +294,18 @@ export const isArmletLevel = (level: number): level is ArmletLevel =>
 export const resolveArmletLevel = (level: number): ArmletLevel | null =>
   isArmletLevel(level) ? level : null;
 
+export const resolveArmletCombatLevel = (level: number): ArmletLevel | null => {
+  const exactLevel = resolveArmletLevel(level);
+  if (exactLevel !== null) return exactLevel;
+
+  for (let index = ARMLET_LEVELS.length - 1; index >= 0; index -= 1) {
+    const supportedLevel = ARMLET_LEVELS[index];
+    if (supportedLevel !== undefined && supportedLevel <= level) return supportedLevel;
+  }
+
+  return null;
+};
+
 /**
  * 상급 재련 단계별 누적 ratio (해당 슬롯의 X0 기준)
  * index 0..8 = X(i*5), 즉 X0, X5, X10, ..., X40
