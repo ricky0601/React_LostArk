@@ -426,8 +426,11 @@ const Enhancement: React.FC = () => {
     [targetMap, slotCurrentLevel],
   );
   const activeIncludesArmlet = activeSlots.includes('완갑');
-  const effectiveUseBreath = activeIncludesArmlet ? false : useBreath;
-  const effectiveCostMode = activeIncludesArmlet ? 'average' : costMode;
+  const armletIsOnlyActiveSlot = activeSlots.length === 1 && activeSlots[0] === '완갑';
+
+  useEffect(() => {
+    if (armletIsOnlyActiveSlot) setCostMode('average');
+  }, [armletIsOnlyActiveSlot]);
 
   // ── 슬롯별 필터된 steps 캐시 ─────────────────
   const slotFilteredSteps = useMemo(() => {
@@ -500,7 +503,6 @@ const Enhancement: React.FC = () => {
           if (advLevel > 0) advMap['무기'] = advLevel;
         }
       }
-      if (map['완갑'] === undefined) map['완갑'] = 0;
       setArmorMap(map);
       setSlotIconMap(iconMap);
       setSlotInheritedMap(inheritedMap);
@@ -541,8 +543,9 @@ const Enhancement: React.FC = () => {
   const perSlotStepData = useMemo(() => {
     const result = new Map<SlotName, ReturnType<typeof calcStepData>>();
     slotFilteredSteps.forEach((steps, slot) => {
-      const data = calcStepData(steps, useBook, effectiveUseBreath, prices);
-      if (effectiveCostMode === 'ceiling') {
+      const useSlotBreath = slot !== '완갑' && useBreath;
+      const data = calcStepData(steps, useBook, useSlotBreath, prices);
+      if (costMode === 'ceiling' && slot !== '완갑') {
         result.set(slot, data.map((d) => ({
           ...d,
           exp: d.ceiling,
@@ -556,7 +559,7 @@ const Enhancement: React.FC = () => {
       }
     });
     return result;
-  }, [slotFilteredSteps, useBook, effectiveUseBreath, prices, effectiveCostMode]);
+  }, [slotFilteredSteps, useBook, useBreath, prices, costMode]);
 
   // ── 슬롯별 소계 ──────────────────────────────
   const slotTotals = useMemo(() => {
@@ -1048,32 +1051,30 @@ const Enhancement: React.FC = () => {
                   label={`책 ${useBook ? 'ON' : 'OFF'}`}
                   active={useBook}
                   color="gold"
-                  badge={hasPrices && isCheapest(true, effectiveUseBreath) && !useBook ? '최적' : undefined}
+                  badge={hasPrices && isCheapest(true, useBreath) && !useBook ? '최적' : undefined}
                   onClick={() => setUseBook((b) => !b)}
                 />
               )}
               <Toggle
-                label={`숨결 ${effectiveUseBreath ? 'ON' : 'OFF'}`}
-                active={effectiveUseBreath}
+                label={`숨결 ${useBreath ? 'ON' : 'OFF'}`}
+                active={useBreath}
                 color="blue"
-                badge={hasPrices && !activeIncludesArmlet && isCheapest(useBook, true) && !useBreath ? '최적' : undefined}
-                onClick={() => {
-                  if (!activeIncludesArmlet) setUseBreath((b) => !b);
-                }}
+                badge={hasPrices && isCheapest(useBook, true) && !useBreath ? '최적' : undefined}
+                onClick={() => setUseBreath((b) => !b)}
               />
               {hasPrices && (
                 <button
-                  onClick={() => { setUseBook(cheapest.useBook); setUseBreath(activeIncludesArmlet ? false : cheapest.useBreath); }}
+                  onClick={() => { setUseBook(cheapest.useBook); setUseBreath(cheapest.useBreath); }}
                   className="text-xs text-green-600 dark:text-green-400 underline underline-offset-2 hover:opacity-70"
                 >
-                  최적 세팅 (책 {cheapest.useBook ? 'ON' : 'OFF'} / 숨결 {activeIncludesArmlet ? 'OFF' : (cheapest.useBreath ? 'ON' : 'OFF')})
+                  최적 세팅 (책 {cheapest.useBook ? 'ON' : 'OFF'} / 숨결 {cheapest.useBreath ? 'ON' : 'OFF'})
                 </button>
               )}
               <div className="ml-auto inline-flex rounded-full border border-gray-200 dark:border-white/10 overflow-hidden text-xs font-medium">
                 <button
                   onClick={() => setCostMode('average')}
                   className={`px-3 py-1.5 transition-colors ${
-                    effectiveCostMode === 'average'
+                    costMode === 'average'
                       ? 'bg-la-gold/20 text-la-gold-dark dark:text-la-gold'
                       : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5'
                   }`}
@@ -1082,12 +1083,12 @@ const Enhancement: React.FC = () => {
                 </button>
                 <button
                   onClick={() => {
-                    if (!activeIncludesArmlet) setCostMode('ceiling');
+                    if (!armletIsOnlyActiveSlot) setCostMode('ceiling');
                   }}
-                  disabled={activeIncludesArmlet}
-                  title={activeIncludesArmlet ? '완갑은 평균 기대 비용만 지원합니다' : undefined}
+                  disabled={armletIsOnlyActiveSlot}
+                  title={armletIsOnlyActiveSlot ? '완갑은 평균 기대 비용만 지원합니다' : undefined}
                   className={`px-3 py-1.5 transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
-                    effectiveCostMode === 'ceiling'
+                    costMode === 'ceiling'
                       ? 'bg-red-500/20 text-red-600 dark:text-red-400'
                       : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5'
                   }`}
@@ -1097,7 +1098,7 @@ const Enhancement: React.FC = () => {
               </div>
               {activeIncludesArmlet && (
                 <p className="mt-2 text-[11px] text-gray-400 dark:text-gray-500">
-                  완갑은 출처 표의 평균 기대 총합만 확인되어 숨결과 장기백 계산을 제외합니다.
+                  완갑은 출처 표의 평균 기대 총합을 사용하며, 숨결과 장기백 설정은 함께 선택한 다른 장비에만 적용됩니다.
                 </p>
               )}
             </div>
