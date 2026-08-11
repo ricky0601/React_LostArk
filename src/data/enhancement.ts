@@ -1283,6 +1283,22 @@ export const ARMLET_STEPS: EnhancementStep[] = [
 // ─────────────────────────────────────────────
 
 /**
+ * 단계가 실제로 지원하는 부스터만 남긴다.
+ *
+ * 완갑처럼 bookMaterial이 없는 단계에 useBook: true가 들어오면
+ * 확률은 그대로인 채 partial 천장만 낮아져 재료 없이 비용이 줄어든다.
+ * 계산 진입부에서 한 번 정규화해 호출자가 같은 가드를 반복하지 않게 한다.
+ */
+const resolveBoosters = (
+  step: EnhancementStep,
+  useBook: boolean,
+  useBreath: boolean,
+): { book: boolean; breath: boolean } => ({
+  book: useBook && step.bookMaterial != null,
+  breath: useBreath && (step.breathMaterial != null || (step.breathMaterials?.length ?? 0) > 0),
+});
+
+/**
  * n번째 시도의 성공 확률 (실패 누적 반영)
  * @param step 강화 단계
  * @param attemptIndex 0-based 시도 인덱스 (0 = 1트)
@@ -1295,11 +1311,12 @@ export const calcAttemptRate = (
   useBook: boolean,
   useBreath: boolean,
 ): number => {
+  const booster = resolveBoosters(step, useBook, useBreath);
   const base = Math.min(
     step.maxBaseSuccessRate,
     step.baseSuccessRate + attemptIndex * step.rateIncreasePerFailure,
   );
-  const boosters = (useBook ? step.bookBonus : 0) + (useBreath ? step.breathBonus : 0);
+  const boosters = (booster.book ? step.bookBonus : 0) + (booster.breath ? step.breathBonus : 0);
   return Math.min(1, base + boosters);
 };
 
@@ -1314,8 +1331,9 @@ export const getCeiling = (
   useBook: boolean,
   useBreath: boolean,
 ): number => {
-  const useBoth = useBook && useBreath;
-  const useAny  = useBook || useBreath;
+  const booster = resolveBoosters(step, useBook, useBreath);
+  const useBoth = booster.book && booster.breath;
+  const useAny  = booster.book || booster.breath;
   if (useBoth   && step.ceiling.both    != null) return step.ceiling.both;
   if (useAny    && step.ceiling.partial != null) return step.ceiling.partial;
   return step.ceiling.none;
@@ -1331,14 +1349,15 @@ export const calcExpectedAttempts = (
   useBook: boolean,
   useBreath: boolean,
 ): number => {
-  if (!useBook && !useBreath && step.expectedAttempts !== undefined) return step.expectedAttempts;
+  const booster = resolveBoosters(step, useBook, useBreath);
+  if (!booster.book && !booster.breath && step.expectedAttempts !== undefined) return step.expectedAttempts;
 
-  const ceiling = getCeiling(step, useBook, useBreath);
+  const ceiling = getCeiling(step, booster.book, booster.breath);
   let expected = 0;
   let probAllFailed = 1;
 
   for (let i = 0; i < ceiling - 1; i++) {
-    const rate = calcAttemptRate(step, i, useBook, useBreath);
+    const rate = calcAttemptRate(step, i, booster.book, booster.breath);
     expected += (i + 1) * probAllFailed * rate;
     probAllFailed *= (1 - rate);
   }
@@ -1356,12 +1375,15 @@ export const getAttemptMaterials = (
   step: EnhancementStep,
   useBook: boolean,
   useBreath: boolean,
-): MaterialAmount[] => [
-  ...step.baseMaterials,
-  ...(useBook   && step.bookMaterial   ? [step.bookMaterial]   : []),
-  ...(useBreath && step.breathMaterial ? [step.breathMaterial] : []),
-  ...(useBreath && step.breathMaterials ? step.breathMaterials : []),
-];
+): MaterialAmount[] => {
+  const booster = resolveBoosters(step, useBook, useBreath);
+  return [
+    ...step.baseMaterials,
+    ...(booster.book   && step.bookMaterial    ? [step.bookMaterial]   : []),
+    ...(booster.breath && step.breathMaterial  ? [step.breathMaterial] : []),
+    ...(booster.breath && step.breathMaterials ? step.breathMaterials  : []),
+  ];
+};
 
 // ─────────────────────────────────────────────
 // 상급 재련 (에기르 전용)

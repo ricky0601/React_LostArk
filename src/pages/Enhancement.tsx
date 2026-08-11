@@ -182,9 +182,8 @@ const findCheapest = (
   let bestGold = Infinity;
   for (const combo of combos) {
     const gold = steps.reduce((sum, step) => {
-      const effBook = combo.useBook && !!step.bookMaterial;
-      const exp = calcExpectedAttempts(step, effBook, combo.useBreath);
-      const mats = getAttemptMaterials(step, effBook, combo.useBreath);
+      const exp = calcExpectedAttempts(step, combo.useBook, combo.useBreath);
+      const mats = getAttemptMaterials(step, combo.useBook, combo.useBreath);
       const matGold = mats.reduce((s, m) => s + m.amount * (prices[m.type] ?? 0), 0) * exp;
       return sum + step.gold * exp + matGold;
     }, 0);
@@ -261,10 +260,9 @@ const calcStepData = (
   breath: boolean,
   priceMap: PriceMap,
 ) => steps.map((step) => {
-  const effBook = book && !!step.bookMaterial;
-  const exp = calcExpectedAttempts(step, effBook, breath);
-  const ceiling = getCeiling(step, effBook, breath);
-  const mats = getAttemptMaterials(step, effBook, breath);
+  const exp = calcExpectedAttempts(step, book, breath);
+  const ceiling = getCeiling(step, book, breath);
+  const mats = getAttemptMaterials(step, book, breath);
   const matGoldPerAttempt = mats.reduce((s, m) => s + m.amount * (priceMap[m.type] ?? 0), 0);
   const matGold = matGoldPerAttempt * exp;
   const directGold = step.gold * exp;
@@ -621,9 +619,8 @@ const Enhancement: React.FC = () => {
     const map = new Map<MaterialType, number>();
     slotFilteredSteps.forEach((steps) => {
       steps.forEach((step) => {
-        const effBook = !!step.bookMaterial;
-        const exp = calcExpectedAttempts(step, effBook, true);
-        const mats = getAttemptMaterials(step, effBook, true);
+        const exp = calcExpectedAttempts(step, true, true);
+        const mats = getAttemptMaterials(step, true, true);
         mats.forEach((m) => {
           map.set(m.type, (map.get(m.type) ?? 0) + m.amount * exp);
         });
