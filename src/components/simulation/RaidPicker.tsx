@@ -1,6 +1,7 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
 import type { RaidColumn, SelectedRaid } from '../../data/raidGold';
+import { useBodyScrollLock } from '../../hooks/useBodyScrollLock';
 import FallbackImage from '../FallbackImage';
 import StateFeedback from '../StateFeedback';
 
@@ -33,6 +34,8 @@ const RaidPicker: React.FC<RaidPickerProps> = ({
   const dialogRef = React.useRef<HTMLElement>(null);
   const [isMobile, setIsMobile] = React.useState(() => window.innerWidth < 768);
 
+  useBodyScrollLock(isMobile);
+
   React.useEffect(() => {
     const handleResize = (): void => setIsMobile(window.innerWidth < 768);
     window.addEventListener('resize', handleResize);
@@ -41,11 +44,6 @@ const RaidPicker: React.FC<RaidPickerProps> = ({
 
   React.useEffect(() => {
     if (!isMobile) return;
-
-    const root = document.getElementById('root');
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    root?.setAttribute('aria-hidden', 'true');
 
     const focusableSelector = 'button:not([disabled]), input:not([disabled]), a[href]';
     const focusFirst = (): void => {
@@ -75,8 +73,6 @@ const RaidPicker: React.FC<RaidPickerProps> = ({
     document.addEventListener('keydown', handleKeyDown);
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
-      document.body.style.overflow = previousOverflow;
-      root?.removeAttribute('aria-hidden');
     };
   }, [isMobile]);
   const availableKeys = new Set(

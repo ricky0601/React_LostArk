@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useBodyScrollLock } from '../hooks/useBodyScrollLock';
 import { SelectMenuMobilePanel } from './SelectMenuMobilePanel';
 
 type SelectMenuVariant = 'gray' | 'purple';
@@ -71,6 +72,8 @@ const SelectMenu: React.FC<SelectMenuProps> = ({
   const displayLabel = selected?.label ?? placeholder;
   const resolvedTextAlign = align ?? textAlign;
   const resolvedPanelTitle = panelTitle ?? ariaLabel;
+
+  useBodyScrollLock(open && mobileViewport);
 
   const closeMenu = useCallback((): void => {
     setOpen(false);
@@ -149,12 +152,7 @@ const SelectMenu: React.FC<SelectMenuProps> = ({
   }, [closeMenu, open, updateMenuPosition]);
 
   useEffect(() => {
-    if (!open || !mobileViewport || typeof document === 'undefined') return;
-
-    const root = document.getElementById('root');
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    root?.setAttribute('aria-hidden', 'true');
+    if (!open || !mobileViewport) return;
 
     const focusableSelector = 'button:not([disabled]), [role="option"]:not(:disabled)';
     const handleKeyDown = (event: KeyboardEvent): void => {
@@ -179,8 +177,6 @@ const SelectMenu: React.FC<SelectMenuProps> = ({
     document.addEventListener('keydown', handleKeyDown);
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
-      document.body.style.overflow = previousOverflow;
-      root?.removeAttribute('aria-hidden');
     };
   }, [mobileViewport, open]);
 

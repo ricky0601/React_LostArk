@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useLocation } from 'react-router-dom';
 import { useTheme } from '../context/ThemeContext';
+import { useBodyScrollLock } from '../hooks/useBodyScrollLock';
 import ChangelogBell from './ChangelogBell';
 import { getNavItemClass, MORE_NAV_LINKS, NavLinks, PRIMARY_NAV_LINKS } from './nav/NavLinks';
 
@@ -17,6 +18,8 @@ const NavBar: React.FC = () => {
   const mobileMenuButtonRef = useRef<HTMLButtonElement>(null);
   const mobileMenuPanelRef = useRef<HTMLDivElement>(null);
   const restoreMobileMenuFocusRef = useRef<'trigger' | 'desktop'>('trigger');
+
+  useBodyScrollLock(isMobileMenuOpen);
 
   useEffect(() => {
     setIsMobileMenuOpen(false);
@@ -42,20 +45,6 @@ const NavBar: React.FC = () => {
 
   useEffect(() => {
     if (!isMobileMenuOpen) return;
-
-    const scrollY = window.scrollY;
-    const root = document.getElementById('root');
-    const previousBodyPosition = document.body.style.position;
-    const previousBodyTop = document.body.style.top;
-    const previousBodyWidth = document.body.style.width;
-    const previousBodyOverflow = document.body.style.overflow;
-
-    // iOS Safari는 overflow: hidden만으로는 배경 터치 스크롤(러버밴드)을 막지 못해 position: fixed로 고정한다.
-    document.body.style.position = 'fixed';
-    document.body.style.top = `-${scrollY}px`;
-    document.body.style.width = '100%';
-    document.body.style.overflow = 'hidden';
-    root?.setAttribute('aria-hidden', 'true');
 
     const focusableSelector = 'a[href], button:not([disabled])';
     const panel = mobileMenuPanelRef.current;
@@ -88,13 +77,7 @@ const NavBar: React.FC = () => {
     const themeButton = themeButtonRef.current;
 
     return () => {
-      document.body.style.position = previousBodyPosition;
-      document.body.style.top = previousBodyTop;
-      document.body.style.width = previousBodyWidth;
-      document.body.style.overflow = previousBodyOverflow;
-      root?.removeAttribute('aria-hidden');
       document.removeEventListener('keydown', handleKeyDown);
-      window.scrollTo(0, scrollY);
       if (restoreMobileMenuFocusRef.current === 'desktop') {
         themeButton?.focus();
         restoreMobileMenuFocusRef.current = 'trigger';
