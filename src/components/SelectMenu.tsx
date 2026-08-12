@@ -37,7 +37,7 @@ const variantClass: Record<SelectMenuVariant, string> = {
 };
 
 const activeOptionClass: Record<SelectMenuVariant, string> = {
-  gray: 'bg-la-gold/15 text-la-gold-dark dark:text-la-gold',
+  gray: 'bg-la-gold/15 text-la-gold-deep dark:text-la-gold',
   purple: 'bg-purple-500/20 text-purple-700 dark:text-purple-300',
 };
 

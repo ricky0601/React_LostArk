@@ -157,15 +157,15 @@ export const EngravingRanking: React.FC<RankingProps<EngravingRankItem>> = ({ st
                   <p className="line-clamp-2 text-sm font-bold leading-snug text-gray-900 dark:text-white">{item.itemName}</p>
                   <div className="mt-2 grid grid-cols-[1fr_1fr_auto] gap-2 text-xs">
                     <div className="min-w-0">
-                      <p className="text-gray-400 dark:text-gray-500">최저가</p>
-                      <p className="mt-0.5 whitespace-nowrap font-black tabular-nums text-la-gold-dark dark:text-la-gold">{formatGold(item.price)}</p>
+                      <p className="text-gray-500 dark:text-gray-500">최저가</p>
+                      <p className="mt-0.5 whitespace-nowrap font-black tabular-nums text-la-gold-deep dark:text-la-gold">{formatGold(item.price)}</p>
                     </div>
                     <div className="min-w-0">
-                      <p className="text-gray-400 dark:text-gray-500">전일 평균</p>
+                      <p className="text-gray-500 dark:text-gray-500">전일 평균</p>
                       <p className="mt-0.5 whitespace-nowrap tabular-nums text-gray-600 dark:text-gray-300">{formatGold(item.yDayAvgPrice)}</p>
                     </div>
                     <div className="text-right">
-                      <p className="text-gray-400 dark:text-gray-500">변동</p>
+                      <p className="text-gray-500 dark:text-gray-500">변동</p>
                       <p className="mt-0.5 whitespace-nowrap font-bold"><PriceDelta current={item.price} previous={item.yDayAvgPrice} /></p>
                     </div>
                   </div>
@@ -239,8 +239,8 @@ export const GemRanking: React.FC<RankingProps<GemRankItem>> = ({ state, onRetry
                   <p className="text-sm font-bold text-gray-900 dark:text-white">Lv.{item.level} {item.kind}</p>
                   <p className="mt-0.5 line-clamp-1 text-xs text-gray-500 dark:text-gray-400">{item.name}</p>
                   <div className="mt-2 text-xs">
-                    <p className="text-gray-400 dark:text-gray-500">최저가</p>
-                    <p className="mt-0.5 font-black tabular-nums text-la-gold-dark dark:text-la-gold">{formatGold(item.price)}</p>
+                    <p className="text-gray-500 dark:text-gray-500">최저가</p>
+                    <p className="mt-0.5 font-black tabular-nums text-la-gold-deep dark:text-la-gold">{formatGold(item.price)}</p>
                   </div>
                 </div>
               </div>

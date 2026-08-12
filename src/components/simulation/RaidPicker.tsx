@@ -122,9 +122,9 @@ const RaidPicker: React.FC<RaidPickerProps> = ({
         </header>
 
         <div className="flex-none border-b border-gray-200 bg-gray-50/70 px-4 py-3 dark:border-white/10 dark:bg-black/20">
-          <p className="text-[10px] font-bold uppercase tracking-wide text-gray-400 dark:text-gray-500">현재 캐릭터</p>
+          <p className="text-[10px] font-bold uppercase tracking-wide text-gray-500 dark:text-gray-500">현재 캐릭터</p>
           <p className="mt-0.5 break-words text-sm font-bold text-gray-800 dark:text-gray-100">{characterName}</p>
-          <p className="mt-2 text-[10px] font-bold uppercase tracking-wide text-gray-400 dark:text-gray-500">현재 선택 레이드</p>
+          <p className="mt-2 text-[10px] font-bold uppercase tracking-wide text-gray-500 dark:text-gray-500">현재 선택 레이드</p>
           <p className="mt-0.5 break-words text-xs leading-relaxed text-gray-600 dark:text-gray-300">
             {currentRaidNames.length > 0 ? currentRaidNames.join(' · ') : '선택된 레이드 없음'}
           </p>
@@ -267,7 +267,7 @@ const RaidPicker: React.FC<RaidPickerProps> = ({
               </section>
             ))
           )}
-          <p className="text-[10px] text-gray-400 dark:text-gray-500">
+          <p className="text-[10px] text-gray-500 dark:text-gray-500">
             제한 없이 체크 가능 · 참여 레벨 미달 레이드는 선택 상태만 저장됩니다.
           </p>
         </div>
