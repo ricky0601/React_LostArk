@@ -14,7 +14,7 @@ export const FallbackImage: React.FC<FallbackImageProps> = ({
   src,
   alt,
   className,
-  fallbackLabel = '이미지를 불러올 수 없습니다',
+  fallbackLabel,
   fallbackClassName,
   height,
   onError,
@@ -24,12 +24,13 @@ export const FallbackImage: React.FC<FallbackImageProps> = ({
 }) => {
   const [failedSource, setFailedSource] = useState<string | null>(null);
   const showsFallback = !src || failedSource === src;
+  const resolvedFallbackLabel = fallbackLabel ?? `${alt} 이미지 없음`;
 
   if (showsFallback) {
     return (
       <div
         role="img"
-        aria-label={`${alt} 이미지 없음`}
+        aria-label={resolvedFallbackLabel}
         className={joinClassNames(
           'flex h-full w-full items-center justify-center bg-gray-100 text-gray-400 dark:bg-white/5 dark:text-gray-500',
           className,
@@ -51,7 +52,7 @@ export const FallbackImage: React.FC<FallbackImageProps> = ({
             d="M3 16.5V6.75A2.25 2.25 0 015.25 4.5h13.5A2.25 2.25 0 0121 6.75v10.5a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 17.25v-.75zm0 0l4.72-4.72a2.25 2.25 0 013.18 0l2.1 2.1m0 0l1.47-1.47a2.25 2.25 0 013.18 0L21 15.75M14.25 8.25h.008v.008h-.008V8.25z"
           />
         </svg>
-        <span className="sr-only">{fallbackLabel}</span>
+        <span className="sr-only">{resolvedFallbackLabel}</span>
       </div>
     );
   }

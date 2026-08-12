@@ -30,7 +30,24 @@ describe('FallbackImage', () => {
 
     expect(screen.queryByRole('img', { name: '테스트 레이드' })).not.toBeInTheDocument();
     expect(screen.getByRole('img', { name: '테스트 레이드 이미지 없음' })).toBeInTheDocument();
-    expect(screen.getByText('이미지를 불러올 수 없습니다')).toBeInTheDocument();
+    expect(screen.getByText('테스트 레이드 이미지 없음')).toBeInTheDocument();
+  });
+
+  it('uses the custom fallback label as the fallback accessible name', () => {
+    render(
+      <FallbackImage
+        src="/images/missing.webp"
+        alt="테스트 레이드"
+        fallbackLabel="비아키스 레이드 이미지 없음"
+        width={480}
+        height={224}
+      />,
+    );
+
+    fireEvent.error(screen.getByRole('img', { name: '테스트 레이드' }));
+
+    expect(screen.getByRole('img', { name: '비아키스 레이드 이미지 없음' })).toBeInTheDocument();
+    expect(screen.queryByRole('img', { name: '테스트 레이드 이미지 없음' })).not.toBeInTheDocument();
   });
 
   it('does not force fallback dimensions from image width and height props', () => {
