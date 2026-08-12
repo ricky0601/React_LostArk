@@ -73,7 +73,7 @@ describe('CharacterRaidCard raid simulation flow', () => {
     expect(screen.getByText('코어 16')).toBeInTheDocument();
 
     fireEvent.error(screen.getByRole('img', { name: '1780' }));
-    expect(screen.getByRole('img', { name: '1780 이미지 없음' })).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: '1780 캐릭터 이미지 없음' })).toBeInTheDocument();
 
     await userEvent.click(screen.getByText('벨가르딘 (그림자)'));
 
@@ -121,6 +121,55 @@ describe('CharacterRaidCard raid simulation flow', () => {
     const dialog = screen.getByRole('dialog', { name: '1780 레이드 변경' });
     expect(document.body).toContainElement(dialog);
     expect(card).not.toContainElement(dialog);
+  });
+
+  it('closes the mobile raid picker with Escape, restores focus, and traps Tab at both edges', async () => {
+    const root = document.createElement('div');
+    root.id = 'root';
+    document.body.appendChild(root);
+
+    renderCard();
+    const openButton = screen.getByRole('button', { name: '레이드 변경' });
+
+    await userEvent.click(openButton);
+
+    const dialog = screen.getByRole('dialog', { name: '1780 레이드 변경' });
+    const closeButton = screen.getByRole('button', { name: '1780 레이드 변경 닫기' });
+    expect(root).toHaveAttribute('aria-hidden', 'true');
+    expect(document.activeElement).toBe(closeButton);
+
+    await userEvent.keyboard('{Escape}');
+
+    expect(screen.queryByRole('dialog', { name: '1780 레이드 변경' })).not.toBeInTheDocument();
+    expect(root).not.toHaveAttribute('aria-hidden');
+    expect(document.activeElement).toBe(openButton);
+
+    await userEvent.click(openButton);
+
+    const reopenedDialog = screen.getByRole('dialog', { name: '1780 레이드 변경' });
+    const focusableSelector = 'button:not([disabled]), input:not([disabled]), a[href]';
+    const focusables = Array.from(reopenedDialog.querySelectorAll<HTMLElement>(focusableSelector));
+    const first = focusables[0];
+    const last = focusables[focusables.length - 1];
+
+    if (!first || !last) {
+      throw new TypeError('Expected the raid picker to expose focusable controls');
+    }
+
+    expect(root).toHaveAttribute('aria-hidden', 'true');
+    expect(document.activeElement).toBe(first);
+
+    await userEvent.tab({ shift: true });
+    expect(document.activeElement).toBe(last);
+
+    await userEvent.tab();
+    expect(document.activeElement).toBe(first);
+
+    await userEvent.click(screen.getByRole('button', { name: '1780 레이드 변경 닫기' }));
+    expect(root).not.toHaveAttribute('aria-hidden');
+    expect(document.activeElement).toBe(openButton);
+
+    document.body.removeChild(root);
   });
 
   it('keeps the raid picker inline inside the character card on desktop', async () => {
