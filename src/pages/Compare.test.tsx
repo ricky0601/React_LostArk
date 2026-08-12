@@ -78,6 +78,21 @@ describe('Compare', () => {
     mockedFetchArkGrid.mockResolvedValue(null as never);
   });
 
+  it('explains why comparison is disabled until both nicknames are entered', () => {
+    render(<Compare />);
+
+    const compareButton = screen.getByRole('button', { name: '비교하기' });
+    expect(compareButton).toBeDisabled();
+    expect(screen.getByText('비교하려면 두 캐릭터 닉네임을 모두 입력해 주세요.')).toBeInTheDocument();
+
+    fireEvent.change(screen.getByPlaceholderText('캐릭터 닉네임'), { target: { value: '정상캐릭터' } });
+    expect(screen.getByText('비교할 캐릭터 닉네임을 한쪽 더 입력해 주세요.')).toBeInTheDocument();
+
+    fireEvent.change(screen.getByPlaceholderText('비교할 캐릭터'), { target: { value: '비교캐릭터' } });
+    expect(compareButton).toBeEnabled();
+    expect(screen.queryByText(/비교하려면|한쪽 더 입력/)).not.toBeInTheDocument();
+  });
+
   it('한쪽 캐릭터 프로필이 null이면 부분 실패 메시지를 표시하고 비교 섹션을 렌더링하지 않는다', async () => {
     render(<Compare />);
 

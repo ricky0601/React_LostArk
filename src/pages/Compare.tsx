@@ -1049,6 +1049,13 @@ const Compare: React.FC = () => {
     if (e.key === 'Enter' && !loading) handleCompare();
   };
 
+  const hasLeftName = leftName.trim().length > 0;
+  const hasRightName = rightName.trim().length > 0;
+  const canCompare = hasLeftName && hasRightName;
+  const compareGuidance = hasLeftName || hasRightName
+    ? '비교할 캐릭터 닉네임을 한쪽 더 입력해 주세요.'
+    : '비교하려면 두 캐릭터 닉네임을 모두 입력해 주세요.';
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-la-dark transition-colors duration-300">
       <NavBar />
@@ -1084,11 +1091,22 @@ const Compare: React.FC = () => {
 
           <button
             onClick={handleCompare}
-            disabled={loading || !leftName.trim() || !rightName.trim()}
+            disabled={loading || !canCompare}
+            aria-describedby={!canCompare ? 'compare-submit-guidance' : undefined}
             className="w-full mt-4 btn-gold disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? '조회 중...' : '비교하기'}
           </button>
+
+          {!canCompare && (
+            <p
+              id="compare-submit-guidance"
+              role="status"
+              className="mt-2 break-keep text-center text-xs leading-relaxed text-gray-500 dark:text-gray-400"
+            >
+              {compareGuidance}
+            </p>
+          )}
 
           {error && (
             <p className="mt-3 text-sm text-red-500 dark:text-red-400 text-center">{error}</p>
