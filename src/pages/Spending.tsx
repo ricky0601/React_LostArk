@@ -24,7 +24,7 @@ const STEPS = [
     title: '개발자 도구 열기',
     desc: (
       <>
-        키보드 <kbd className="px-1.5 py-0.5 rounded bg-gray-200 dark:bg-white/10 text-xs font-mono">F12</kbd> 를 눌러 개발자 도구를 여세요.
+        키보드 <kbd className="inline-block max-w-full break-all whitespace-normal rounded bg-gray-200 px-1.5 py-0.5 font-mono text-xs dark:bg-white/10">F12</kbd> 를 눌러 개발자 도구를 여세요.
         상단 탭에서 <strong>Console</strong>을 선택하세요.
       </>
     ),
@@ -40,10 +40,10 @@ const STEPS = [
     desc: (
       <>
         Console 입력창에 붙여넣기{' '}
-        <kbd className="px-1.5 py-0.5 rounded bg-gray-200 dark:bg-white/10 text-xs font-mono">Ctrl+V</kbd>{' '}
-        후 <kbd className="px-1.5 py-0.5 rounded bg-gray-200 dark:bg-white/10 text-xs font-mono">Enter</kbd>를 누르세요.
+        <kbd className="inline-block max-w-full break-all whitespace-normal rounded bg-gray-200 px-1.5 py-0.5 font-mono text-xs dark:bg-white/10">Ctrl+V</kbd>{' '}
+        후 <kbd className="inline-block max-w-full break-all whitespace-normal rounded bg-gray-200 px-1.5 py-0.5 font-mono text-xs dark:bg-white/10">Enter</kbd>를 누르세요.
         <br />
-        <span className="text-amber-600 dark:text-amber-400">붙여넣기가 안 되면 입력창에 <kbd className="px-1.5 py-0.5 rounded bg-gray-200 dark:bg-white/10 text-xs font-mono">allow pasting</kbd> 을 먼저 입력하세요.</span>
+        <span className="text-amber-600 dark:text-amber-400">붙여넣기가 안 되면 입력창에 <kbd className="inline-block max-w-full break-all whitespace-normal rounded bg-gray-200 px-1.5 py-0.5 font-mono text-xs dark:bg-white/10">allow pasting</kbd> 을 먼저 입력하세요.</span>
       </>
     ),
   },
@@ -65,7 +65,7 @@ const Spending: React.FC = () => {
   };
 
   return (
-    <div>
+    <div className="min-h-screen bg-gray-50 transition-colors duration-300 dark:bg-la-dark">
       <NavBar />
       <main className="max-w-2xl mx-auto px-4 py-6 space-y-5">
 
@@ -79,15 +79,24 @@ const Spending: React.FC = () => {
         </div>
 
         {/* 안내 배너 */}
-        <div className="flex gap-3 p-4 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/40 text-sm text-amber-800 dark:text-amber-300">
-          <span className="shrink-0 text-base">⚠️</span>
-          <ul className="space-y-1 list-none">
-            <li><strong>PC 브라우저 전용</strong>입니다. 모바일에서는 개발자 도구를 사용할 수 없습니다.</li>
+        <section
+          role="note"
+          aria-labelledby="spending-pc-guidance-title"
+          className="flex gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-700/40 dark:bg-amber-900/20 dark:text-amber-300"
+        >
+          <svg aria-hidden="true" className="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-1.5a9 9 0 11-18 0 9 9 0 0118 0zM12 16.5h.008v.008H12V16.5z" />
+          </svg>
+          <div className="min-w-0">
+            <h2 id="spending-pc-guidance-title" className="break-keep font-bold">PC 브라우저에서 진행해 주세요</h2>
+            <ul className="mt-2 list-none space-y-1 break-keep leading-relaxed">
+            <li>모바일에서는 개발자 도구를 사용할 수 없어 스크립트를 실행할 수 없습니다.</li>
             <li>본인 계정 정보만 조회되며 외부 서버로 전송되지 않습니다.</li>
             <li>로스트아크 홈페이지에 로그인된 상태에서 실행해야 합니다.</li>
             <li>결제 수단 합계는 <strong>스토브 통합</strong> 기준으로 표시됩니다.</li>
-          </ul>
-        </div>
+            </ul>
+          </div>
+        </section>
 
         {/* 단계별 안내 */}
         <GlassCard className="p-4 space-y-5">
@@ -97,12 +106,13 @@ const Spending: React.FC = () => {
               <span className="shrink-0 w-7 h-7 flex items-center justify-center rounded-full bg-la-gold/20 text-la-gold-dark dark:text-la-gold text-sm font-bold">
                 {step.num}
               </span>
-              <div className="space-y-2 pt-0.5">
+              <div className="min-w-0 flex-1 space-y-2 pt-0.5">
                 <p className="text-sm font-semibold text-gray-900 dark:text-white">{step.title}</p>
-                <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">{step.desc}</p>
+                <p className="break-words text-sm leading-relaxed text-gray-500 dark:text-gray-400">{step.desc}</p>
                 {step.action}
                 {i === 2 && (
                   <button
+                    type="button"
                     onClick={handleCopy}
                     className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
                       copied
@@ -110,7 +120,10 @@ const Spending: React.FC = () => {
                         : 'bg-la-gold/20 hover:bg-la-gold/30 text-la-gold-dark dark:text-la-gold'
                     }`}
                   >
-                    {copied ? '복사됨 ✓' : '스크립트 복사 📋'}
+                    <svg aria-hidden="true" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d={copied ? 'M4.5 12.75l6 6 9-13.5' : 'M8.25 7.5V6a2.25 2.25 0 012.25-2.25h7.5A2.25 2.25 0 0120.25 6v7.5A2.25 2.25 0 0118 15.75h-1.5m-8.25-8.25h-2.25A2.25 2.25 0 003.75 9.75v7.5a2.25 2.25 0 002.25 2.25h7.5a2.25 2.25 0 002.25-2.25V15'} />
+                    </svg>
+                    {copied ? '복사됨' : '스크립트 복사'}
                   </button>
                 )}
               </div>
@@ -135,8 +148,8 @@ const Spending: React.FC = () => {
             </span>
           </button>
           {showScript && (
-            <div id="spending-script-preview" className="mt-3 rounded-lg overflow-hidden">
-              <pre className="p-4 bg-gray-900 text-gray-300 text-xs leading-relaxed overflow-x-auto whitespace-pre-wrap break-all">
+            <div id="spending-script-preview" className="mt-3 min-w-0 max-w-full overflow-hidden rounded-lg">
+              <pre className="max-w-full overflow-x-auto whitespace-pre-wrap break-all bg-gray-900 p-4 text-xs leading-relaxed text-gray-300">
                 {STOVE_SCRIPT}
               </pre>
             </div>

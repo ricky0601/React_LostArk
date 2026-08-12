@@ -6,6 +6,7 @@ import PullToRefresh from '../components/PullToRefresh';
 import NicknameInput from '../components/NicknameInput';
 import NicknameSearchBar from '../components/NicknameSearchBar';
 import GlassCard from '../components/GlassCard';
+import StateFeedback from '../components/StateFeedback';
 import { SkeletonBlock } from '../components/Loading';
 import SpecScoreSimulator from '../components/simulation/SpecScoreSimulator';
 import { fetchProfile, LS_NICKNAME } from '../utils/api';
@@ -60,7 +61,6 @@ const SpecSimulator: React.FC = () => {
           setProfile(data);
           return;
         }
-        setError('캐릭터 프로필을 찾을 수 없습니다. 닉네임을 다시 확인해 주세요.');
       })
       .catch((err: unknown) => {
         if (!active || controller.signal.aborted) return;
@@ -139,7 +139,7 @@ const SpecSimulator: React.FC = () => {
                   </span>
                 </div>
               </div>
-              <div className="w-full rounded-xl border border-gray-200/70 bg-gray-50/80 p-3 dark:border-white/10 dark:bg-black/20 lg:justify-self-end">
+              <div className="min-w-0 w-full rounded-xl border border-gray-200/70 bg-gray-50/80 p-3 dark:border-white/10 dark:bg-black/20 lg:justify-self-end">
                 <div className="mb-2 flex items-center justify-between gap-3">
                   <p className="text-xs font-bold text-gray-700 dark:text-gray-200">캐릭터 불러오기</p>
                   <span className="text-[10px] font-medium text-gray-400 dark:text-gray-500">닉네임 검색</span>
@@ -152,10 +152,12 @@ const SpecSimulator: React.FC = () => {
           {loading ? (
             <ProfileLoadingCard />
           ) : error ? (
-            <GlassCard className="spec-lab-card p-8 text-center animate-fade-in">
-              <p className="text-lg text-red-500 dark:text-red-400">{error}</p>
-              <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">다른 닉네임으로 다시 검색해 주세요.</p>
-            </GlassCard>
+            <StateFeedback
+              tone="error"
+              title={`${nickname} 프로필을 불러오지 못했습니다`}
+              description={`${error} 다른 닉네임으로 다시 검색해 주세요.`}
+              className="spec-lab-card animate-fade-in"
+            />
           ) : profile ? (
             <>
               <section className="spec-lab-card overflow-hidden animate-fade-in" aria-labelledby="current-character-title">
@@ -192,9 +194,12 @@ const SpecSimulator: React.FC = () => {
               <SpecScoreSimulator profile={profile} />
             </>
           ) : (
-            <GlassCard className="spec-lab-card p-8 text-center animate-fade-in">
-              <p className="text-gray-500 dark:text-gray-400">캐릭터 프로필을 불러오는 데 실패했습니다.</p>
-            </GlassCard>
+            <StateFeedback
+              tone="empty"
+              title={`${nickname} 프로필을 찾을 수 없습니다`}
+              description="닉네임을 확인한 뒤 다른 캐릭터를 다시 검색해 주세요."
+              className="spec-lab-card animate-fade-in"
+            />
           )}
         </main>
       </PullToRefresh>
