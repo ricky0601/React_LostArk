@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 jest.mock(
@@ -30,6 +30,11 @@ const renderNavBar = () =>
 beforeEach(() => {
   // NavBar가 ChangelogBell을 통해 읽음 상태를 읽으므로 테스트 간 저장소를 격리한다.
   window.localStorage.clear();
+  Object.defineProperty(window, 'innerWidth', {
+    configurable: true,
+    writable: true,
+    value: 390,
+  });
 });
 
 test('renders the changelog bell in the header', () => {
@@ -42,12 +47,26 @@ test('theme toggle button switches label and root class on click', async () => {
   renderNavBar();
 
   const toggleButton = screen.getByRole('button', { name: '라이트 모드로 전환' });
+  expect(toggleButton).toHaveAttribute('title', '라이트 모드로 전환');
   expect(document.documentElement).toHaveClass('dark');
 
   await userEvent.click(toggleButton);
 
   expect(document.documentElement).not.toHaveClass('dark');
   expect(screen.getByRole('button', { name: '다크 모드로 전환' })).toBeInTheDocument();
+});
+
+test('mobile menu groups links and describes the current theme without adding a focus stop', async () => {
+  renderNavBar();
+
+  await userEvent.click(screen.getByRole('button', { name: '메뉴 열기' }));
+
+  const panel = screen.getByRole('dialog', { name: '모바일 메뉴' });
+  expect(panel).toHaveTextContent('주요 메뉴');
+  expect(panel).toHaveTextContent('기타 메뉴');
+  expect(screen.getByRole('status', { name: '현재 화면 테마' })).toHaveTextContent('다크 모드');
+  expect(panel.querySelectorAll('button')).toHaveLength(1);
+  expect(panel.querySelector('button')).toHaveAccessibleName('모바일 메뉴 닫기');
 });
 
 test('mobile menu opens as an overlay with a scrim and closes on scrim click', async () => {
@@ -75,7 +94,7 @@ test('mobile menu closes on Escape key', async () => {
   expect(document.getElementById('navbar-mobile-menu')).not.toBeInTheDocument();
 });
 
-test('mobile menu hides background content from assistive tech and restores focus on close', async () => {
+test('mobile menu has an in-dialog close control and restores focus on close', async () => {
   const root = document.createElement('div');
   root.id = 'root';
   document.body.appendChild(root);
@@ -91,7 +110,9 @@ test('mobile menu hides background content from assistive tech and restores focu
   expect(panel).toHaveAttribute('aria-modal', 'true');
   expect(document.activeElement).toBe(panel?.querySelector('a'));
 
-  await userEvent.keyboard('{Escape}');
+  const closeButton = screen.getByRole('button', { name: '모바일 메뉴 닫기' });
+  expect(panel).toContainElement(closeButton);
+  await userEvent.click(closeButton);
 
   expect(root).not.toHaveAttribute('aria-hidden');
   expect(document.activeElement).toBe(screen.getByRole('button', { name: '메뉴 열기' }));
@@ -105,9 +126,9 @@ test('Tab wraps focus inside the open mobile menu', async () => {
   await userEvent.click(screen.getByRole('button', { name: '메뉴 열기' }));
 
   const panel = document.getElementById('navbar-mobile-menu') as HTMLElement;
-  const links = panel.querySelectorAll('a');
-  const first = links[0];
-  const last = links[links.length - 1];
+  const focusables = panel.querySelectorAll('a, button');
+  const first = focusables[0];
+  const last = focusables[focusables.length - 1];
 
   expect(document.activeElement).toBe(first);
 
@@ -116,4 +137,40 @@ test('Tab wraps focus inside the open mobile menu', async () => {
 
   await userEvent.tab();
   expect(document.activeElement).toBe(first);
+});
+
+test('mobile menu closes and restores page state after resizing to desktop', async () => {
+  const root = document.createElement('div');
+  root.id = 'root';
+  document.body.appendChild(root);
+
+  Object.defineProperty(window, 'innerWidth', {
+    configurable: true,
+    writable: true,
+    value: 390,
+  });
+
+  renderNavBar();
+  const visibleThemeButton = screen.getByRole('button', { name: /모드로 전환/ });
+  await userEvent.click(screen.getByRole('button', { name: '메뉴 열기' }));
+
+  expect(document.getElementById('navbar-mobile-menu')).toBeInTheDocument();
+  expect(root).toHaveAttribute('aria-hidden', 'true');
+  expect(document.body.style.overflow).toBe('hidden');
+
+  Object.defineProperty(window, 'innerWidth', {
+    configurable: true,
+    writable: true,
+    value: 1024,
+  });
+  act(() => {
+    window.dispatchEvent(new Event('resize'));
+  });
+
+  expect(document.getElementById('navbar-mobile-menu')).not.toBeInTheDocument();
+  expect(root).not.toHaveAttribute('aria-hidden');
+  expect(document.body.style.overflow).toBe('');
+  expect(document.activeElement).toBe(visibleThemeButton);
+
+  document.body.removeChild(root);
 });

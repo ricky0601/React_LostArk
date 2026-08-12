@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { Link, useLocation } from 'react-router-dom';
 import { useTheme } from '../context/ThemeContext';
 import ChangelogBell from './ChangelogBell';
+import { getNavItemClass, MORE_NAV_LINKS, NavLinks, PRIMARY_NAV_LINKS } from './nav/NavLinks';
 
 const NavBar: React.FC = () => {
   const { pathname } = useLocation();
@@ -12,13 +13,32 @@ const NavBar: React.FC = () => {
   const [moreMenuPosition, setMoreMenuPosition] = useState<{ top: number; right: number } | null>(null);
   const moreButtonRef = useRef<HTMLButtonElement>(null);
   const moreMenuRef = useRef<HTMLDivElement>(null);
+  const themeButtonRef = useRef<HTMLButtonElement>(null);
   const mobileMenuButtonRef = useRef<HTMLButtonElement>(null);
   const mobileMenuPanelRef = useRef<HTMLDivElement>(null);
+  const restoreMobileMenuFocusRef = useRef<'trigger' | 'desktop'>('trigger');
 
   useEffect(() => {
     setIsMobileMenuOpen(false);
     setIsMoreMenuOpen(false);
   }, [pathname]);
+
+  useEffect(() => {
+    if (!isMobileMenuOpen) return;
+
+    const closeOnDesktopResize = () => {
+      if (window.innerWidth < 768) return;
+      restoreMobileMenuFocusRef.current = 'desktop';
+      setIsMobileMenuOpen(false);
+    };
+
+    closeOnDesktopResize();
+    window.addEventListener('resize', closeOnDesktopResize);
+
+    return () => {
+      window.removeEventListener('resize', closeOnDesktopResize);
+    };
+  }, [isMobileMenuOpen]);
 
   useEffect(() => {
     if (!isMobileMenuOpen) return;
@@ -65,6 +85,7 @@ const NavBar: React.FC = () => {
     document.addEventListener('keydown', handleKeyDown);
 
     const toggleButton = mobileMenuButtonRef.current;
+    const themeButton = themeButtonRef.current;
 
     return () => {
       document.body.style.position = previousBodyPosition;
@@ -74,7 +95,12 @@ const NavBar: React.FC = () => {
       root?.removeAttribute('aria-hidden');
       document.removeEventListener('keydown', handleKeyDown);
       window.scrollTo(0, scrollY);
-      toggleButton?.focus();
+      if (restoreMobileMenuFocusRef.current === 'desktop') {
+        themeButton?.focus();
+        restoreMobileMenuFocusRef.current = 'trigger';
+      } else {
+        toggleButton?.focus();
+      }
     };
   }, [isMobileMenuOpen]);
 
@@ -123,57 +149,10 @@ const NavBar: React.FC = () => {
     };
   }, [isMoreMenuOpen]);
 
-  const linkClass = (path: string) =>
-    `px-3 py-2 rounded-lg text-sm font-medium transition-all duration-300 inline-flex items-center gap-1.5 ${
-      pathname === path
-        ? 'bg-la-gold/20 text-la-gold-dark dark:text-la-gold'
-        : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-white dark:hover:bg-white/5'
-    }`;
+  const isMoreActive = MORE_NAV_LINKS.some((link) => link.path === pathname);
+  const moreButtonClass = getNavItemClass(isMoreActive);
 
-  const morePaths = ['/expedition', '/spending'];
-  const isMoreActive = morePaths.includes(pathname);
-  const moreButtonClass = `px-3 py-2 rounded-lg text-sm font-medium transition-all duration-300 inline-flex items-center gap-1.5 ${
-    isMoreActive
-      ? 'bg-la-gold/20 text-la-gold-dark dark:text-la-gold'
-      : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-white dark:hover:bg-white/5'
-  }`;
-
-  const primaryLinks = (
-    <>
-      <Link to="/" className={linkClass('/')}>
-        홈
-      </Link>
-      <Link to="/simulation" className={linkClass('/simulation')}>
-        주간골드
-      </Link>
-      <Link to="/enhancement" className={linkClass('/enhancement')}>
-        재련견적
-      </Link>
-      <Link to="/market" className={linkClass('/market')}>
-        시세
-      </Link>
-      <Link to="/compare" className={linkClass('/compare')}>
-        비교
-      </Link>
-      <Link to="/character" className={linkClass('/character')}>
-        캐릭터
-      </Link>
-      <Link to="/spec-simulator" className={linkClass('/spec-simulator')}>
-        전투력 시뮬
-      </Link>
-    </>
-  );
-
-  const moreLinks = (
-    <>
-      <Link to="/expedition" className={linkClass('/expedition')}>
-        원정대
-      </Link>
-      <Link to="/spending" className={linkClass('/spending')}>
-        결제 내역
-      </Link>
-    </>
-  );
+  const themeToggleLabel = isDarkMode ? '라이트 모드로 전환' : '다크 모드로 전환';
 
   const mobileMenu = isMobileMenuOpen && typeof document !== 'undefined'
     ? createPortal(
@@ -192,12 +171,39 @@ const NavBar: React.FC = () => {
             aria-label="모바일 메뉴"
             className="fixed inset-x-0 top-14 z-50 max-h-[calc(100dvh-3.5rem)] overflow-y-auto border-t border-gray-200/50 bg-white px-4 pb-4 shadow-lg shadow-black/10 dark:border-white/5 dark:bg-la-dark dark:shadow-black/30"
           >
-            <div className="flex flex-col gap-2 pt-3">
-              {primaryLinks}
-              <div className={`px-3 pt-2 text-xs font-bold uppercase tracking-wide ${isMoreActive ? 'text-la-gold-dark dark:text-la-gold' : 'text-gray-400 dark:text-gray-500'}`}>
-                더보기
+            <div className="flex flex-col gap-3 pt-3">
+              <section aria-labelledby="mobile-primary-links-title" className="rounded-xl bg-gray-50/80 p-2 dark:bg-white/5">
+                <h2 id="mobile-primary-links-title" className="px-3 pb-1 text-xs font-bold tracking-wide text-gray-400 dark:text-gray-500">
+                  주요 메뉴
+                </h2>
+                <div className="flex flex-col gap-1">
+                  <NavLinks links={PRIMARY_NAV_LINKS} pathname={pathname} />
+                </div>
+              </section>
+              <section aria-labelledby="mobile-more-links-title" className="rounded-xl bg-gray-50/80 p-2 dark:bg-white/5">
+                <h2 id="mobile-more-links-title" className={`px-3 pb-1 text-xs font-bold tracking-wide ${isMoreActive ? 'text-la-gold-dark dark:text-la-gold' : 'text-gray-400 dark:text-gray-500'}`}>
+                  기타 메뉴
+                </h2>
+                <div className="flex flex-col gap-1">
+                  <NavLinks links={MORE_NAV_LINKS} pathname={pathname} />
+                </div>
+              </section>
+              <div
+                role="status"
+                aria-label="현재 화면 테마"
+                className="flex items-center justify-between rounded-xl border border-gray-200/60 px-4 py-3 text-xs dark:border-white/10"
+              >
+                <span className="font-medium text-gray-500 dark:text-gray-400">현재 테마</span>
+                <span className="font-bold text-gray-900 dark:text-white">{isDarkMode ? '다크 모드' : '라이트 모드'}</span>
               </div>
-              {moreLinks}
+              <button
+                type="button"
+                aria-label="모바일 메뉴 닫기"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="inline-flex h-10 items-center justify-center rounded-lg text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-la-gold/40 dark:text-gray-300 dark:hover:bg-white/10 dark:hover:text-white"
+              >
+                닫기
+              </button>
             </div>
           </div>
         </div>,
@@ -217,7 +223,7 @@ const NavBar: React.FC = () => {
           }}
         >
           <div className="flex flex-col gap-1">
-            {moreLinks}
+            <NavLinks links={MORE_NAV_LINKS} pathname={pathname} />
           </div>
         </div>,
         document.body
@@ -232,7 +238,7 @@ const NavBar: React.FC = () => {
           Lokki
         </Link>
         <div className="hidden md:flex items-center gap-2">
-          {primaryLinks}
+          <NavLinks links={PRIMARY_NAV_LINKS} pathname={pathname} />
           <div className="relative">
             <button
               ref={moreButtonRef}
@@ -252,10 +258,12 @@ const NavBar: React.FC = () => {
         <div className="flex items-center gap-1">
           <ChangelogBell />
           <button
+            ref={themeButtonRef}
             type="button"
             onClick={toggleDarkMode}
             className="inline-flex items-center justify-center w-10 h-10 rounded-lg text-gray-600 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-300 dark:hover:text-white dark:hover:bg-white/10 transition-colors"
-            aria-label={isDarkMode ? '라이트 모드로 전환' : '다크 모드로 전환'}
+            aria-label={themeToggleLabel}
+            title={themeToggleLabel}
           >
             {isDarkMode ? (
               <svg className="w-5 h-5 text-la-gold" fill="none" viewBox="0 0 24 24" stroke="currentColor">
