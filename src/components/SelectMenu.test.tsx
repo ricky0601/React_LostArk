@@ -74,6 +74,40 @@ describe('SelectMenu', () => {
     expect(screen.getByRole('listbox', { name: '강화 단계' })).toBeInTheDocument();
   });
 
+  it('moves focus through enabled options with listbox navigation keys', async () => {
+    render(
+      <SelectMenu
+        value={1}
+        options={options}
+        onChange={jest.fn()}
+        ariaLabel="강화 단계"
+      />,
+    );
+
+    await userEvent.click(screen.getByRole('button', { name: '강화 단계' }));
+
+    const firstOption = screen.getByRole('option', { name: '첫 번째' });
+    const secondOption = screen.getByRole('option', { name: '두 번째' });
+    const disabledOption = screen.getByRole('option', { name: '선택 불가' });
+
+    firstOption.focus();
+    await userEvent.keyboard('{ArrowDown}');
+    expect(document.activeElement).toBe(secondOption);
+
+    await userEvent.keyboard('{ArrowDown}');
+    expect(document.activeElement).toBe(firstOption);
+    expect(document.activeElement).not.toBe(disabledOption);
+
+    await userEvent.keyboard('{ArrowUp}');
+    expect(document.activeElement).toBe(secondOption);
+
+    await userEvent.keyboard('{Home}');
+    expect(document.activeElement).toBe(firstOption);
+
+    await userEvent.keyboard('{End}');
+    expect(document.activeElement).toBe(secondOption);
+  });
+
   it('closes an open menu with Escape without changing the value', async () => {
     const onChange = jest.fn((_value: string | number | undefined): void => undefined);
 

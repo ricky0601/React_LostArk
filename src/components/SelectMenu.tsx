@@ -103,6 +103,30 @@ const SelectMenu: React.FC<SelectMenuProps> = ({
     });
   }, []);
 
+  const focusEnabledOption = useCallback((direction: 'first' | 'last' | 'next' | 'previous'): void => {
+    const panel = panelRef.current;
+    if (!panel) return;
+
+    const enabledOptions = Array.from(panel.querySelectorAll<HTMLButtonElement>('[role="option"]:not(:disabled)'));
+    if (enabledOptions.length === 0) return;
+
+    const currentIndex = enabledOptions.findIndex((option) => option === document.activeElement);
+    if (direction === 'first') {
+      enabledOptions[0]?.focus();
+      return;
+    }
+    if (direction === 'last') {
+      enabledOptions[enabledOptions.length - 1]?.focus();
+      return;
+    }
+    if (direction === 'next') {
+      enabledOptions[currentIndex === -1 ? 0 : (currentIndex + 1) % enabledOptions.length]?.focus();
+      return;
+    }
+
+    enabledOptions[currentIndex <= 0 ? enabledOptions.length - 1 : currentIndex - 1]?.focus();
+  }, []);
+
   useLayoutEffect(() => {
     if (!open) return;
 
@@ -131,6 +155,27 @@ const SelectMenu: React.FC<SelectMenuProps> = ({
       if (event.key === 'Escape') {
         event.preventDefault();
         closeMenu();
+        return;
+      }
+
+      if (event.key === 'ArrowDown') {
+        event.preventDefault();
+        focusEnabledOption('next');
+        return;
+      }
+      if (event.key === 'ArrowUp') {
+        event.preventDefault();
+        focusEnabledOption('previous');
+        return;
+      }
+      if (event.key === 'Home') {
+        event.preventDefault();
+        focusEnabledOption('first');
+        return;
+      }
+      if (event.key === 'End') {
+        event.preventDefault();
+        focusEnabledOption('last');
       }
     };
 
@@ -149,7 +194,7 @@ const SelectMenu: React.FC<SelectMenuProps> = ({
       window.removeEventListener('resize', handleResize);
       window.removeEventListener('scroll', updateMenuPosition, true);
     };
-  }, [closeMenu, open, updateMenuPosition]);
+  }, [closeMenu, focusEnabledOption, open, updateMenuPosition]);
 
   useEffect(() => {
     if (!open || !mobileViewport) return;
