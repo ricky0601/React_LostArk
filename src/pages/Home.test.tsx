@@ -86,6 +86,10 @@ describe('Home event links', () => {
     for (const title of ['외부 도메인 이벤트', '자바스크립트 이벤트', 'HTTP 이벤트', '깨진 이벤트']) {
       const card = screen.getByRole('article', { name: `${title} 이벤트 안내 링크 없음` });
       expect(within(card).getByText(title)).toBeInTheDocument();
+      expect(within(card).getByText('링크 없음')).toBeInTheDocument();
+      expect(card).toHaveClass('cursor-default');
+      expect(card).not.toHaveClass('hover:shadow-gold-glow');
+      expect(within(card).getByRole('img')).not.toHaveClass('group-hover:scale-105');
       expect(within(card).queryByRole('link')).not.toBeInTheDocument();
     }
   });

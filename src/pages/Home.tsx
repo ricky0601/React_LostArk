@@ -248,14 +248,17 @@ const Home: React.FC = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {activeEvents.map((event, i) => {
                 const safeLink = getSafeEventLink(event.Link);
-                const eventCardClassName = 'glass-card overflow-hidden transition-all duration-300 hover:shadow-gold-glow hover:border-la-gold/30 dark:hover:border-la-gold/20 group';
+                const eventCardClassName = 'glass-card overflow-hidden transition-all duration-300 group';
+                const linkedEventCardClassName = `${eventCardClassName} hover:shadow-gold-glow hover:border-la-gold/30 dark:hover:border-la-gold/20`;
+                const unavailableEventCardClassName = `${eventCardClassName} cursor-default`;
+                const eventImageClassName = 'w-full h-full object-cover transition-transform duration-300';
                 const eventCard = (
                   <>
                   <div className="relative h-36 overflow-hidden">
                     <img
                       src={event.Thumbnail}
                       alt={event.Title}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      className={`${eventImageClassName} ${safeLink ? 'group-hover:scale-105' : ''}`}
                     />
                   </div>
                   <div className="p-4">
@@ -265,6 +268,11 @@ const Home: React.FC = () => {
                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
                       {formatShortDate(event.StartDate)} ~ {formatShortDate(event.EndDate)}
                     </p>
+                    {!safeLink && (
+                      <p className="mt-2 inline-flex rounded-md bg-gray-100 px-2 py-1 text-[11px] font-semibold text-gray-500 dark:bg-white/10 dark:text-gray-400">
+                        링크 없음
+                      </p>
+                    )}
                   </div>
                   </>
                 );
@@ -275,12 +283,12 @@ const Home: React.FC = () => {
                     href={safeLink}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className={eventCardClassName}
+                    className={linkedEventCardClassName}
                   >
                     {eventCard}
                   </a>
                 ) : (
-                  <article key={i} className={eventCardClassName} aria-label={`${event.Title} 이벤트 안내 링크 없음`}>
+                  <article key={i} className={unavailableEventCardClassName} aria-label={`${event.Title} 이벤트 안내 링크 없음`}>
                     {eventCard}
                   </article>
                 );
