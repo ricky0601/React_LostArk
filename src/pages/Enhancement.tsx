@@ -927,6 +927,7 @@ const Enhancement: React.FC = () => {
               options={NORMAL_BULK_TARGET_OPTIONS}
               placeholder="일반 재련 일괄"
               ariaLabel="일반 재련 일괄 목표 선택"
+              panelTitle="일반 재련 일괄 목표"
               onChange={(val) => {
                 if (val === undefined) return;
                 const targetLevel = Number(val);
@@ -950,6 +951,7 @@ const Enhancement: React.FC = () => {
                   options={targetOptions}
                   placeholder="목표"
                   ariaLabel={`${slot} 일반 재련 목표 선택`}
+                  panelTitle={`${slot} 일반 재련 목표`}
                   onChange={(val) => handleTargetChange(slot, val === undefined ? undefined : Number(val))}
                   fullWidth
                   compact
@@ -969,6 +971,7 @@ const Enhancement: React.FC = () => {
                   options={ADV_TARGET_OPTIONS}
                   placeholder="상급 재련 일괄"
                   ariaLabel="상급 재련 일괄 목표 선택"
+                  panelTitle="상급 재련 일괄 목표"
                   variant="purple"
                   onChange={(val) => {
                     if (val === undefined) return;
@@ -995,6 +998,7 @@ const Enhancement: React.FC = () => {
                       options={availableTargets}
                       placeholder="상급"
                       ariaLabel={`${slot} 상급 재련 목표 선택`}
+                      panelTitle={`${slot} 상급 재련 목표`}
                       onChange={(val) => handleAdvTargetChange(slot, val === undefined ? undefined : Number(val))}
                       variant="purple"
                       fullWidth
