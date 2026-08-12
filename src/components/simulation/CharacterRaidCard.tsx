@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { CharacterGoldResult, RaidColumn } from '../../data/raidGold';
+import FallbackImage from '../FallbackImage';
 import RaidPicker from './RaidPicker';
 import SelectedRaidRow from './SelectedRaidRow';
 
@@ -44,6 +45,40 @@ const CharacterRaidCard: React.FC<CharacterRaidCardProps> = ({
   allRaids,
 }) => {
   const [showRaidPicker, setShowRaidPicker] = useState(false);
+  const raidPickerButtonRef = useRef<HTMLButtonElement>(null);
+  const wasRaidPickerOpenRef = useRef(false);
+
+  useEffect(() => {
+    if (showRaidPicker) {
+      wasRaidPickerOpenRef.current = true;
+      return;
+    }
+
+    if (!wasRaidPickerOpenRef.current) return;
+    wasRaidPickerOpenRef.current = false;
+    raidPickerButtonRef.current?.focus();
+  }, [showRaidPicker]);
+
+  useEffect(() => {
+    if (!showRaidPicker) return;
+
+    const handleKeyDown = (event: KeyboardEvent): void => {
+      if (event.key === 'Escape') setShowRaidPicker(false);
+    };
+    let wasMobileViewport = window.innerWidth < 768;
+    const handleResize = (): void => {
+      const isMobileViewport = window.innerWidth < 768;
+      if (wasMobileViewport !== isMobileViewport) setShowRaidPicker(false);
+      wasMobileViewport = isMobileViewport;
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('resize', handleResize);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('resize', handleResize);
+    };
+  }, [showRaidPicker]);
 
   const characterBoundGold = result.selectedRaids.reduce((sum, r) => sum + r.boundGold, 0);
   const characterTradeableGold = result.totalGold - characterBoundGold;
@@ -60,11 +95,12 @@ const CharacterRaidCard: React.FC<CharacterRaidCardProps> = ({
         <aside className="min-w-0 rounded-xl border border-gray-200/80 bg-gray-50/70 p-3 shadow-sm shadow-gray-900/5 dark:border-white/10 dark:bg-black/20 dark:shadow-black/20 lg:w-60 lg:flex-none">
           <div className="flex min-w-0 items-center gap-3">
             <div className="relative h-16 w-16 flex-none overflow-hidden rounded-xl border border-white/50 bg-gray-100 shadow-sm dark:border-white/10 dark:bg-white/5">
-              <img
+              <FallbackImage
                 src={result.characterImage}
                 alt={result.characterName}
                 width={128}
                 height={128}
+                fallbackLabel={`${result.characterName} 캐릭터 이미지 없음`}
                 className="h-full w-full object-cover object-top"
               />
               <div aria-hidden="true" className="absolute inset-x-0 bottom-0 h-6 bg-gradient-to-t from-black/45 to-transparent" />
@@ -94,7 +130,7 @@ const CharacterRaidCard: React.FC<CharacterRaidCardProps> = ({
             </div>
           </div>
 
-          {!dimmed && (result.selectedRaids.length > 0 || result.availableRaids.length > 0) && (
+          {!dimmed && (result.selectedRaids.length > 0 || allRaids.length > 0) && (
             <div className="mt-3 flex min-w-0 gap-1.5 border-t border-gray-200/70 pt-2.5 dark:border-white/10">
               {result.selectedRaids.length > 0 && (
                 <button
@@ -109,10 +145,12 @@ const CharacterRaidCard: React.FC<CharacterRaidCardProps> = ({
                   {isAllCharBonusSelected ? '더보기 해제' : '일괄 더보기'}
                 </button>
               )}
-              {result.availableRaids.length > 0 && (
+              {allRaids.length > 0 && (
                 <button
+                  ref={raidPickerButtonRef}
                   type="button"
                   aria-expanded={showRaidPicker}
+                  aria-label={showRaidPicker ? '레이드 변경 패널 열림' : '레이드 변경'}
                   onClick={() => setShowRaidPicker((current) => !current)}
                   className={`min-h-9 min-w-0 flex-1 rounded-lg border px-2 py-1.5 text-[10px] font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-la-gold/40 ${
                     showRaidPicker
@@ -120,7 +158,7 @@ const CharacterRaidCard: React.FC<CharacterRaidCardProps> = ({
                       : 'border-gray-200 bg-white/70 text-gray-600 hover:border-la-gold/50 hover:text-la-gold-deep dark:border-white/10 dark:bg-white/5 dark:text-gray-400 dark:hover:text-la-gold'
                   }`}
                 >
-                  {showRaidPicker ? '레이드 선택 닫기' : '레이드 변경'}
+                  {showRaidPicker ? '레이드 선택 중' : '레이드 변경'}
                 </button>
               )}
             </div>
@@ -160,7 +198,10 @@ const CharacterRaidCard: React.FC<CharacterRaidCardProps> = ({
               availableRaids={result.availableRaids}
               selectedRaidKeys={selectedRaidKeys}
               hasCustomRaids={hasCustomRaids}
+              characterName={result.characterName}
+              currentRaidNames={result.selectedRaids.map((raid) => `${raid.raidName} ${raid.difficulty}`)}
               formatGold={formatGold}
+              onClose={() => setShowRaidPicker(false)}
               onRaidSelectionChange={onRaidSelectionChange}
               onResetRaidSelection={onResetRaidSelection}
             />
