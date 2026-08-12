@@ -1,5 +1,67 @@
-import type { EquipmentItem } from '../types/lostark';
+import { fireEvent, render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import Character from './Character';
+import type { CharacterProfile, EquipmentItem } from '../types/lostark';
 import { getCombatEquipmentItems } from '../utils/characterEquipment';
+import {
+  fetchArkGrid,
+  fetchEngravings,
+  fetchEquipment,
+  fetchGems,
+  fetchProfile,
+} from '../utils/api';
+
+const mockSetSearchParams = jest.fn();
+let mockCurrentSearchParams = new URLSearchParams('nickname=테스트캐릭터');
+
+jest.mock(
+  'react-router-dom',
+  () => ({
+    Link: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+    useLocation: () => ({ pathname: '/character' }),
+    useSearchParams: () => [mockCurrentSearchParams, mockSetSearchParams],
+  }),
+  { virtual: true },
+);
+
+jest.mock('../components/NavBar', () => () => <div>NavBar</div>);
+jest.mock('../components/PullToRefresh', () => ({ children }: { children: React.ReactNode }) => <>{children}</>);
+
+jest.mock('../utils/api', () => ({
+  fetchProfile: jest.fn(),
+  fetchEquipment: jest.fn(),
+  fetchGems: jest.fn(),
+  fetchEngravings: jest.fn(),
+  fetchArkGrid: jest.fn(),
+  LS_NICKNAME: 'lostark_nickname',
+}));
+
+const mockedFetchProfile = fetchProfile as jest.MockedFunction<typeof fetchProfile>;
+const mockedFetchEquipment = fetchEquipment as jest.MockedFunction<typeof fetchEquipment>;
+const mockedFetchGems = fetchGems as jest.MockedFunction<typeof fetchGems>;
+const mockedFetchEngravings = fetchEngravings as jest.MockedFunction<typeof fetchEngravings>;
+const mockedFetchArkGrid = fetchArkGrid as jest.MockedFunction<typeof fetchArkGrid>;
+
+const profile: CharacterProfile = {
+  CharacterImage: 'https://example.com/character.png',
+  CharacterName: '테스트캐릭터',
+  CharacterClassName: '바드',
+  CharacterLevel: 70,
+  ItemAvgLevel: '1,700.00',
+  ItemMaxLevel: '1,700.00',
+  ServerName: '루페온',
+  Title: null,
+  GuildName: null,
+  ExpeditionLevel: 300,
+  PvpGradeName: '',
+  TownLevel: null,
+  TownName: '',
+  UsingSkillPoint: 0,
+  TotalSkillPoint: 0,
+  Stats: [],
+  Tendencies: [],
+  CombatPower: null,
+};
 
 const equipment = (type: string, name: string): EquipmentItem => ({
   Type: type,
@@ -19,5 +81,60 @@ describe('getCombatEquipmentItems', () => {
     ];
 
     expect(getCombatEquipmentItems(items).map((item) => item.Type)).toEqual(['무기', '완갑', '투구']);
+  });
+});
+
+describe('Character route state affordances', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockCurrentSearchParams = new URLSearchParams('nickname=테스트캐릭터');
+    mockSetSearchParams.mockImplementation((nextInit) => {
+      mockCurrentSearchParams = new URLSearchParams(nextInit);
+    });
+    mockedFetchEquipment.mockResolvedValue(null);
+    mockedFetchGems.mockResolvedValue(null);
+    mockedFetchEngravings.mockResolvedValue(null);
+    mockedFetchArkGrid.mockResolvedValue(null);
+  });
+
+  it('shows an intentional fallback when the profile image fails', async () => {
+    mockedFetchProfile.mockResolvedValue(profile);
+
+    render(<Character />);
+
+    const image = await screen.findByRole('img', { name: '테스트캐릭터' });
+    fireEvent.error(image);
+
+    expect(screen.getByRole('img', { name: '테스트캐릭터 이미지 없음' })).toBeInTheDocument();
+  });
+
+  it('explains a failed search and offers a next action', async () => {
+    mockedFetchProfile.mockRejectedValue(new Error('rate limited'));
+
+    render(<Character />);
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('요청이 많거나 서버 응답이 지연될 수 있습니다');
+    expect(screen.getByRole('button', { name: '닉네임 다시 입력' })).toBeInTheDocument();
+  });
+
+  it('returns to nickname input and clears query params after reset action', async () => {
+    mockedFetchProfile.mockRejectedValue(new Error('rate limited'));
+
+    render(<Character />);
+
+    await userEvent.click(await screen.findByRole('button', { name: '닉네임 다시 입력' }));
+
+    expect(mockSetSearchParams).toHaveBeenCalledWith({});
+    expect(screen.getByRole('button', { name: '캐릭터 조회' })).toBeInTheDocument();
+  });
+
+  it('shows the empty branch when profile lookup succeeds with no data', async () => {
+    mockedFetchProfile.mockResolvedValue(null as never);
+
+    render(<Character />);
+
+    expect(await screen.findByRole('status', { name: '캐릭터 정보가 없습니다' })).toHaveTextContent(
+      '닉네임을 확인한 뒤 다시 검색해 주세요',
+    );
   });
 });
