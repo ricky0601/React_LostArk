@@ -1,4 +1,6 @@
 import {
+  ARMLET_POWER_BY_LEVEL,
+  ARMLET_UNEQUIPPED_LEVEL,
   EGIR_ARMOR_STAT_DELTA_BY_SLOT,
   EGIR_WEAPON_ATTACK_DELTA_BY_LEVEL,
   SERKA_ARMOR_STAT_DELTA_BY_SLOT,
@@ -6,6 +8,14 @@ import {
 } from './equipmentPowerTables';
 
 describe('equipment power tables', () => {
+  it('exports armlet power tables from the equipment table barrel', () => {
+    // Given: armlet power is equipment data, not a Lopec coefficient.
+    // When: the equipment table barrel is imported.
+    // Then: callers can reuse the armlet table through that barrel.
+    expect(ARMLET_POWER_BY_LEVEL[ARMLET_UNEQUIPPED_LEVEL]).toBeDefined();
+    expect(ARMLET_POWER_BY_LEVEL[25]).toBeDefined();
+  });
+
   it('keeps Serka weapon attack deltas by target reinforcement level', () => {
     // Given: manually captured Serka weapon attack increase rows.
     // When: key target reinforcement levels are read.
