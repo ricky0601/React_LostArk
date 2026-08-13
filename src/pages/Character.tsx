@@ -13,6 +13,8 @@ import NavBar from '../components/NavBar';
 import NicknameInput from '../components/NicknameInput';
 import NicknameSearchBar from '../components/NicknameSearchBar';
 import GlassCard from '../components/GlassCard';
+import FallbackImage from '../components/FallbackImage';
+import StateFeedback from '../components/StateFeedback';
 import { SkeletonBlock } from '../components/Loading';
 import { fetchProfile, fetchEquipment, fetchGems, fetchEngravings, fetchArkGrid, LS_NICKNAME } from '../utils/api';
 import { type EffectSegment, stripHtml, htmlColorToGrade, parseBraceletLine } from '../utils/tooltipParser';
@@ -120,10 +122,11 @@ const ProfileCard: React.FC<{ profile: CharacterProfile; nickname: string }> = (
   <GlassCard className="overflow-hidden animate-slide-up">
     {/* 캐릭터 이미지 + 이름 오버레이 */}
     <div className="relative">
-      <img
+      <FallbackImage
         src={profile.CharacterImage}
         alt={profile.CharacterName}
         className="w-full h-auto max-h-[240px] sm:max-h-[340px] md:max-h-none object-cover object-top"
+        fallbackClassName="min-h-60 sm:min-h-80"
       />
       <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
       <div className="absolute bottom-0 left-0 right-0 p-4">
@@ -707,6 +710,17 @@ const Character: React.FC = () => {
     setNickname(name);
   };
 
+  const handleResetSearch = (): void => {
+    setSearchParams({});
+    setNickname(null);
+    setProfile(null);
+    setEquipment(null);
+    setGems(null);
+    setEngravings(null);
+    setArkGrid(null);
+    setError(null);
+  };
+
   if (!nickname) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-la-dark transition-colors duration-300">
@@ -731,11 +745,17 @@ const Character: React.FC = () => {
         </div>
 
         {loading ? (
-          <PageSkeleton />
+          <div role="status" aria-label={`${nickname} 캐릭터 정보 불러오는 중`}>
+            <PageSkeleton />
+          </div>
         ) : error ? (
-          <GlassCard className="p-8 text-center animate-fade-in">
-            <p className="text-red-500 dark:text-red-400 text-lg">{error}</p>
-          </GlassCard>
+          <StateFeedback
+            tone="error"
+            title="캐릭터 조회에 실패했습니다"
+            description={`${error} 요청이 많거나 서버 응답이 지연될 수 있습니다. 잠시 후 다시 검색해 주세요.`}
+            action={{ label: '닉네임 다시 입력', onClick: handleResetSearch }}
+            className="animate-fade-in"
+          />
         ) : profile ? (
           <div className="grid grid-cols-1 lg:grid-cols-[2fr_3fr] gap-6 items-start">
             {/* 왼쪽 컬럼 */}
@@ -753,9 +773,13 @@ const Character: React.FC = () => {
             </div>
           </div>
         ) : (
-          <GlassCard className="p-8 text-center animate-fade-in">
-            <p className="text-gray-500 dark:text-gray-400">캐릭터 정보를 불러오는 데 실패했습니다.</p>
-          </GlassCard>
+          <StateFeedback
+            tone="empty"
+            title="캐릭터 정보가 없습니다"
+            description="닉네임을 확인한 뒤 다시 검색해 주세요."
+            action={{ label: '닉네임 다시 입력', onClick: handleResetSearch }}
+            className="animate-fade-in"
+          />
         )}
       </main>
       </PullToRefresh>

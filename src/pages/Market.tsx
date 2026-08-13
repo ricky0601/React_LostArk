@@ -1,41 +1,20 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import NavBar from '../components/NavBar';
 import GlassCard from '../components/GlassCard';
-import { SkeletonBlock } from '../components/Loading';
+import { EngravingRanking, GemRanking } from '../components/market/MarketRankings';
+import type {
+  EngravingRankItem,
+  GemKind,
+  GemRankItem,
+  RankState,
+} from '../components/market/MarketRankings';
 import {
   fetchAuctionItems,
   fetchMarketItems,
   type AuctionItem,
 } from '../utils/api';
 
-type RankStatus = 'loading' | 'success' | 'error';
 type ActiveTab = 'engraving' | 'gem';
-type GemKind = '겁화' | '작열';
-
-interface EngravingRankItem {
-  rank: number;
-  name: string;
-  itemName: string;
-  icon: string;
-  price: number;
-  yDayAvgPrice: number;
-}
-
-interface GemRankItem {
-  rank: number;
-  level: number;
-  kind: GemKind;
-  name: string;
-  icon: string;
-  price: number;
-}
-
-interface RankState<T> {
-  status: RankStatus;
-  items: T[];
-  fetchedAt: Date | null;
-  failedCount: number;
-}
 
 const GEM_KINDS: GemKind[] = ['겁화', '작열'];
 const GEM_TARGETS = Array.from({ length: 10 }, (_, index) => 10 - index).flatMap((level) =>
@@ -91,27 +70,6 @@ const initialRankState = <T,>(): RankState<T> => ({
   fetchedAt: null,
   failedCount: 0,
 });
-
-const formatGold = (value?: number | null): string => {
-  if (value == null || value <= 0) return '-';
-  return `${value.toLocaleString()}G`;
-};
-
-type PriceDeltaDirection = 'up' | 'down' | 'flat';
-
-const getPriceDelta = (current?: number | null, previous?: number | null): { label: string; direction: PriceDeltaDirection } => {
-  if (current == null || previous == null || current <= 0 || previous <= 0 || current === previous) {
-    return { label: '-', direction: 'flat' };
-  }
-
-  const difference = Math.abs(current - previous);
-  return current > previous
-    ? { label: `▲ ${formatGold(difference)}`, direction: 'up' }
-    : { label: `▼ ${formatGold(difference)}`, direction: 'down' };
-};
-
-const formatTime = (date: Date | null): string =>
-  date ? date.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }) : '-';
 
 const getLowestAuctionItem = (items: AuctionItem[] | undefined): AuctionItem | null => {
   if (!items) return null;
@@ -220,193 +178,6 @@ const fetchRankingStates = async (): Promise<[RankState<EngravingRankItem>, Rank
   ];
 };
 
-const RankingSkeleton: React.FC<{ rows?: number }> = ({ rows = 8 }) => (
-  <GlassCard className="overflow-hidden">
-    <div className="space-y-0 divide-y divide-gray-200/50 dark:divide-white/10">
-      {Array.from({ length: rows }).map((_, index) => (
-        <div key={index} className="flex items-center gap-3 p-4">
-          <SkeletonBlock className="h-7 w-8 rounded-lg" />
-          <SkeletonBlock className="h-11 w-11 rounded-xl" />
-          <div className="flex-1 space-y-2">
-            <SkeletonBlock className="h-4 w-40" />
-            <SkeletonBlock className="h-3 w-28" />
-          </div>
-          <SkeletonBlock className="h-5 w-24" />
-        </div>
-      ))}
-    </div>
-  </GlassCard>
-);
-
-const SectionHeader: React.FC<{
-  title: string;
-  count: number;
-  fetchedAt: Date | null;
-  failedCount: number;
-}> = ({ title, count, fetchedAt, failedCount }) => (
-  <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-    <div>
-      <h2 className="text-xl font-black text-gray-950 dark:text-white">{title}</h2>
-      <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-        {count}개 · 최저가 기준 · {formatTime(fetchedAt)}
-      </p>
-    </div>
-    {failedCount > 0 && (
-      <span className="rounded-full border border-amber-500/20 bg-amber-500/10 px-3 py-1 text-xs font-bold text-amber-700 dark:text-amber-300">
-        {failedCount}개 실패
-      </span>
-    )}
-  </div>
-);
-
-const RankBadge: React.FC<{ rank: number }> = ({ rank }) => (
-  <span className="inline-flex h-8 min-w-8 items-center justify-center rounded-lg bg-la-gold/15 px-2 text-sm font-black text-la-gold-dark dark:text-la-gold">
-    #{rank}
-  </span>
-);
-
-const PriceDelta: React.FC<{ current?: number | null; previous?: number | null }> = ({ current, previous }) => {
-  const delta = getPriceDelta(current, previous);
-  const colorClass = delta.direction === 'up'
-    ? 'text-red-600 dark:text-red-400'
-    : delta.direction === 'down'
-      ? 'text-blue-600 dark:text-blue-400'
-      : 'text-gray-500 dark:text-gray-400';
-
-  return <span className={`tabular-nums ${colorClass}`}>{delta.label}</span>;
-};
-
-const EngravingRanking: React.FC<{ state: RankState<EngravingRankItem> }> = ({ state }) => (
-  <section>
-    <SectionHeader title="유물 각인서" count={state.items.length} fetchedAt={state.fetchedAt} failedCount={state.failedCount} />
-    {state.status === 'loading' && <RankingSkeleton />}
-    {state.status === 'error' && (
-      <GlassCard className="border-red-500/20 bg-red-500/5 p-6 text-center text-sm font-bold text-red-600 dark:text-red-400">
-        시세를 불러오지 못했습니다.
-      </GlassCard>
-    )}
-    {state.status === 'success' && state.items.length === 0 && (
-      <GlassCard className="p-6 text-center text-sm text-gray-500 dark:text-gray-400">표시할 시세가 없습니다.</GlassCard>
-    )}
-    {state.status === 'success' && state.items.length > 0 && (
-      <GlassCard className="overflow-hidden">
-        <div className="hidden md:block">
-          <div className="grid grid-cols-[72px_minmax(0,1fr)_150px_150px_150px] gap-4 border-b border-gray-200/50 px-5 py-3 text-xs font-bold uppercase tracking-wider text-gray-400 dark:border-white/10">
-            <span>순위</span>
-            <span>아이템</span>
-            <span>최저가</span>
-            <span>전일 평균</span>
-            <span>변동</span>
-          </div>
-          {state.items.map((item) => (
-            <div key={item.name} className="grid grid-cols-[72px_minmax(0,1fr)_150px_150px_150px] gap-4 border-b border-gray-200/40 px-5 py-4 last:border-b-0 dark:border-white/5">
-              <div className="flex items-center"><RankBadge rank={item.rank} /></div>
-              <div className="flex min-w-0 items-center gap-3">
-                <img src={item.icon} alt="" className="h-11 w-11 flex-shrink-0 rounded-xl bg-gray-100 object-cover dark:bg-white/5" />
-                <p className="truncate text-sm font-bold text-gray-900 dark:text-white">{item.itemName}</p>
-              </div>
-              <div className="flex items-center text-sm font-black tabular-nums text-la-gold-dark dark:text-la-gold">{formatGold(item.price)}</div>
-              <div className="flex items-center text-sm tabular-nums text-gray-600 dark:text-gray-300">{formatGold(item.yDayAvgPrice)}</div>
-              <div className="flex items-center text-sm font-bold"><PriceDelta current={item.price} previous={item.yDayAvgPrice} /></div>
-            </div>
-          ))}
-        </div>
-
-        <div className="divide-y divide-gray-200/50 md:hidden dark:divide-white/10">
-          {state.items.map((item) => (
-            <div key={`${item.name}-mobile`} className="p-4">
-              <div className="flex items-start gap-3">
-                <RankBadge rank={item.rank} />
-                <img src={item.icon} alt="" className="h-11 w-11 flex-shrink-0 rounded-xl bg-gray-100 object-cover dark:bg-white/5" />
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-start justify-between gap-3">
-                    <p className="line-clamp-2 text-sm font-bold text-gray-900 dark:text-white">{item.itemName}</p>
-                  </div>
-                  <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
-                    <div>
-                      <p className="text-gray-400 dark:text-gray-500">최저가</p>
-                      <p className="mt-1 font-black tabular-nums text-la-gold-dark dark:text-la-gold">{formatGold(item.price)}</p>
-                    </div>
-                    <div>
-                      <p className="text-gray-400 dark:text-gray-500">전일 평균</p>
-                      <p className="mt-1 tabular-nums text-gray-600 dark:text-gray-300">{formatGold(item.yDayAvgPrice)}</p>
-                    </div>
-                    <div>
-                      <p className="text-gray-400 dark:text-gray-500">변동</p>
-                      <p className="mt-1 font-bold"><PriceDelta current={item.price} previous={item.yDayAvgPrice} /></p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </GlassCard>
-    )}
-  </section>
-);
-
-const GemRanking: React.FC<{ state: RankState<GemRankItem> }> = ({ state }) => (
-  <section>
-    <SectionHeader title="보석" count={state.items.length} fetchedAt={state.fetchedAt} failedCount={state.failedCount} />
-    {state.status === 'loading' && <RankingSkeleton rows={10} />}
-    {state.status === 'error' && (
-      <GlassCard className="border-red-500/20 bg-red-500/5 p-6 text-center text-sm font-bold text-red-600 dark:text-red-400">
-        시세를 불러오지 못했습니다.
-      </GlassCard>
-    )}
-    {state.status === 'success' && state.items.length === 0 && (
-      <GlassCard className="p-6 text-center text-sm text-gray-500 dark:text-gray-400">표시할 시세가 없습니다.</GlassCard>
-    )}
-    {state.status === 'success' && state.items.length > 0 && (
-      <GlassCard className="overflow-hidden">
-        <div className="hidden md:block">
-          <div className="grid grid-cols-[72px_minmax(0,1fr)_150px] gap-4 border-b border-gray-200/50 px-5 py-3 text-xs font-bold uppercase tracking-wider text-gray-400 dark:border-white/10">
-            <span>순위</span>
-            <span>아이템</span>
-            <span>최저가</span>
-          </div>
-          {state.items.map((item) => (
-            <div key={`${item.level}-${item.kind}`} className="grid grid-cols-[72px_minmax(0,1fr)_150px] gap-4 border-b border-gray-200/40 px-5 py-4 last:border-b-0 dark:border-white/5">
-              <div className="flex items-center"><RankBadge rank={item.rank} /></div>
-              <div className="flex min-w-0 items-center gap-3">
-                <img src={item.icon} alt="" className="h-11 w-11 flex-shrink-0 rounded-xl bg-gray-100 object-cover dark:bg-white/5" />
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <p className="text-sm font-bold text-gray-900 dark:text-white">Lv.{item.level}</p>
-                    <span className="rounded-full border border-la-gold/20 bg-la-gold/10 px-2.5 py-1 text-xs font-bold text-la-gold-dark dark:text-la-gold">{item.kind}</span>
-                  </div>
-                  <p className="mt-1 truncate text-xs text-gray-500 dark:text-gray-400">{item.name}</p>
-                </div>
-              </div>
-              <div className="flex items-center text-sm font-black tabular-nums text-la-gold-dark dark:text-la-gold">{formatGold(item.price)}</div>
-            </div>
-          ))}
-        </div>
-
-        <div className="divide-y divide-gray-200/50 md:hidden dark:divide-white/10">
-          {state.items.map((item) => (
-            <div key={`${item.level}-${item.kind}-mobile`} className="p-4">
-              <div className="flex items-start gap-3">
-                <RankBadge rank={item.rank} />
-                <img src={item.icon} alt="" className="h-11 w-11 flex-shrink-0 rounded-xl bg-gray-100 object-cover dark:bg-white/5" />
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-bold text-gray-900 dark:text-white">Lv.{item.level} {item.kind}</p>
-                  <p className="mt-1 line-clamp-1 text-xs text-gray-500 dark:text-gray-400">{item.name}</p>
-                  <div className="mt-3 text-xs">
-                    <p className="text-gray-400 dark:text-gray-500">최저가</p>
-                    <p className="mt-1 font-black tabular-nums text-la-gold-dark dark:text-la-gold">{formatGold(item.price)}</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </GlassCard>
-    )}
-  </section>
-);
-
 const Market: React.FC = () => {
   const requestIdRef = useRef(0);
   const [activeTab, setActiveTab] = useState<ActiveTab>('engraving');
@@ -496,9 +267,9 @@ const Market: React.FC = () => {
         </GlassCard>
 
         {activeTab === 'engraving' ? (
-          <EngravingRanking state={engravingState} />
+          <EngravingRanking state={engravingState} onRetry={() => void loadRankings(true)} />
         ) : (
-          <GemRanking state={gemState} />
+          <GemRanking state={gemState} onRetry={() => void loadRankings(true)} />
         )}
       </main>
     </div>
@@ -506,3 +277,4 @@ const Market: React.FC = () => {
 };
 
 export default Market;
+export { EngravingRanking, GemRanking } from '../components/market/MarketRankings';

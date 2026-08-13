@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import NavBar from '../components/NavBar';
 import GlassCard from '../components/GlassCard';
 import SelectMenu from '../components/SelectMenu';
+import StateFeedback from '../components/StateFeedback';
 import {
   fetchEquipment,
   fetchProfile,
@@ -328,6 +329,7 @@ const Enhancement: React.FC = () => {
   const [charItemLevel, setCharItemLevel] = useState<number | null>(null);
   const [charLoading, setCharLoading] = useState(false);
   const [charError, setCharError] = useState<string | null>(null);
+  const charInputRef = useRef<HTMLInputElement>(null);
 
   // ── 슬롯별 목표 강 ───────────────────────────
   const [targetMap, setTargetMap] = useState<Partial<Record<SlotName, number>>>({});
@@ -354,48 +356,49 @@ const Enhancement: React.FC = () => {
   const [ownedMaterials, setOwnedMaterials] = useState<Partial<Record<MaterialType, number>>>({});
   const [showOwnedSection, setShowOwnedSection] = useState(false);
 
-  // ── 거래소 가격 조회 (마운트 시 1회) ──────────
-  useEffect(() => {
-    const load = async () => {
-      setPriceLoading(true);
-      setPriceError(null);
-      try {
-        const options = await fetchMarketOptions();
-        const allCats = flattenCategories(options.Categories);
-        const findCode = (keyword: string): number => {
-          const found = allCats.find((c) => c.CodeName.includes(keyword));
-          return found?.Code ?? allCats[0]?.Code ?? 50000;
-        };
+  // ── 거래소 가격 조회 (마운트 시 1회 + 실패 시 재시도) ──
+  const loadPrices = useCallback(async () => {
+    setPriceLoading(true);
+    setPriceError(null);
+    try {
+      const options = await fetchMarketOptions();
+      const allCats = flattenCategories(options.Categories);
+      const findCode = (keyword: string): number => {
+        const found = allCats.find((c) => c.CodeName.includes(keyword));
+        return found?.Code ?? allCats[0]?.Code ?? 50000;
+      };
 
-        const results = await Promise.allSettled(
-          ALL_MATERIAL_TYPES.filter((type) => !MARKET_SEARCH[type].untradeable).map(async (type) => {
-            const config = MARKET_SEARCH[type];
-            const categoryCode = config.categoryCode ?? findCode(MATERIAL_CATEGORY_KEYWORD[type]);
-            const data = await fetchMarketItems(config.searchName, categoryCode, config.extraParams);
-            const item = data.Items?.[0];
-            if (!item) return { type, price: 0, icon: '' };
-            const itemsPerUnit = config.itemsPerUnit ?? 1;
-            return { type, price: item.CurrentMinPrice / item.BundleCount / itemsPerUnit, icon: item.Icon };
-          })
-        );
-        const priceMap: PriceMap = {};
-        const iconMap: IconMap = {};
-        for (const r of results) {
-          if (r.status === 'fulfilled') {
-            priceMap[r.value.type] = r.value.price;
-            if (r.value.icon) iconMap[r.value.type] = r.value.icon;
-          }
+      const results = await Promise.allSettled(
+        ALL_MATERIAL_TYPES.filter((type) => !MARKET_SEARCH[type].untradeable).map(async (type) => {
+          const config = MARKET_SEARCH[type];
+          const categoryCode = config.categoryCode ?? findCode(MATERIAL_CATEGORY_KEYWORD[type]);
+          const data = await fetchMarketItems(config.searchName, categoryCode, config.extraParams);
+          const item = data.Items?.[0];
+          if (!item) return { type, price: 0, icon: '' };
+          const itemsPerUnit = config.itemsPerUnit ?? 1;
+          return { type, price: item.CurrentMinPrice / item.BundleCount / itemsPerUnit, icon: item.Icon };
+        })
+      );
+      const priceMap: PriceMap = {};
+      const iconMap: IconMap = {};
+      for (const r of results) {
+        if (r.status === 'fulfilled') {
+          priceMap[r.value.type] = r.value.price;
+          if (r.value.icon) iconMap[r.value.type] = r.value.icon;
         }
-        setPrices(priceMap);
-        setIcons(iconMap);
-      } catch {
-        setPriceError('가격 조회 실패');
-      } finally {
-        setPriceLoading(false);
       }
-    };
-    load();
+      setPrices(priceMap);
+      setIcons(iconMap);
+    } catch {
+      setPriceError('가격 조회 실패');
+    } finally {
+      setPriceLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    loadPrices();
+  }, [loadPrices]);
 
   // ── 슬롯별 현재 레벨 ─────────────────────────
   const slotCurrentLevel = useMemo<Record<SlotName, number>>(() => ({
@@ -517,6 +520,12 @@ const Enhancement: React.FC = () => {
   }, []);
 
   const handleSearch = () => searchCharacter(charInput);
+
+  const handleResetCharSearch = (): void => {
+    setCharError(null);
+    charInputRef.current?.focus();
+    charInputRef.current?.select();
+  };
 
   // ── 목표 강 변경 ──────────────────────────────
   const handleTargetChange = (slot: SlotName, val: number | undefined) => {
@@ -844,6 +853,7 @@ const Enhancement: React.FC = () => {
           </p>
           <div className="flex gap-2 mb-4">
             <input
+              ref={charInputRef}
               type="text"
               value={charInput}
               onChange={(e) => setCharInput(e.target.value)}
@@ -861,7 +871,14 @@ const Enhancement: React.FC = () => {
           </div>
 
           {charError && (
-            <p className="text-sm text-red-400 mb-3">{charError}</p>
+            <StateFeedback
+              tone="error"
+              title="캐릭터 강화 현황 조회에 실패했습니다"
+              description={`${charError} 닉네임을 확인한 뒤 다시 검색해 주세요.`}
+              action={{ label: '닉네임 다시 입력', onClick: handleResetCharSearch }}
+              compact
+              className="mb-3"
+            />
           )}
 
           {/* 슬롯 카드 - 현재 강화 수치 표시 */}
@@ -927,6 +944,7 @@ const Enhancement: React.FC = () => {
               options={NORMAL_BULK_TARGET_OPTIONS}
               placeholder="일반 재련 일괄"
               ariaLabel="일반 재련 일괄 목표 선택"
+              panelTitle="일반 재련 일괄 목표"
               onChange={(val) => {
                 if (val === undefined) return;
                 const targetLevel = Number(val);
@@ -950,6 +968,7 @@ const Enhancement: React.FC = () => {
                   options={targetOptions}
                   placeholder="목표"
                   ariaLabel={`${slot} 일반 재련 목표 선택`}
+                  panelTitle={`${slot} 일반 재련 목표`}
                   onChange={(val) => handleTargetChange(slot, val === undefined ? undefined : Number(val))}
                   fullWidth
                   compact
@@ -969,6 +988,7 @@ const Enhancement: React.FC = () => {
                   options={ADV_TARGET_OPTIONS}
                   placeholder="상급 재련 일괄"
                   ariaLabel="상급 재련 일괄 목표 선택"
+                  panelTitle="상급 재련 일괄 목표"
                   variant="purple"
                   onChange={(val) => {
                     if (val === undefined) return;
@@ -995,6 +1015,7 @@ const Enhancement: React.FC = () => {
                       options={availableTargets}
                       placeholder="상급"
                       ariaLabel={`${slot} 상급 재련 목표 선택`}
+                      panelTitle={`${slot} 상급 재련 목표`}
                       onChange={(val) => handleAdvTargetChange(slot, val === undefined ? undefined : Number(val))}
                       variant="purple"
                       fullWidth
@@ -1468,8 +1489,17 @@ const Enhancement: React.FC = () => {
               재련 재료 시세
             </p>
             {priceLoading && <span className="text-xs text-gray-400 animate-pulse">조회 중…</span>}
-            {priceError && <span className="text-xs text-red-400">{priceError}</span>}
           </div>
+          {priceError && (
+            <StateFeedback
+              tone="error"
+              title="재료 시세 조회에 실패했습니다"
+              description={`${priceError} 거래소 요청이 많거나 서버 응답이 지연될 수 있습니다.`}
+              action={{ label: '시세 다시 조회', onClick: () => { void loadPrices(); } }}
+              compact
+              className="mb-3"
+            />
+          )}
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
