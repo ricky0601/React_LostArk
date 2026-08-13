@@ -282,7 +282,7 @@ describe('fetchSpecScoreRawData weapon attack parsing', () => {
     expect(result.charStats.effectiveWeaponAttack).toBeCloseTo(264_890.248, 3);
   });
 
-  it('uses the lower combat baseline when parsing an unsupported armlet level', async () => {
+  it('uses the exact combat baseline when parsing a supported +13 armlet level', async () => {
     // Given
     const armlet: EquipmentItem = {
       Type: '완갑',
@@ -301,8 +301,72 @@ describe('fetchSpecScoreRawData weapon attack parsing', () => {
 
     // Then
     expect(result.equip.armlet?.normalLevel).toBe(13);
-    expect(result.charStats.effectiveWeaponAttack).toBe(110_969);
+    expect(result.charStats.effectiveWeaponAttack).toBe(114_817);
     expect(result.charStats.baseAttackFlatSum).toBe(2030);
+    expect(result.charStats.baseAttackPercentSum).toBe(1.0);
+  });
+
+  it('uses API grade for boundary armlet base attack percent', async () => {
+    // Given
+    setupApiMocks([
+      equipment('무기', '무기 공격력 +100,000'),
+      {
+        Type: '완갑',
+        Name: '+10 운명의 전용 완갑',
+        Icon: '',
+        Grade: '전설',
+        Tooltip: '{}',
+      },
+    ], []);
+
+    // When
+    const result = await fetchSpecScoreRawData(profile);
+
+    // Then
+    expect(result.equip.armlet?.normalLevel).toBe(10);
+    expect(result.charStats.baseAttackPercentSum).toBe(1.0);
+  });
+
+  it('uses API grade for +15 relic armlet base attack percent', async () => {
+    // Given
+    setupApiMocks([
+      equipment('무기', '무기 공격력 +100,000'),
+      {
+        Type: '완갑',
+        Name: '+15 운명의 전용 완갑',
+        Icon: '',
+        Grade: '유물',
+        Tooltip: '{}',
+      },
+    ], []);
+
+    // When
+    const result = await fetchSpecScoreRawData(profile);
+
+    // Then
+    expect(result.equip.armlet?.normalLevel).toBe(15);
+    expect(result.charStats.baseAttackPercentSum).toBe(2.0);
+  });
+
+  it('uses API grade for +20 ancient armlet base attack percent', async () => {
+    // Given
+    setupApiMocks([
+      equipment('무기', '무기 공격력 +100,000'),
+      {
+        Type: '완갑',
+        Name: '+20 운명의 전용 완갑',
+        Icon: '',
+        Grade: '고대',
+        Tooltip: '{}',
+      },
+    ], []);
+
+    // When
+    const result = await fetchSpecScoreRawData(profile);
+
+    // Then
+    expect(result.equip.armlet?.normalLevel).toBe(20);
+    expect(result.charStats.baseAttackPercentSum).toBe(3.0);
   });
 
   it('does not invent the 97-stone base attack fallback for ordinary stones', async () => {
