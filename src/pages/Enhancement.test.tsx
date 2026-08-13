@@ -121,6 +121,46 @@ describe('Enhancement armlet calculations', () => {
     expect(screen.getByRole('dialog', { name: '상급 재련 일괄 목표' })).toBeInTheDocument();
   });
 
+  it('offers a retry action when the character lookup fails', async () => {
+    mockedFetchEquipment.mockRejectedValue(new Error('lookup failed'));
+
+    render(<Enhancement />);
+
+    const input = screen.getByPlaceholderText('캐릭터명 입력');
+    fireEvent.change(input, { target: { value: '없는캐릭터' } });
+    fireEvent.click(screen.getByRole('button', { name: '조회' }));
+
+    const failure = await screen.findByRole('alert', { name: '캐릭터 강화 현황 조회에 실패했습니다' });
+    expect(failure).toHaveTextContent('캐릭터를 찾을 수 없습니다');
+
+    fireEvent.click(screen.getByRole('button', { name: '닉네임 다시 입력' }));
+
+    expect(
+      screen.queryByRole('alert', { name: '캐릭터 강화 현황 조회에 실패했습니다' }),
+    ).not.toBeInTheDocument();
+    expect(input).toHaveFocus();
+  });
+
+  it('refetches material prices from the failure state', async () => {
+    mockedFetchEquipment.mockResolvedValue([equipment('무기', 10)]);
+    mockedFetchMarketOptions.mockRejectedValueOnce(new Error('market down'));
+
+    render(<Enhancement />);
+
+    const failure = await screen.findByRole('alert', { name: '재료 시세 조회에 실패했습니다' });
+    expect(failure).toHaveTextContent('가격 조회 실패');
+    expect(mockedFetchMarketOptions).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByRole('button', { name: '시세 다시 조회' }));
+
+    await waitFor(() => expect(mockedFetchMarketOptions).toHaveBeenCalledTimes(2));
+    await waitFor(() =>
+      expect(
+        screen.queryByRole('alert', { name: '재료 시세 조회에 실패했습니다' }),
+      ).not.toBeInTheDocument(),
+    );
+  });
+
   it('applies breath and ceiling to the armlet calculation', async () => {
     mockedFetchEquipment.mockResolvedValue([
       equipment('무기', 10),
