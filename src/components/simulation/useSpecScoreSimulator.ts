@@ -94,7 +94,10 @@ export const useSpecScoreSimulator = (profile: CharacterProfile) => {
     const equipment = raw?.equip[slot];
     if (!equipment) return;
     const safePatch: EquipMod = slot === 'armlet'
-      ? (patch.normalLevel === undefined ? {} : { normalLevel: patch.normalLevel })
+      ? {
+          ...(patch.normalLevel === undefined ? {} : { normalLevel: patch.normalLevel }),
+          ...(patch.normalLevel === undefined && patch.armletGrade !== undefined ? { armletGrade: patch.armletGrade } : {}),
+        }
       : equipment.isInherited && patch.advancedLevel !== undefined
         ? { ...patch, advancedLevel: undefined }
         : patch;
@@ -155,8 +158,12 @@ export const useSpecScoreSimulator = (profile: CharacterProfile) => {
       const current = raw.equip[slot];
       if (!current) continue;
       if (slot === 'armlet') {
-        if (patch.normalLevel !== undefined) {
-          equip[slot] = { ...mods.equip[slot], normalLevel: patch.normalLevel };
+        const safePatch: EquipMod = {
+          ...(patch.normalLevel === undefined ? {} : { normalLevel: patch.normalLevel }),
+          ...(patch.armletGrade === undefined ? {} : { armletGrade: patch.armletGrade }),
+        };
+        if (Object.keys(safePatch).length > 0) {
+          equip[slot] = { ...mods.equip[slot], ...safePatch };
         } else if (mods.equip[slot]) {
           equip[slot] = mods.equip[slot];
         }
