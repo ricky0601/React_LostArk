@@ -185,12 +185,15 @@ export const calcNormalHoningBaseStatDelta = ({
   const nextMainStat = currentMainStat + effectiveArmorStatDelta;
   if (nextWeaponAttack <= 0 || nextMainStat <= 0) return 1;
 
-  const currentBaseAttack = charStats.pureBaseAttack ?? Math.sqrt((currentMainStat * currentWeaponAttack) / 6);
-  if (currentBaseAttack <= 0) return 1;
   const rawDeltas = sumNormalHoningRawDeltas({ slots, currentEquip, modifiedEquip });
   const currentBaseAttackFlatSum = charStats.baseAttackFlatSum ?? 0;
+  const currentBaseAttackPercentSum = charStats.baseAttackPercentSum ?? 0;
+  const currentBaseAttack = charStats.pureBaseAttack ?? (
+    Math.sqrt((currentMainStat * currentWeaponAttack) / 6) + currentBaseAttackFlatSum
+  ) * (1 + currentBaseAttackPercentSum / 100);
+  if (currentBaseAttack <= 0) return 1;
   const nextBaseAttackFlatSum = currentBaseAttackFlatSum + rawDeltas.baseAttack;
-  const nextBaseAttackPercentSum = (charStats.baseAttackPercentSum ?? 0) + rawDeltas.baseAttackPercent;
+  const nextBaseAttackPercentSum = currentBaseAttackPercentSum + rawDeltas.baseAttackPercent;
   const newBaseAttack = (
     Math.sqrt((nextMainStat * nextWeaponAttack) / 6) + nextBaseAttackFlatSum
   ) * (1 + nextBaseAttackPercentSum / 100);
