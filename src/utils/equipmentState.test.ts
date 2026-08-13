@@ -108,7 +108,47 @@ describe('parseEquipmentState normal honing power tables', () => {
     });
   });
 
-  it('attaches the lower combat baseline to unsupported armlet API levels', () => {
+  it('uses the armlet API grade for boundary base attack percent', () => {
+    const heroic = parseEquipmentState(equipment('{}', {
+      Type: '완갑',
+      Name: '+10 운명의 전용 완갑',
+      Grade: '영웅',
+    }));
+    const legendary = parseEquipmentState(equipment('{}', {
+      Type: '완갑',
+      Name: '+10 운명의 전용 완갑',
+      Grade: '전설',
+    }));
+    const relic = parseEquipmentState(equipment('{}', {
+      Type: '완갑',
+      Name: '+15 운명의 전용 완갑',
+      Grade: '유물',
+    }));
+    const ancient = parseEquipmentState(equipment('{}', {
+      Type: '완갑',
+      Name: '+20 운명의 전용 완갑',
+      Grade: '고대',
+    }));
+
+    expect(heroic?.normalHoningDelta).toMatchObject({
+      kind: 'armlet',
+      baseAttackPercent: 0,
+    });
+    expect(legendary?.normalHoningDelta).toMatchObject({
+      kind: 'armlet',
+      baseAttackPercent: 1.0,
+    });
+    expect(relic?.normalHoningDelta).toMatchObject({
+      kind: 'armlet',
+      baseAttackPercent: 2.0,
+    });
+    expect(ancient?.normalHoningDelta).toMatchObject({
+      kind: 'armlet',
+      baseAttackPercent: 3.0,
+    });
+  });
+
+  it('attaches the exact combat baseline to supported +13 armlet API levels', () => {
     // Given
     const state = parseEquipmentState(equipment('{}', {
       Type: '완갑',
@@ -120,10 +160,10 @@ describe('parseEquipmentState normal honing power tables', () => {
     expect(state?.normalLevel).toBe(13);
     expect(state?.normalHoningDelta).toEqual({
       kind: 'armlet',
-      weaponAttack: 10969,
-      mainStat: 34746,
+      weaponAttack: 14817,
+      mainStat: 40962,
       baseAttack: 2030,
-      baseAttackPercent: 0,
+      baseAttackPercent: 1.0,
     });
   });
 

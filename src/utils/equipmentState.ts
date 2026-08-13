@@ -5,13 +5,13 @@ import {
   EGIR_WEAPON_ATTACK_DELTA_BY_LEVEL,
   SERKA_ARMOR_STAT_DELTA_BY_SLOT,
   SERKA_WEAPON_ATTACK_DELTA_BY_LEVEL,
-} from '../data/specScore/equipmentPowerTables';
-import {
   ARMLET_POWER_BY_LEVEL,
   ARMLET_UNEQUIPPED_LEVEL,
+  resolveArmletPower,
+} from '../data/specScore/equipmentPowerTables';
+import {
   EQUIP_TYPE_TO_SLOT,
   extractEquipTier,
-  resolveArmletCombatLevel,
   type EquipSlot,
 } from '../data/specScore/lopecCoefficients';
 
@@ -104,11 +104,11 @@ export const resolveNormalHoningDelta = (
   slot: EquipSlot,
   family: EquipmentFamily,
   normalLevel: number,
+  grade?: string,
 ): EquipmentNormalHoningDelta | undefined => {
   if (slot === 'armlet') {
-    const armletLevel = resolveArmletCombatLevel(normalLevel);
-    if (armletLevel === null) return undefined;
-    const power = ARMLET_POWER_BY_LEVEL[armletLevel];
+    const power = resolveArmletPower({ normalLevel, grade });
+    if (power === null) return undefined;
     return {
       kind: 'armlet',
       weaponAttack: power.weaponAttack,
@@ -147,7 +147,7 @@ export const parseEquipmentState = (item: EquipmentItem): EquipmentState | null 
 
   if (slot === 'armlet') {
     const normalLevel = parsedNormalLevel;
-    const normalHoningDelta = resolveNormalHoningDelta(slot, equipmentFamily, normalLevel);
+    const normalHoningDelta = resolveNormalHoningDelta(slot, equipmentFamily, normalLevel, item.Grade);
     return {
       slot,
       normalLevel,
