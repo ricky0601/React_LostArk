@@ -8,6 +8,9 @@ import { normalizeRaidSelection } from '../../utils/simulationKeys';
 type RenderCardOptions = {
   readonly hasCustomRaids?: boolean;
   readonly onResetRaidSelection?: () => void;
+  readonly itemLevel?: string;
+  /** 지정하면 기본 선택(참여 가능 상위 3개) 대신 이 키를 선택 상태로 넘긴다. */
+  readonly selectedRaidKeysOverride?: readonly string[];
 };
 
 const setViewportWidth = (width: number): void => {
@@ -30,9 +33,13 @@ afterEach(() => {
 const renderCard = ({
   hasCustomRaids = false,
   onResetRaidSelection = jest.fn(),
+  itemLevel = '1780.00',
+  selectedRaidKeysOverride,
 }: RenderCardOptions = {}) => {
-  const result = calculateCharacterGold('1780', '버서커', '1780.00', 'img');
-  const selectedRaidKeys = result.selectedRaids.map((raid) => `${raid.raidName}::${raid.difficulty}`);
+  const result = calculateCharacterGold(itemLevel.split('.')[0], '버서커', itemLevel, 'img');
+  const selectedRaidKeys =
+    selectedRaidKeysOverride?.slice() ??
+    result.selectedRaids.map((raid) => `${raid.raidName}::${raid.difficulty}`);
   const onRaidSelectionChange = jest.fn();
 
   render(
@@ -89,8 +96,13 @@ describe('CharacterRaidCard raid simulation flow', () => {
     expect(screen.getByRole('dialog', { name: '1780 레이드 변경' })).toBeInTheDocument();
     expect(document.body.style.overflow).toBe('hidden');
     expect(screen.getByText('현재 선택 레이드')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: '참여 가능 레이드' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: '참여 불가 레이드' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /참여 가능 레이드/ })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /참여 불가 레이드/ })).toBeInTheDocument();
+
+    // 최고 요구 레벨이 1780이므로 이 캐릭터는 전 레이드 참여 가능하고, 참여 불가 그룹은 접을 대상이 없다.
+    expect(screen.getByRole('button', { name: /참여 가능 레이드/ })).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByRole('button', { name: '참여 불가 레이드 0개' })).toHaveAttribute('aria-expanded', 'true');
+
     expect(screen.getAllByText('벨가르딘 (그림자)').length).toBeGreaterThan(1);
     expect(screen.getAllByRole('img', { name: '벨가르딘 (그림자) 레이드' })).toHaveLength(4);
     expect(screen.getByText('62,000G')).toBeInTheDocument();
@@ -105,6 +117,53 @@ describe('CharacterRaidCard raid simulation flow', () => {
     await userEvent.click(screen.getByRole('button', { name: '1780 레이드 변경 닫기' }));
     expect(screen.queryByRole('dialog', { name: '1780 레이드 변경' })).not.toBeInTheDocument();
     expect(document.body.style.overflow).toBe('');
+  });
+
+  it('collapses the unavailable raid group by default and reopens it on demand', async () => {
+    renderCard({ itemLevel: '1680.00' });
+
+    await userEvent.click(screen.getByRole('button', { name: '레이드 변경' }));
+
+    const unavailableToggle = screen.getByRole('button', { name: /^참여 불가 레이드 [1-9]/ });
+    expect(screen.getByRole('button', { name: /참여 가능 레이드/ })).toHaveAttribute('aria-expanded', 'true');
+    expect(unavailableToggle).toHaveAttribute('aria-expanded', 'false');
+
+    const collapsedPanelId = unavailableToggle.getAttribute('aria-controls');
+    expect(collapsedPanelId).not.toBeNull();
+    expect(document.getElementById(collapsedPanelId as string)).toHaveAttribute('hidden');
+
+    await userEvent.click(unavailableToggle);
+
+    expect(unavailableToggle).toHaveAttribute('aria-expanded', 'true');
+    expect(document.getElementById(collapsedPanelId as string)).not.toHaveAttribute('hidden');
+  });
+
+  it('keeps the unavailable raid group open when it already holds a checked raid', async () => {
+    const result = calculateCharacterGold('1680', '버서커', '1680.00', 'img');
+    const availableKeys = new Set(
+      result.availableRaids.map((raid) => `${raid.raidName}::${raid.difficulty}`),
+    );
+    const unavailableRaid = RAID_COLUMNS.find(
+      (raid) => !availableKeys.has(`${raid.raidName}::${raid.difficulty}`),
+    );
+
+    if (!unavailableRaid) {
+      throw new TypeError('Expected at least one unavailable raid at item level 1680');
+    }
+
+    renderCard({
+      itemLevel: '1680.00',
+      selectedRaidKeysOverride: [`${unavailableRaid.raidName}::${unavailableRaid.difficulty}`],
+      hasCustomRaids: true,
+    });
+
+    await userEvent.click(screen.getByRole('button', { name: '레이드 변경' }));
+
+    // 접으면 사용자가 심어둔 체크 상태가 화면에서 사라지므로 펼친 상태로 시작해야 한다.
+    expect(screen.getByRole('button', { name: /^참여 불가 레이드 [1-9]/ })).toHaveAttribute(
+      'aria-expanded',
+      'true',
+    );
   });
 
   it('portals the raid picker dialog outside the character glass card', async () => {

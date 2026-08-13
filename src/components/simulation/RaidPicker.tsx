@@ -5,6 +5,40 @@ import { useBodyScrollLock } from '../../hooks/useBodyScrollLock';
 import FallbackImage from '../FallbackImage';
 import StateFeedback from '../StateFeedback';
 
+type RaidGroupKey = 'available' | 'unavailable';
+
+interface RaidGroupCollapseInput {
+  /** 참여 가능 레이드 개수 */
+  readonly availableCount: number;
+  /** 참여 불가 레이드 개수 */
+  readonly unavailableCount: number;
+  /** 참여 불가 레이드 중 이미 체크되어 있는 개수 */
+  readonly unavailableSelectedCount: number;
+}
+
+/**
+ * 패널을 열었을 때의 그룹별 초기 접힘 상태를 결정한다.
+ * 마운트 시 1회만 평가되므로 이후 선택 변경에는 영향을 받지 않는다.
+ */
+const resolveInitialCollapsed = ({
+  availableCount,
+  unavailableCount,
+  unavailableSelectedCount,
+}: RaidGroupCollapseInput): Record<RaidGroupKey, boolean> => {
+  // 참여 가능 그룹은 항상 펼친다. 조작 대상이 여기 있고, 비어 있으면 빈 상태 안내를 보여줘야 한다.
+  // 참여 불가 그룹은 기본 접기로 첫 화면 길이를 줄이되, 접으면 맥락이 사라지는 두 경우는 예외로 펼친다.
+  const keepUnavailableOpen =
+    // 사용자가 참여 불가 레이드를 직접 체크해 둔 경우: 접으면 그 선택이 화면에서 사라진다.
+    unavailableSelectedCount > 0 ||
+    // 참여 가능 레이드가 없는 경우: 접으면 조작할 대상이 하나도 보이지 않는다.
+    availableCount === 0;
+
+  return {
+    available: false,
+    unavailable: unavailableCount > 0 && !keepUnavailableOpen,
+  };
+};
+
 interface RaidPickerProps {
   readonly allRaids: readonly RaidColumn[];
   readonly availableRaids: readonly SelectedRaid[];
@@ -55,7 +89,10 @@ const RaidPicker: React.FC<RaidPickerProps> = ({
       if (event.key !== 'Tab') return;
       const dialog = dialogRef.current;
       if (!dialog) return;
-      const focusables = Array.from(dialog.querySelectorAll<HTMLElement>(focusableSelector));
+      // 접힌 그룹([hidden]) 내부 요소는 focus 불가하므로 트랩 경계 계산에서 제외한다.
+      const focusables = Array.from(dialog.querySelectorAll<HTMLElement>(focusableSelector)).filter(
+        (element) => element.closest('[hidden]') === null,
+      );
       if (focusables.length === 0) return;
       const first = focusables[0];
       const last = focusables[focusables.length - 1];
@@ -80,16 +117,34 @@ const RaidPicker: React.FC<RaidPickerProps> = ({
   );
   const raidGroups = [
     {
+      key: 'available',
       label: '참여 가능 레이드',
       available: true,
       raids: allRaids.filter((raid) => availableKeys.has(`${raid.raidName}::${raid.difficulty}`)),
     },
     {
+      key: 'unavailable',
       label: '참여 불가 레이드',
       available: false,
       raids: allRaids.filter((raid) => !availableKeys.has(`${raid.raidName}::${raid.difficulty}`)),
     },
   ] as const;
+
+  // 선택 상태(selectedRaidKeys)와 독립적으로 유지되는 접힘 상태.
+  // lazy initializer라 마운트 시 1회만 평가되고, 이후 체크 변경에는 재계산되지 않는다.
+  const [collapsedGroups, setCollapsedGroups] = React.useState<Record<RaidGroupKey, boolean>>(() =>
+    resolveInitialCollapsed({
+      availableCount: raidGroups[0].raids.length,
+      unavailableCount: raidGroups[1].raids.length,
+      unavailableSelectedCount: raidGroups[1].raids.filter((raid) =>
+        selectedRaidKeys.includes(`${raid.raidName}::${raid.difficulty}`),
+      ).length,
+    }),
+  );
+
+  const toggleGroup = (key: RaidGroupKey): void => {
+    setCollapsedGroups((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
 
   const picker = (
     <div className="fixed inset-0 z-[9998] flex items-end bg-black/40 md:static md:block md:bg-transparent">
@@ -147,15 +202,39 @@ const RaidPicker: React.FC<RaidPickerProps> = ({
               compact
             />
           ) : (
-            raidGroups.map((group) => (
+            raidGroups.map((group) => {
+              const collapsed = collapsedGroups[group.key];
+              const panelId = `${titleId}-${group.key}`;
+              return (
               <section key={group.label} aria-label={group.label}>
-                <div className="mb-2 flex items-center justify-between gap-3">
-                  <h3 className="text-xs font-bold text-gray-700 dark:text-gray-200">{group.label}</h3>
-                  <span className="rounded-md bg-gray-100 px-2 py-1 text-[10px] font-bold tabular-nums text-gray-500 dark:bg-white/10 dark:text-gray-400">
-                    {group.raids.length}개
-                  </span>
-                </div>
+                <h3 className="mb-2">
+                  <button
+                    type="button"
+                    aria-expanded={!collapsed}
+                    aria-controls={panelId}
+                    onClick={() => toggleGroup(group.key)}
+                    className="flex min-h-10 w-full items-center justify-between gap-3 rounded-lg px-2 py-2 text-left transition-colors hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-la-gold/40 dark:hover:bg-white/5"
+                  >
+                    <span className="flex min-w-0 items-center gap-2">
+                      <svg
+                        aria-hidden="true"
+                        className={`h-4 w-4 flex-none text-gray-400 transition-transform duration-200 ${collapsed ? '' : 'rotate-90'}`}
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        strokeWidth={2}
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                      </svg>
+                      <span className="truncate text-xs font-bold text-gray-700 dark:text-gray-200">{group.label}</span>
+                    </span>
+                    <span className="flex-none rounded-md bg-gray-100 px-2 py-1 text-[10px] font-bold tabular-nums text-gray-500 dark:bg-white/10 dark:text-gray-400">
+                      {group.raids.length}개
+                    </span>
+                  </button>
+                </h3>
 
+                <div id={panelId} hidden={collapsed}>
                 {group.raids.length === 0 ? (
                   group.available ? (
                     <StateFeedback
@@ -264,8 +343,10 @@ const RaidPicker: React.FC<RaidPickerProps> = ({
                     })}
                   </div>
                 )}
+                </div>
               </section>
-            ))
+              );
+            })
           )}
           <p className="text-[10px] text-gray-500 dark:text-gray-500">
             제한 없이 체크 가능 · 참여 레벨 미달 레이드는 선택 상태만 저장됩니다.
