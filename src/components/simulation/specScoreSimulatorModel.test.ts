@@ -1,5 +1,5 @@
 import { buildModifiedSpecScoreData, EMPTY_MODS } from './specScoreSimulatorModel';
-import { ARMLET_POWER_BY_LEVEL } from '../../data/specScore/lopecCoefficients';
+import { ARMLET_POWER_BY_LEVEL } from '../../data/specScore/equipmentPowerTables';
 import type { Mods, SpecScoreRawData } from './specScoreSimulatorTypes';
 import { charStatsFor, effect, emptyGems, engravings, equipment } from '../../utils/lopecSimulator.testUtils';
 import type { StoneState } from '../../utils/polishState';
@@ -143,8 +143,8 @@ describe('buildModifiedSpecScoreData armlet levels', () => {
       },
     });
 
-  it('keeps an unsupported API level and its API grade when the armlet is untouched', () => {
-    // Given: +13은 ARMLET_SELECT_LEVELS에 없는 실제 착용 레벨이다.
+  it('keeps a supported +13 API level and its API grade when the armlet is untouched', () => {
+    // Given: 착용 중인 아이템은 지원 레벨이어도 API grade가 권위다.
     const raw = { ...createRawData(), equip: { armlet: armletAt(13) } };
 
     // When
@@ -200,5 +200,28 @@ describe('buildModifiedSpecScoreData armlet levels', () => {
 
     // Then
     expect(modified.equip.armlet).toEqual(expect.objectContaining({ tier: '고대' }));
+  });
+
+  it.each([
+    [10, '영웅', '전설'],
+    [15, '전설', '유물'],
+    [20, '유물', '고대'],
+  ] as const)('applies the +%i armlet grade override without changing its level', (
+    normalLevel,
+    currentGrade,
+    armletGrade,
+  ) => {
+    // Given
+    const raw = { ...createRawData(), equip: { armlet: armletAt(normalLevel, currentGrade) } };
+    const mods: Mods = { ...EMPTY_MODS, equip: { armlet: { armletGrade } } };
+
+    // When
+    const modified = buildModifiedSpecScoreData(raw, mods);
+
+    // Then
+    expect(modified.equip.armlet).toEqual(expect.objectContaining({
+      normalLevel,
+      tier: armletGrade,
+    }));
   });
 });

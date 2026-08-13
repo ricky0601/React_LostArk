@@ -9,7 +9,14 @@ import type { ArkGridCoreMod } from './arkGridSimulatorState';
 export type GemMod = { Level?: number; Tooltip?: string };
 export type EngMod = { Name?: string; Level?: number; AbilityStoneLevel?: number | null };
 export type AwakeningMod = { Level?: number };
-export type EquipMod = { normalLevel?: number; advancedLevel?: number; tier?: EquipmentTier };
+export type ArmletGrade = '영웅' | '전설' | '유물' | '고대';
+
+export type EquipMod = {
+  normalLevel?: number;
+  advancedLevel?: number;
+  tier?: EquipmentTier;
+  armletGrade?: ArmletGrade;
+};
 export type PolishMod = { polishOptions?: [string, string, string] };
 export type PolishOptionLabels = [string, string, string];
 export type BraceletMod = {
