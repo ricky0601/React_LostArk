@@ -1,9 +1,16 @@
-import type { ReactElement } from 'react';
-import { ARMLET_POWER_BY_LEVEL, ARMLET_SELECT_LEVELS, ARMLET_UNEQUIPPED_LEVEL, resolveArmletLevel, type EquipSlot } from '../../data/specScore/lopecCoefficients';
+import { type ReactElement, useCallback, useEffect, useRef, useState } from 'react';
+import {
+  ARMLET_POWER_BY_LEVEL,
+  ARMLET_SELECT_LEVELS,
+  ARMLET_UNEQUIPPED_LEVEL,
+  resolveArmletLevel,
+  resolveArmletPower,
+} from '../../data/specScore/equipmentPowerTables';
+import type { EquipSlot } from '../../data/specScore/lopecCoefficients';
 import type { EquipmentState, EquipmentTier } from '../../utils/equipmentState';
 import { gradeFrame } from '../../utils/equipmentColors';
 import { SpecSelect } from './SpecSelect';
-import type { EquipMod } from './specScoreSimulatorTypes';
+import type { ArmletGrade, EquipMod } from './specScoreSimulatorTypes';
 
 interface SpecScoreEquipmentPanelProps {
   readonly visible: boolean;
@@ -33,6 +40,15 @@ const TIER_LABELS: Record<(typeof TIER_OPTIONS)[number], string> = {
   업화: '에기르',
   전율: '세르카',
 };
+const ARMLET_LIMIT_BREAKS: readonly {
+  readonly normalLevel: number;
+  readonly currentGrade: ArmletGrade;
+  readonly nextGrade: ArmletGrade;
+}[] = [
+  { normalLevel: 10, currentGrade: '영웅', nextGrade: '전설' },
+  { normalLevel: 15, currentGrade: '전설', nextGrade: '유물' },
+  { normalLevel: 20, currentGrade: '유물', nextGrade: '고대' },
+];
 
 const normalizeEditableTier = (tier: EquipmentState['tier']): EquipmentTier => {
   if (tier === '유물' || tier === '업화' || tier === '전율') return tier;
@@ -66,6 +82,20 @@ export const SpecScoreEquipmentPanel = ({
   onEquipmentChange,
   onApplyBulkEquipment,
 }: SpecScoreEquipmentPanelProps): ReactElement | null => {
+  const armletLevelTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const [armletLimitBreakStatus, setArmletLimitBreakStatus] = useState('');
+  const [shouldFocusArmletLevel, setShouldFocusArmletLevel] = useState(false);
+
+  const setArmletLevelTrigger = useCallback((element: HTMLButtonElement | null): void => {
+    armletLevelTriggerRef.current = element;
+  }, []);
+
+  useEffect(() => {
+    if (!shouldFocusArmletLevel) return;
+    armletLevelTriggerRef.current?.focus();
+    setShouldFocusArmletLevel(false);
+  }, [shouldFocusArmletLevel, equipmentMods]);
+
   if (!visible || equipmentCount <= 0) return null;
 
   const nonArmletTiers = SLOT_ORDER.flatMap((slot) => {
@@ -115,6 +145,7 @@ export const SpecScoreEquipmentPanel = ({
           </button>
         </div>
       </div>
+      <p role="status" className="sr-only">{armletLimitBreakStatus}</p>
       <div className="space-y-1.5">
         {SLOT_ORDER.map((slot) => {
           const cur = equipment[slot];
@@ -131,16 +162,24 @@ export const SpecScoreEquipmentPanel = ({
             const armletIsUnequipped = curNormal === ARMLET_UNEQUIPPED_LEVEL;
             // 등급/아이콘 출처는 API가 권위다. 값이 실제로 달라진 경우에만 계수 테이블로 넘어간다.
             const armletIsModified = curNormal !== cur.normalLevel;
-            const armletGrade = armletIsUnequipped
+            const sourceArmletGrade = m?.armletGrade ?? (armletIsUnequipped
               ? ARMLET_POWER_BY_LEVEL[ARMLET_UNEQUIPPED_LEVEL].grade
               : armletIsModified && armletPower !== null
                 ? armletPower.grade
-                : cur.raw.Grade;
-            const armletIcon = armletIsUnequipped
+                : cur.raw.Grade);
+            const resolvedArmletPower = m?.armletGrade
+              ? resolveArmletPower({ normalLevel: curNormal, grade: m.armletGrade })
+              : null;
+            const armletGrade = resolvedArmletPower?.grade ?? sourceArmletGrade;
+            const armletIcon = resolvedArmletPower?.icon ?? (armletIsUnequipped
               ? ARMLET_POWER_BY_LEVEL[ARMLET_UNEQUIPPED_LEVEL].icon
               : armletIsModified && armletPower !== null
                 ? armletPower.icon
-                : cur.raw.Icon;
+                : cur.raw.Icon);
+            const limitBreak = ARMLET_LIMIT_BREAKS.find(
+              ({ normalLevel, currentGrade }) =>
+                normalLevel === curNormal && currentGrade === armletGrade,
+            );
             const armletFrame = gradeFrame(armletGrade, 'bg');
             return (
               <div
@@ -176,7 +215,25 @@ export const SpecScoreEquipmentPanel = ({
                       }))}
                       ariaLabel={`완갑 레벨 ${armletIsUnequipped ? '미착용' : curNormal}`}
                       className="w-20 flex-shrink-0"
+                      triggerElementRef={setArmletLevelTrigger}
                     />
+                    {limitBreak && (
+                      <button
+                        type="button"
+                        aria-label={`완갑 ${limitBreak.nextGrade} 등급 한계돌파`}
+                        onClick={() => {
+                          onEquipmentChange(slot, { armletGrade: limitBreak.nextGrade });
+                          setArmletLimitBreakStatus(`완갑 ${limitBreak.nextGrade} 등급 한계돌파가 적용되었습니다`);
+                          setShouldFocusArmletLevel(true);
+                        }}
+                        className="spec-mini-button flex-shrink-0 px-2 py-0.5"
+                      >
+                        한계돌파
+                        <span aria-hidden="true" className="ml-1 text-[10px] font-semibold text-gray-700 dark:text-gray-200">
+                          {limitBreak.nextGrade}
+                        </span>
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>

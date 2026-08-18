@@ -161,6 +161,61 @@ describe('calcLopecDelta equipment API/table formula changes', () => {
     expect(result).toBeCloseTo(currentScore * (modifiedBaseAttack / currentBaseAttack), 6);
   });
 
+  it('applies armlet limit-break base attack percent without changing level', () => {
+    const currentScore = 100_000;
+    const weaponAttack = 200_000;
+    const mainStat = 900_000;
+    const current = equipment('armlet', { normalLevel: 10, tier: '영웅' });
+    const modified = { ...current, tier: '전설' };
+
+    const result = calcLopecDelta(
+      currentScore,
+      engravings([]),
+      engravings([]),
+      emptyGems,
+      emptyGems,
+      { armlet: current },
+      { armlet: modified },
+      undefined,
+      undefined,
+      charStatsFor(weaponAttack, mainStat),
+    );
+    const currentBaseAttack = Math.sqrt((weaponAttack * mainStat) / 6);
+    const modifiedBaseAttack = currentBaseAttack * 1.01;
+
+    expect(result).toBeCloseTo(currentScore * (modifiedBaseAttack / currentBaseAttack), 6);
+  });
+
+  it('does not reapply current armlet flat and percent bonuses in fallback stat reconstruction', () => {
+    const currentScore = 100_000;
+    const weaponAttack = 200_000;
+    const mainStat = 900_000;
+    const current = equipment('armlet', { normalLevel: 15, tier: '전설' });
+
+    const result = calcLopecDelta(
+      currentScore,
+      engravings([]),
+      engravings([]),
+      emptyGems,
+      emptyGems,
+      { armlet: current },
+      { armlet: current },
+      undefined,
+      undefined,
+      {
+        W: weaponAttack,
+        baseAttack: Math.sqrt((weaponAttack * mainStat) / 6),
+        effectiveWeaponAttack: weaponAttack,
+        displayedMainStat: mainStat,
+        weaponAttackPercentSum: 0,
+        baseAttackFlatSum: 3690,
+        baseAttackPercentSum: 1,
+      },
+    );
+
+    expect(result).toBeCloseTo(currentScore, 6);
+  });
+
   it('uses API weapon attack and Egir normal honing deltas for weapon normal changes', () => {
     const currentScore = 100_000;
     const weaponAttack = 135_527;

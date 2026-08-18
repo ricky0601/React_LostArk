@@ -27,6 +27,17 @@ import type {
   StoneSlotMod,
 } from './specScoreSimulatorTypes';
 
+const mergeArmletMod = (current: EquipMod | undefined, patch: EquipMod): EquipMod => {
+  if (patch.normalLevel !== undefined) {
+    const { armletGrade, ...currentWithoutGrade } = current ?? {};
+    return { ...currentWithoutGrade, normalLevel: patch.normalLevel };
+  }
+  if (patch.armletGrade !== undefined) {
+    return { ...current, armletGrade: patch.armletGrade };
+  }
+  return { ...current };
+};
+
 export const useSpecScoreSimulator = (profile: CharacterProfile) => {
   const [raw, setRaw] = useState<SpecScoreRawData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -93,9 +104,14 @@ export const useSpecScoreSimulator = (profile: CharacterProfile) => {
   const updateEquipMod = (slot: EquipSlot, patch: EquipMod): void => {
     const equipment = raw?.equip[slot];
     if (!equipment) return;
-    const safePatch: EquipMod = slot === 'armlet'
-      ? (patch.normalLevel === undefined ? {} : { normalLevel: patch.normalLevel })
-      : equipment.isInherited && patch.advancedLevel !== undefined
+    if (slot === 'armlet') {
+      setMods((previous) => ({
+        ...previous,
+        equip: { ...previous.equip, [slot]: mergeArmletMod(previous.equip[slot], patch) },
+      }));
+      return;
+    }
+    const safePatch: EquipMod = equipment.isInherited && patch.advancedLevel !== undefined
         ? { ...patch, advancedLevel: undefined }
         : patch;
     setMods((previous) => ({
@@ -155,8 +171,8 @@ export const useSpecScoreSimulator = (profile: CharacterProfile) => {
       const current = raw.equip[slot];
       if (!current) continue;
       if (slot === 'armlet') {
-        if (patch.normalLevel !== undefined) {
-          equip[slot] = { ...mods.equip[slot], normalLevel: patch.normalLevel };
+        if (patch.normalLevel !== undefined || patch.armletGrade !== undefined) {
+          equip[slot] = mergeArmletMod(mods.equip[slot], patch);
         } else if (mods.equip[slot]) {
           equip[slot] = mods.equip[slot];
         }

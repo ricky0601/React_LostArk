@@ -21,6 +21,7 @@ interface SpecSelectProps<Value extends SpecSelectValue> {
   readonly className?: string;
   readonly size?: 'compact' | 'default';
   readonly textAlign?: 'left' | 'center';
+  readonly triggerElementRef?: (element: HTMLButtonElement | null) => void;
 }
 
 
@@ -36,6 +37,7 @@ export const SpecSelect = <Value extends SpecSelectValue>({
   className,
   size = 'compact',
   textAlign = 'left',
+  triggerElementRef,
 }: SpecSelectProps<Value>): ReactElement => {
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
@@ -47,6 +49,11 @@ export const SpecSelect = <Value extends SpecSelectValue>({
   const selectedItem = items.find(
     (item): item is SpecSelectOption<Value> => isSpecSelectOption(item) && item.value === value,
   );
+
+  const setTriggerRef = useCallback((element: HTMLButtonElement | null): void => {
+    triggerRef.current = element;
+    triggerElementRef?.(element);
+  }, [triggerElementRef]);
 
   const close = useCallback((restoreFocus: boolean): void => {
     setOpen(false);
@@ -226,7 +233,7 @@ export const SpecSelect = <Value extends SpecSelectValue>({
   return (
     <div ref={rootRef} className={joinClassNames('relative min-w-0', className)}>
       <button
-        ref={triggerRef}
+        ref={setTriggerRef}
         type="button"
         aria-label={ariaLabel}
         aria-haspopup="listbox"
