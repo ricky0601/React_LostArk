@@ -1,4 +1,4 @@
-import type { ReactElement } from 'react';
+import { type ReactElement, useCallback, useEffect, useRef, useState } from 'react';
 import {
   ARMLET_POWER_BY_LEVEL,
   ARMLET_SELECT_LEVELS,
@@ -82,6 +82,20 @@ export const SpecScoreEquipmentPanel = ({
   onEquipmentChange,
   onApplyBulkEquipment,
 }: SpecScoreEquipmentPanelProps): ReactElement | null => {
+  const armletLevelTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const [armletLimitBreakStatus, setArmletLimitBreakStatus] = useState('');
+  const [shouldFocusArmletLevel, setShouldFocusArmletLevel] = useState(false);
+
+  const setArmletLevelTrigger = useCallback((element: HTMLButtonElement | null): void => {
+    armletLevelTriggerRef.current = element;
+  }, []);
+
+  useEffect(() => {
+    if (!shouldFocusArmletLevel) return;
+    armletLevelTriggerRef.current?.focus();
+    setShouldFocusArmletLevel(false);
+  }, [shouldFocusArmletLevel, equipmentMods]);
+
   if (!visible || equipmentCount <= 0) return null;
 
   const nonArmletTiers = SLOT_ORDER.flatMap((slot) => {
@@ -131,6 +145,7 @@ export const SpecScoreEquipmentPanel = ({
           </button>
         </div>
       </div>
+      <p role="status" className="sr-only">{armletLimitBreakStatus}</p>
       <div className="space-y-1.5">
         {SLOT_ORDER.map((slot) => {
           const cur = equipment[slot];
@@ -200,16 +215,21 @@ export const SpecScoreEquipmentPanel = ({
                       }))}
                       ariaLabel={`완갑 레벨 ${armletIsUnequipped ? '미착용' : curNormal}`}
                       className="w-20 flex-shrink-0"
+                      triggerElementRef={setArmletLevelTrigger}
                     />
                     {limitBreak && (
                       <button
                         type="button"
                         aria-label={`완갑 ${limitBreak.nextGrade} 등급 한계돌파`}
-                        onClick={() => onEquipmentChange(slot, { armletGrade: limitBreak.nextGrade })}
+                        onClick={() => {
+                          onEquipmentChange(slot, { armletGrade: limitBreak.nextGrade });
+                          setArmletLimitBreakStatus(`완갑 ${limitBreak.nextGrade} 등급 한계돌파가 적용되었습니다`);
+                          setShouldFocusArmletLevel(true);
+                        }}
                         className="spec-mini-button flex-shrink-0 px-2 py-0.5"
                       >
                         한계돌파
-                        <span aria-hidden="true" className="ml-1 text-[10px] font-normal opacity-70">
+                        <span aria-hidden="true" className="ml-1 text-[10px] font-semibold text-gray-700 dark:text-gray-200">
                           {limitBreak.nextGrade}
                         </span>
                       </button>

@@ -1,4 +1,5 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { useState } from 'react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { SpecScoreEquipmentPanel } from './SpecScoreEquipmentPanel';
 import { ARMLET_POWER_BY_LEVEL } from '../../data/specScore/equipmentPowerTables';
 import { equipment } from '../../utils/lopecSimulator.testUtils';
@@ -130,6 +131,48 @@ describe('SpecScoreEquipmentPanel armlet grade source', () => {
     // Then
     expect(onEquipmentChange).toHaveBeenCalledWith('armlet', { armletGrade: '전설' });
     expect(onEquipmentChange.mock.calls[0]?.[1]).not.toHaveProperty('normalLevel');
+  });
+
+  it('moves focus to the stable armlet level control and announces the limit break', async () => {
+    // Given
+    const StatefulPanel = () => {
+      const [mods, setMods] = useState<Partial<Record<'armlet', EquipMod>>>({});
+      return (
+        <SpecScoreEquipmentPanel
+          visible={true}
+          equipment={{ armlet: armletAt(10, '영웅') }}
+          equipmentMods={mods}
+          equipmentCount={1}
+          changedCount={0}
+          summaryLabel="테스트"
+          onEquipmentChange={(_, patch) => {
+            setMods((previous) => ({ armlet: { ...previous.armlet, ...patch } }));
+          }}
+          onApplyBulkEquipment={jest.fn()}
+        />
+      );
+    };
+    render(<StatefulPanel />);
+    const limitBreakButton = screen.getByRole('button', { name: '완갑 전설 등급 한계돌파' });
+    limitBreakButton.focus();
+
+    // When
+    fireEvent.click(limitBreakButton);
+
+    // Then
+    expect(screen.getByRole('status')).toHaveTextContent('완갑 전설 등급 한계돌파가 적용되었습니다');
+    await waitFor(() => expect(screen.getByRole('button', { name: '완갑 레벨 10' })).toHaveFocus());
+  });
+
+  it('renders the next armlet grade with contrast-safe text classes', () => {
+    // Given / When
+    renderPanel(10, {}, '영웅');
+
+    // Then
+    const button = screen.getByRole('button', { name: '완갑 전설 등급 한계돌파' });
+    const nextGrade = within(button).getByText('전설');
+    expect(nextGrade).toHaveClass('text-gray-700', 'dark:text-gray-200');
+    expect(nextGrade).not.toHaveClass('opacity-70');
   });
 
   it('does not carry a stale promoted grade when selecting another armlet level', () => {
