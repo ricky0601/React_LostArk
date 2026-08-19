@@ -75,17 +75,14 @@ test('updates SEO metadata for the current route', () => {
   );
 });
 
-test('marks unknown routes as noindex without reusing the home canonical', () => {
+test('marks unknown routes as noindex with the home canonical', () => {
   mockPathname = '/missing-route';
 
   render(<App />);
 
   expect(document.title).toBe('페이지를 찾을 수 없습니다 - 로아끼욧');
   expect(document.querySelector('meta[name="robots"]')).toHaveAttribute('content', 'noindex, follow');
-  expect(document.querySelector('link[rel="canonical"]')).toHaveAttribute(
-    'href',
-    'https://lokki.vercel.app/missing-route',
-  );
+  expect(document.querySelector('link[rel="canonical"]')).toHaveAttribute('href', 'https://lokki.vercel.app/');
 });
 
 test('normalizes the changelog trailing slash for metadata and canonical URL', () => {
