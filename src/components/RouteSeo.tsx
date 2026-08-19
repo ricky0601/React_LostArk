@@ -70,8 +70,7 @@ export const RouteSeo: FC = () => {
 
   useEffect(() => {
     const seo = findSeoEntry(pathname);
-    const canonicalPath = seo.robots === 'noindex, follow' ? pathname : seo.path;
-    const canonicalUrl = `${SITE_URL}${canonicalPath === '/' ? '/' : canonicalPath}`;
+    const canonicalUrl = `${SITE_URL}${seo.path === '/' ? '/' : seo.path}`;
 
     document.title = seo.title;
     setNamedMeta('description', seo.description);
