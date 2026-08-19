@@ -1,6 +1,7 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { render, screen } from '@testing-library/react';
+import routeSeoEntries from './constants/routeSeo.json';
 
 let mockPathname = '/';
 
@@ -119,11 +120,23 @@ test('normalizes the trailing slash for pre-existing routes as well', () => {
   );
 });
 
-test('keeps the sitemap scoped to the SPA root document', () => {
+test('lists every indexable route in the sitemap', () => {
   const sitemap = readFileSync(join(process.cwd(), 'public', 'sitemap.xml'), 'utf8');
+  const indexableRoutes = routeSeoEntries.filter((entry) => entry.robots === 'index, follow');
 
-  expect(sitemap).toContain('<loc>https://lokki.vercel.app/</loc>');
-  expect(sitemap).not.toContain('<loc>https://lokki.vercel.app/market</loc>');
-  expect(sitemap).not.toContain('<loc>https://lokki.vercel.app/character</loc>');
-  expect(sitemap).not.toContain('<loc>https://lokki.vercel.app/changelog</loc>');
+  for (const route of indexableRoutes) {
+    const routeUrl = `https://lokki.vercel.app${route.path === '/' ? '/' : route.path}`;
+    expect(sitemap).toContain(`<loc>${routeUrl}</loc>`);
+    expect(sitemap).toContain(`<lastmod>${route.lastmod}</lastmod>`);
+  }
+});
+
+test('keeps static social and structured metadata available before hydration', () => {
+  const indexHtml = readFileSync(join(process.cwd(), 'public', 'index.html'), 'utf8');
+
+  expect(indexHtml).toContain('property="og:locale" content="ko_KR"');
+  expect(indexHtml).toContain('name="twitter:card" content="summary_large_image"');
+  expect(indexHtml).toContain('property="og:image:width" content="1200"');
+  expect(indexHtml).toContain('type="application/ld+json"');
+  expect(indexHtml).toContain('"@type": "SoftwareApplication"');
 });
