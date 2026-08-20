@@ -4,6 +4,14 @@ const { dirname, join } = require('path');
 const SITE_URL = 'https://lokki.vercel.app';
 const routeSeoPath = join(process.cwd(), 'src', 'constants', 'routeSeo.json');
 const buildIndexPath = join(process.cwd(), 'build', 'index.html');
+const buildNotFoundPath = join(process.cwd(), 'build', '404.html');
+
+const NOT_FOUND_ROUTE = {
+  path: '/',
+  title: '페이지를 찾을 수 없습니다 - 로아끼욧',
+  description: '요청하신 페이지를 찾을 수 없습니다. 로아끼욧 홈에서 원하는 기능을 찾아보세요.',
+  robots: 'noindex, follow',
+};
 
 function escapeHtml(value) {
   return value
@@ -58,6 +66,8 @@ function main() {
     mkdirSync(dirname(outputPath), { recursive: true });
     writeFileSync(outputPath, applyRouteSeo(indexHtml, route));
   }
+
+  writeFileSync(buildNotFoundPath, applyRouteSeo(indexHtml, NOT_FOUND_ROUTE));
 }
 
 if (require.main === module) {
