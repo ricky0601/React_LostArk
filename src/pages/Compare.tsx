@@ -249,6 +249,7 @@ const EquipmentRow: React.FC<{
           <img
             src={item.Icon}
             alt=""
+            loading="lazy"
             className={`w-8 h-8 rounded border flex-shrink-0 ${frame.className}`}
             style={frame.style}
           />
@@ -308,6 +309,7 @@ const GemBadge: React.FC<{ gem: GemItem; skill?: GemSkillEffect }> = ({ gem, ski
         <img
           src={gem.Icon}
           alt=""
+          loading="lazy"
           className={`w-7 h-7 rounded border flex-shrink-0 ${frame.className}`}
           style={frame.style}
         />
@@ -806,7 +808,7 @@ const ArkGridSection: React.FC<{
                 style={frame.style}
               >
                 {slot.Icon ? (
-                  <img src={slot.Icon} alt={name} className="w-full h-full object-cover" />
+                  <img src={slot.Icon} alt={name} loading="lazy" className="w-full h-full object-cover" />
                 ) : (
                   <div className="w-full h-full" />
                 )}

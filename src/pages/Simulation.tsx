@@ -618,6 +618,7 @@ const Simulation: React.FC = () => {
                                             <img
                                                 src={r.characterImage}
                                                 alt={r.characterName}
+                                                loading="lazy"
                                                 className="w-6 h-6 rounded-md object-cover object-top"
                                             />
                                             <span className="font-medium truncate">{r.characterName}</span>
@@ -671,6 +672,7 @@ const Simulation: React.FC = () => {
                                                             <img
                                                                 src={r.characterImage}
                                                                 alt={r.characterName}
+                                                                loading="lazy"
                                                                 className="w-6 h-6 rounded-md object-cover object-top"
                                                             />
                                                             <span className="font-medium truncate">{r.characterName}</span>

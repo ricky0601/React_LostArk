@@ -194,6 +194,7 @@ export const SpecScoreEquipmentPanel = ({
                     <img
                       src={armletIcon}
                       alt=""
+                      loading="lazy"
                       className={`h-full w-full object-contain ${armletIsUnequipped ? 'opacity-45 grayscale' : ''}`}
                     />
                   </div>
@@ -247,7 +248,7 @@ export const SpecScoreEquipmentPanel = ({
             >
               <div className="relative w-14 flex-shrink-0">
                 <div className={`h-14 w-14 overflow-hidden rounded border ${frame.className}`} style={frame.style}>
-                  <img src={cur.raw.Icon} alt="" className="h-full w-full object-contain" />
+                  <img src={cur.raw.Icon} alt="" loading="lazy" className="h-full w-full object-contain" />
                 </div>
                 <span className="absolute top-0.5 left-0.5 text-[9px] font-bold text-white bg-black/70 rounded px-1 leading-tight">
                   {SLOT_LABEL[slot]}

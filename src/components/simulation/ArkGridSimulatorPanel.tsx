@@ -99,7 +99,7 @@ export const ArkGridSimulatorPanel = ({
                       >
                         <div className="relative h-full w-full overflow-hidden rounded-[10px] bg-gray-100 dark:bg-black/30">
                           {slot.Icon ? (
-                            <img src={slot.Icon} alt="" className="h-full w-full object-cover" />
+                            <img src={slot.Icon} alt="" loading="lazy" className="h-full w-full object-cover" />
                           ) : (
                             <div className="h-full w-full bg-gray-100 dark:bg-white/5" />
                           )}
@@ -162,7 +162,7 @@ export const ArkGridSimulatorPanel = ({
                               title={gemTitle || `${gem?.Grade ?? '시뮬'} #${gem?.Index ?? gemIndex}`}
                             >
                               {gem?.Icon ? (
-                                <img src={gem.Icon} alt="" className="h-full w-full object-cover" />
+                                <img src={gem.Icon} alt="" loading="lazy" className="h-full w-full object-cover" />
                               ) : (
                                 <div className="flex h-full w-full items-center justify-center bg-la-gold/10 text-[10px] font-bold text-la-gold-dark dark:bg-la-gold/15 dark:text-la-gold">
                                   SIM

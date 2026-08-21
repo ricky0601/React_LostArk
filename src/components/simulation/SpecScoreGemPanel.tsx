@@ -84,7 +84,7 @@ export const SpecScoreGemPanel = ({
             >
               {/* 아이콘 + 레벨 뱃지 */}
               <div className="relative w-full aspect-square rounded bg-gray-50 dark:bg-white/5 border border-gray-200/60 dark:border-white/5 overflow-hidden">
-                <img src={g.Icon} alt="" className="w-full h-full object-cover" />
+                <img src={g.Icon} alt="" loading="lazy" className="w-full h-full object-cover" />
                 <span className="absolute top-0.5 right-0.5 text-[10px] font-bold text-white bg-black/70 rounded px-1 leading-tight">
                   {currentLevel}
                 </span>
