@@ -142,4 +142,5 @@ test('keeps static social and structured metadata available before hydration', (
   );
   expect(indexHtml).toContain('"query-input": "required name=search_term_string"');
   expect(indexHtml).toContain('name="naver-site-verification"');
+  expect(indexHtml).toContain('name="google-site-verification"');
 });
