@@ -341,6 +341,7 @@ const SectionHeader: React.FC<{
   expanded: boolean;
   onToggle: () => void;
 }> = ({ icon, title, expanded, onToggle }) => (
+  <h2>
   <button
     onClick={onToggle}
     className="w-full flex items-center justify-between gap-2 text-base font-bold text-gray-900 dark:text-white mb-0 cursor-pointer select-none group"
@@ -361,6 +362,7 @@ const SectionHeader: React.FC<{
       <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
     </svg>
   </button>
+  </h2>
 );
 
 /** 캐릭터 입력 필드 */
@@ -530,9 +532,9 @@ const EquipmentSection: React.FC<{
       {/* Armor section */}
       <div className="mb-4">
         <div className="flex items-center justify-between mb-2">
-          <h4 className="text-xs font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
+          <h3 className="text-xs font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
             방어구
-          </h4>
+          </h3>
           <div className="flex gap-3 text-[10px]">
             <span className="text-gray-400">
               평균 품질:{' '}
@@ -561,9 +563,9 @@ const EquipmentSection: React.FC<{
       {/* Accessory section */}
       <div className="mb-4">
         <div className="flex items-center justify-between mb-2">
-          <h4 className="text-xs font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
+          <h3 className="text-xs font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
             악세서리
-          </h4>
+          </h3>
           <div className="flex gap-3 text-[10px]">
             <span className="text-gray-400">
               평균 품질:{' '}

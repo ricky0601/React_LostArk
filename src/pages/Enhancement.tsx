@@ -848,9 +848,9 @@ const Enhancement: React.FC = () => {
 
         {/* ── 캐릭터 검색 ── */}
         <GlassCard className="p-4">
-          <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-3">
+          <h2 className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-3">
             캐릭터 강화 현황
-          </p>
+          </h2>
           <div className="flex gap-2 mb-4">
             <input
               ref={charInputRef}
@@ -1055,7 +1055,7 @@ const Enhancement: React.FC = () => {
         {/* ── 일반 재련 설정 ── */}
         {hasResult && (
           <GlassCard className="p-4">
-            <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-3">일반 재련 설정</p>
+            <h2 className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-3">일반 재련 설정</h2>
             <div className="flex flex-wrap items-center gap-3">
               {hasBookSteps && (
                 <Toggle
@@ -1119,7 +1119,7 @@ const Enhancement: React.FC = () => {
           ];
           return (
             <GlassCard className="p-4">
-              <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-3">상급 재련 설정</p>
+              <h2 className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-3">상급 재련 설정</h2>
               <div className="space-y-2">
                 {rows.map(({ label, opt, set, optimal }) => (
                   <div key={label} className="flex items-center gap-2">
@@ -1161,9 +1161,9 @@ const Enhancement: React.FC = () => {
           <>
             {/* ── 합산 견적 ── */}
             <GlassCard className="p-4 border border-la-gold/20">
-              <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-3">
+              <h2 className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-3">
                 강화 견적 합계{hasOwnedInput && hasPrices && <span className="ml-1 font-normal text-orange-500 dark:text-orange-400">(추가 구매 기준)</span>}
-              </p>
+              </h2>
               <div className={`grid gap-4 ${hasResult && hasAdvResult ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3' : 'grid-cols-1 sm:grid-cols-2'}`}>
                 {hasResult && (
                   <div>
@@ -1207,9 +1207,9 @@ const Enhancement: React.FC = () => {
             {/* ── 슬롯별 소계 (2개 이상 선택 시) ── */}
             {activeSlots.length >= 2 && (
               <GlassCard className="p-4">
-                <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-3">
+                <h2 className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-3">
                   슬롯별 예상 비용
-                </p>
+                </h2>
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-gray-200/40 dark:border-white/8">
@@ -1253,9 +1253,9 @@ const Enhancement: React.FC = () => {
 
             {/* ── 예상 총 비용 요약 ── */}
             <GlassCard className="p-4">
-              <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-3">
+              <h2 className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-3">
                 예상 총 비용{activeSlots.length >= 2 ? ' (전체)' : ''}
-              </p>
+              </h2>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 <div>
                   <p className="text-xs text-gray-400 mb-0.5">총 기대 시도</p>
@@ -1356,9 +1356,9 @@ const Enhancement: React.FC = () => {
             {hasAdvResult && (
               <>
                 <GlassCard className="p-4">
-                  <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-3">
+                  <h2 className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-3">
                     상급 재련 예상 비용
-                  </p>
+                  </h2>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-3">
                     <div>
                       <p className="text-xs text-gray-400 mb-0.5">총 기대 시도</p>
@@ -1431,10 +1431,10 @@ const Enhancement: React.FC = () => {
               onClick={() => setShowOwnedSection((v) => !v)}
               className="flex items-center justify-between w-full"
             >
-              <p className="text-xs font-semibold text-gray-500 dark:text-gray-400">
+              <h2 className="text-xs font-semibold text-gray-500 dark:text-gray-400">
                 보유 재료 입력
                 <span className="ml-1.5 font-normal text-gray-400 dark:text-gray-500">(선택 사항)</span>
-              </p>
+              </h2>
               <span className="text-xs text-gray-400 dark:text-gray-500">
                 {showOwnedSection ? '▲' : '▼'}
               </span>
@@ -1485,9 +1485,9 @@ const Enhancement: React.FC = () => {
         {/* ── 재료 시세 ── */}
         <GlassCard className="p-4">
           <div className="flex items-center justify-between mb-3">
-            <p className="text-xs font-semibold text-gray-500 dark:text-gray-400">
+            <h2 className="text-xs font-semibold text-gray-500 dark:text-gray-400">
               재련 재료 시세
-            </p>
+            </h2>
             {priceLoading && <span className="text-xs text-gray-400 animate-pulse">조회 중…</span>}
           </div>
           {priceError && (
