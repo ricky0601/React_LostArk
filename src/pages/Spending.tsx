@@ -100,14 +100,14 @@ const Spending: React.FC = () => {
 
         {/* 단계별 안내 */}
         <GlassCard className="p-4 space-y-5">
-          <p className="text-xs font-semibold text-gray-500 dark:text-gray-400">사용 방법</p>
+          <h2 className="text-xs font-semibold text-gray-500 dark:text-gray-400">사용 방법</h2>
           {STEPS.map((step, i) => (
             <div key={i} className="flex gap-4">
               <span className="shrink-0 w-7 h-7 flex items-center justify-center rounded-full bg-la-gold/20 text-la-gold-dark dark:text-la-gold text-sm font-bold">
                 {step.num}
               </span>
               <div className="min-w-0 flex-1 space-y-2 pt-0.5">
-                <p className="text-sm font-semibold text-gray-900 dark:text-white">{step.title}</p>
+                <h3 className="text-sm font-semibold text-gray-900 dark:text-white">{step.title}</h3>
                 <p className="break-words text-sm leading-relaxed text-gray-500 dark:text-gray-400">{step.desc}</p>
                 {step.action}
                 {i === 2 && (
@@ -140,9 +140,9 @@ const Spending: React.FC = () => {
             aria-controls="spending-script-preview"
             className="flex items-center justify-between w-full"
           >
-            <p className="text-xs font-semibold text-gray-500 dark:text-gray-400">
+            <h2 className="text-xs font-semibold text-gray-500 dark:text-gray-400">
               스크립트 미리보기
-            </p>
+            </h2>
             <span className="text-xs text-gray-400 dark:text-gray-500">
               {showScript ? '▲' : '▼'}
             </span>

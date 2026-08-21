@@ -253,10 +253,10 @@ const ArkPassiveCard: React.FC<{ data: EngravingData }> = ({ data }) => {
   return (
     <>
       <GlassCard className="p-4 animate-fade-in">
-        <p className="mb-3 flex items-center gap-2 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+        <h2 className="mb-3 flex items-center gap-2 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
           <span className="h-3 w-0.5 rounded-full bg-la-gold/80" />
           <span>각인</span>
-        </p>
+        </h2>
         <div ref={wrapperRef} className="flex flex-wrap gap-2">
           {passives.map((effect, i) => {
             const frame = gradeStyles(effect.Grade, 'subtle');
@@ -326,7 +326,7 @@ const ArkGridCard: React.FC<{ data: ArkGridData }> = ({ data }) => {
   if (!data.Slots || data.Slots.length === 0) return null;
   return (
     <GlassCard className="p-4 animate-fade-in">
-      <p className="mb-3 flex items-center gap-2 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider"><span className="h-3 w-0.5 rounded-full bg-la-gold/80" /><span>아크 그리드</span></p>
+      <h2 className="mb-3 flex items-center gap-2 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider"><span className="h-3 w-0.5 rounded-full bg-la-gold/80" /><span>아크 그리드</span></h2>
       <div className="grid grid-cols-3 gap-3">
         {data.Slots.map((slot) => {
           const frame = gradeFrame(slot.Grade, 'bg');
@@ -366,7 +366,7 @@ const EngravingsCard: React.FC<{ data: EngravingData }> = ({ data }) => {
   if (effects.length === 0) return null;
   return (
     <GlassCard className="p-4 animate-fade-in">
-      <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">각인</p>
+      <h2 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">각인</h2>
       <div className="space-y-1.5">
         {effects.map((effect, i) => (
           <div key={i} className="flex items-center gap-2 text-sm py-0.5">
@@ -385,7 +385,7 @@ const StatsCard: React.FC<{ profile: CharacterProfile }> = ({ profile }) => {
   if (stats.length === 0) return null;
   return (
     <GlassCard className="p-4 animate-fade-in">
-      <p className="mb-3 flex items-center gap-2 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider"><span className="h-3 w-0.5 rounded-full bg-la-gold/80" /><span>전투 스탯</span></p>
+      <h2 className="mb-3 flex items-center gap-2 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider"><span className="h-3 w-0.5 rounded-full bg-la-gold/80" /><span>전투 스탯</span></h2>
       <div className="grid grid-cols-2 gap-x-4 gap-y-2">
         {stats.map((stat) => (
           <div key={stat.Type} className="flex justify-between text-sm">
@@ -406,12 +406,12 @@ const GemsCard: React.FC<{ data: GemData }> = ({ data }) => {
   if (!data.Gems || data.Gems.length === 0) return null;
   return (
     <GlassCard className="p-4 animate-fade-in">
-      <p className="mb-3 flex items-center gap-2 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+      <h2 className="mb-3 flex items-center gap-2 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
         <span className="h-3 w-0.5 rounded-full bg-la-gold/80" />
         <span>
           보석 <span className="normal-case font-normal text-gray-400">{data.Gems.length}개</span>
         </span>
-      </p>
+      </h2>
       <div className="flex flex-wrap gap-1.5">
         {data.Gems.map((gem) => {
           const frame = gradeStyles(gem.Grade, 'border');
@@ -538,10 +538,10 @@ const EquipmentCard: React.FC<{ items: EquipmentItem[] }> = ({ items }) => {
 
   return (
     <GlassCard className="p-4 animate-fade-in">
-      <p className="mb-3 flex items-center gap-2 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+      <h2 className="mb-3 flex items-center gap-2 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
         <span className="h-3 w-0.5 rounded-full bg-la-gold/80" />
         <span>장비</span>
-      </p>
+      </h2>
 
       {/* ① 전투 장비 + 장신구 */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
