@@ -136,4 +136,9 @@ test('keeps static social and structured metadata available before hydration', (
   expect(indexHtml).toContain('property="og:image:width" content="1200"');
   expect(indexHtml).toContain('type="application/ld+json"');
   expect(indexHtml).toContain('"@type": "SoftwareApplication"');
+  expect(indexHtml).toContain('"@type": "SearchAction"');
+  expect(indexHtml).toContain(
+    '"urlTemplate": "https://lokki.vercel.app/character?nickname={search_term_string}"'
+  );
+  expect(indexHtml).toContain('"query-input": "required name=search_term_string"');
 });
