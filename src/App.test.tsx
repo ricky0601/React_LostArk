@@ -141,4 +141,5 @@ test('keeps static social and structured metadata available before hydration', (
     '"urlTemplate": "https://lokki.vercel.app/character?nickname={search_term_string}"'
   );
   expect(indexHtml).toContain('"query-input": "required name=search_term_string"');
+  expect(indexHtml).toContain('name="naver-site-verification"');
 });
