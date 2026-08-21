@@ -54,6 +54,7 @@ const SelectedRaidRow: React.FC<SelectedRaidRowProps> = ({
             alt={`${raid.raidName} 레이드`}
             width={352}
             height={224}
+            loading="lazy"
             className={`h-full w-full object-cover transition-[filter,opacity] duration-200 ${completed ? 'grayscale opacity-60' : ''}`}
           />
           <div

@@ -131,6 +131,7 @@ export const SpecScoreAccessoriesPanel = ({
                 <img
                   src={cur.raw.Icon}
                   alt=""
+                  loading="lazy"
                   className="w-14 h-14 rounded border border-gray-200 dark:border-white/10"
                 />
                 {quality !== null && (
@@ -183,6 +184,7 @@ export const SpecScoreAccessoriesPanel = ({
               <img
                 src={bracelet.raw.Icon}
                 alt=""
+                loading="lazy"
                 className="w-14 h-14 rounded border border-gray-200 dark:border-white/10"
               />
               <span className="absolute bottom-0.5 left-0.5 right-0.5 text-[9px] font-bold text-amber-300 bg-black/70 rounded text-center leading-tight">

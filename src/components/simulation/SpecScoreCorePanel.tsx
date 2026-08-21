@@ -165,7 +165,7 @@ export const SpecScoreCorePanel = ({
                 >
                   <div className="h-9 w-9 flex-shrink-0 overflow-hidden rounded-lg border border-gray-200 bg-gray-100 dark:border-white/10 dark:bg-white/5">
                     {icon ? (
-                      <img src={icon} alt="" className="h-full w-full object-cover" />
+                      <img src={icon} alt="" loading="lazy" className="h-full w-full object-cover" />
                     ) : (
                       <div className="flex h-full w-full items-center justify-center text-[10px] font-bold text-gray-400">
                         {currentName.slice(0, 1)}
@@ -220,6 +220,7 @@ export const SpecScoreCorePanel = ({
               <img
                 src={stone.raw.Icon}
                 alt=""
+                loading="lazy"
                 className="h-14 w-14 rounded border border-gray-200 dark:border-white/10"
               />
               <span className="absolute bottom-0.5 left-0.5 right-0.5 rounded bg-black/70 text-center text-[9px] font-bold leading-tight text-amber-300">

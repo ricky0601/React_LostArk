@@ -69,7 +69,7 @@ export const ArkGridGemEditorModal = ({
           <div className="flex items-center gap-3">
             <div className="h-14 w-14 overflow-hidden rounded-xl border border-la-gold/40 bg-gray-100 shadow-inner dark:bg-black/30">
               {editingArkGridGemData?.Icon ? (
-                <img src={editingArkGridGemData.Icon} alt="" className="h-full w-full object-cover" />
+                <img src={editingArkGridGemData.Icon} alt="" loading="lazy" className="h-full w-full object-cover" />
               ) : (
                 <div className="h-full w-full bg-gray-100 dark:bg-white/5" />
               )}

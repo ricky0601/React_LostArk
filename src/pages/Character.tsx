@@ -338,7 +338,7 @@ const ArkGridCard: React.FC<{ data: ArkGridData }> = ({ data }) => {
                 style={frame.style}
               >
                 {slot.Icon
-                  ? <img src={slot.Icon} alt={name} className="w-full h-full object-cover" />
+                  ? <img src={slot.Icon} alt={name} loading="lazy" className="w-full h-full object-cover" />
                   : <div className="w-full h-full" />
                 }
               </div>
@@ -422,7 +422,7 @@ const GemsCard: React.FC<{ data: GemData }> = ({ data }) => {
               style={frame.style}
               title={gem.Name}
             >
-              <img src={gem.Icon} alt={gem.Name} className="w-9 h-9 rounded-lg" />
+              <img src={gem.Icon} alt={gem.Name} loading="lazy" className="w-9 h-9 rounded-lg" />
               <span className="text-[10px] font-bold">Lv.{gem.Level}</span>
             </div>
           );
@@ -449,6 +449,7 @@ const EquipmentItemCard: React.FC<{ item: EquipmentItem }> = ({ item }) => {
             <img
               src={item.Icon}
               alt={item.Name}
+              loading="lazy"
               className={`w-11 h-11 rounded-lg border-2 ${frame.className}`}
               style={frame.style}
             />
