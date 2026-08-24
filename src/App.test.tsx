@@ -1,6 +1,7 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
+import { CHUNK_ERROR_EVENT, CHUNK_ERROR_KEY } from './context/PwaChunkContext';
 import routeSeoEntries from './constants/routeSeo.json';
 
 let mockPathname = '/';
@@ -33,33 +34,48 @@ import App from './App';
 
 beforeEach(() => {
   mockPathname = '/';
+  window.sessionStorage.removeItem(CHUNK_ERROR_KEY);
 });
 
-test('renders the home route', () => {
+test('renders the loading state before the home route', async () => {
   render(<App />);
 
-  expect(screen.getByText('Home Page')).toBeInTheDocument();
+  expect(screen.getByText('페이지 불러오는 중...')).toBeInTheDocument();
+  expect(await screen.findByText('Home Page')).toBeInTheDocument();
   expect(document.title).toBe('로아끼욧 - 로스트아크 캐릭터 조회·주간 골드 계산기');
 });
 
-test('matches the changelog route to the changelog page', () => {
+test('shows the existing chunk error banner when the chunk error event fires', async () => {
+  render(<App />);
+  await screen.findByText('Home Page');
+
+  act(() => {
+    window.dispatchEvent(new CustomEvent(CHUNK_ERROR_EVENT));
+  });
+
+  expect(
+    screen.getByText('새 버전이 배포되었습니다. 안정적인 사용을 위해 새로고침해 주세요.'),
+  ).toBeInTheDocument();
+});
+
+test('matches the changelog route to the changelog page', async () => {
   mockPathname = '/changelog';
 
   render(<App />);
 
-  expect(screen.getByText('Changelog Page')).toBeInTheDocument();
+  expect(await screen.findByText('Changelog Page')).toBeInTheDocument();
   expect(screen.queryByText('Home Page')).not.toBeInTheDocument();
 });
 
-test('falls back to the not found page for unmatched routes', () => {
+test('falls back to the not found page for unmatched routes', async () => {
   mockPathname = '/missing-route';
 
   render(<App />);
 
-  expect(screen.getByText('Not Found Page')).toBeInTheDocument();
+  expect(await screen.findByText('Not Found Page')).toBeInTheDocument();
 });
 
-test('updates SEO metadata for the current route', () => {
+test('updates SEO metadata for the current route', async () => {
   mockPathname = '/market';
 
   render(<App />);
@@ -73,9 +89,10 @@ test('updates SEO metadata for the current route', () => {
     'href',
     'https://lokki.vercel.app/market',
   );
+  expect(await screen.findByText('Market Page')).toBeInTheDocument();
 });
 
-test('marks unknown routes as noindex with the home canonical', () => {
+test('marks unknown routes as noindex with the home canonical', async () => {
   mockPathname = '/missing-route';
 
   render(<App />);
@@ -83,9 +100,10 @@ test('marks unknown routes as noindex with the home canonical', () => {
   expect(document.title).toBe('페이지를 찾을 수 없습니다 - 로아끼욧');
   expect(document.querySelector('meta[name="robots"]')).toHaveAttribute('content', 'noindex, follow');
   expect(document.querySelector('link[rel="canonical"]')).toHaveAttribute('href', 'https://lokki.vercel.app/');
+  expect(await screen.findByText('Not Found Page')).toBeInTheDocument();
 });
 
-test('normalizes the changelog trailing slash for metadata and canonical URL', () => {
+test('normalizes the changelog trailing slash for metadata and canonical URL', async () => {
   mockPathname = '/changelog/';
 
   render(<App />);
@@ -100,11 +118,12 @@ test('normalizes the changelog trailing slash for metadata and canonical URL', (
     'href',
     'https://lokki.vercel.app/changelog',
   );
+  expect(await screen.findByText('Changelog Page')).toBeInTheDocument();
 });
 
 // trailing slash 정규화는 /changelog 전용이 아니라 모든 라우트에 적용된다.
 // 이전에는 /market/ 이 NOT_FOUND_SEO(noindex)로 폴백됐으므로 회귀 지점을 함께 고정한다.
-test('normalizes the trailing slash for pre-existing routes as well', () => {
+test('normalizes the trailing slash for pre-existing routes as well', async () => {
   mockPathname = '/market/';
 
   render(<App />);
@@ -115,6 +134,7 @@ test('normalizes the trailing slash for pre-existing routes as well', () => {
     'href',
     'https://lokki.vercel.app/market',
   );
+  expect(await screen.findByText('Market Page')).toBeInTheDocument();
 });
 
 test('lists every indexable route in the sitemap', () => {

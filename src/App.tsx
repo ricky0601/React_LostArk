@@ -1,20 +1,22 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import Home from './pages/Home';
-import Character from './pages/Character';
-import Simulation from './pages/Simulation';
-import SpecSimulator from './pages/SpecSimulator';
-import Expedition from './pages/Expedition';
-import Compare from './pages/Compare';
-import Enhancement from './pages/Enhancement';
-import Spending from './pages/Spending';
-import Market from './pages/Market';
-import Changelog from './pages/Changelog';
-import NotFound from './pages/NotFound';
+import { LoadingIndicator } from './components/Loading';
 import { RouteSeo } from './components/RouteSeo';
 import { ROUTES } from './utils/routes';
 import { PwaChunkProvider, usePwaChunk } from './context/PwaChunkContext';
 import { ThemeProvider } from './context/ThemeContext';
+
+const Home = React.lazy(() => import(/* webpackChunkName: "route-home" */ './pages/Home'));
+const Character = React.lazy(() => import(/* webpackChunkName: "route-character" */ './pages/Character'));
+const Simulation = React.lazy(() => import(/* webpackChunkName: "route-simulation" */ './pages/Simulation'));
+const SpecSimulator = React.lazy(() => import(/* webpackChunkName: "route-spec-simulator" */ './pages/SpecSimulator'));
+const Expedition = React.lazy(() => import(/* webpackChunkName: "route-expedition" */ './pages/Expedition'));
+const Compare = React.lazy(() => import(/* webpackChunkName: "route-compare" */ './pages/Compare'));
+const Enhancement = React.lazy(() => import(/* webpackChunkName: "route-enhancement" */ './pages/Enhancement'));
+const Spending = React.lazy(() => import(/* webpackChunkName: "route-spending" */ './pages/Spending'));
+const Market = React.lazy(() => import(/* webpackChunkName: "route-market" */ './pages/Market'));
+const Changelog = React.lazy(() => import(/* webpackChunkName: "route-changelog" */ './pages/Changelog'));
+const NotFound = React.lazy(() => import(/* webpackChunkName: "route-not-found" */ './pages/NotFound'));
 
 const ChunkErrorBanner: React.FC = () => {
   const { chunkErrorOccurred, clearChunkError } = usePwaChunk();
@@ -47,19 +49,28 @@ const AppContent: React.FC = () => {
       <div className="min-h-screen font-[Pretendard,sans-serif] bg-gray-50 dark:bg-la-dark transition-colors duration-300">
         <RouteSeo />
         <ChunkErrorBanner />
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/character" element={<Character />} />
-          <Route path="/simulation" element={<Simulation />} />
-          <Route path="/spec-simulator" element={<SpecSimulator />} />
-          <Route path="/expedition" element={<Expedition />} />
-          <Route path="/compare" element={<Compare />} />
-          <Route path="/enhancement" element={<Enhancement />} />
-          <Route path="/market" element={<Market />} />
-          <Route path="/spending" element={<Spending />} />
-          <Route path={ROUTES.changelog} element={<Changelog />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+        <React.Suspense
+          fallback={
+            <LoadingIndicator
+              message="페이지 불러오는 중..."
+              className="mx-auto mt-8 max-w-7xl"
+            />
+          }
+        >
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/character" element={<Character />} />
+            <Route path="/simulation" element={<Simulation />} />
+            <Route path="/spec-simulator" element={<SpecSimulator />} />
+            <Route path="/expedition" element={<Expedition />} />
+            <Route path="/compare" element={<Compare />} />
+            <Route path="/enhancement" element={<Enhancement />} />
+            <Route path="/market" element={<Market />} />
+            <Route path="/spending" element={<Spending />} />
+            <Route path={ROUTES.changelog} element={<Changelog />} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </React.Suspense>
       </div>
     </Router>
   );
