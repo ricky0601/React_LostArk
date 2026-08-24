@@ -1,44 +1,40 @@
+import React from 'react';
 import { render, screen } from '@testing-library/react';
 
 import { CHANGELOG, CHANGELOG_TAG_LABEL, type ChangelogEntry } from '../data/changelog';
 
-jest.mock(
-  'react-router-dom',
-  () => {
-    const React = require('react');
-    return {
-      Link: ({ to, children, ...rest }: { to: string; children: React.ReactNode }) => (
-        <a href={to} {...rest}>
-          {children}
-        </a>
-      ),
-      useLocation: () => ({ pathname: '/changelog' }),
-    };
-  },
-  { virtual: true },
-);
+const { changelogState } = vi.hoisted(() => ({
+  changelogState: { entries: [] as readonly ChangelogEntry[] },
+}));
 
-jest.mock('../components/NavBar', () => () => <nav />);
+vi.mock('react-router-dom', () => ({
+  Link: ({ to, children, ...rest }: { to: string; children: React.ReactNode }) => (
+    <a href={to} {...rest}>
+      {children}
+    </a>
+  ),
+  useLocation: () => ({ pathname: '/changelog' }),
+}));
+
+vi.mock('../components/NavBar', () => ({ default: () => <nav /> }));
 
 // CHANGELOG를 테스트별로 갈아끼우기 위해 getter로 노출한다. 빈 상태는 데이터로만 재현할 수 있다.
-let mockChangelog: readonly ChangelogEntry[] = [];
-jest.mock('../data/changelog', () => {
-  const actual = jest.requireActual('../data/changelog');
+vi.mock('../data/changelog', async () => {
+  const actual = await vi.importActual<typeof import('../data/changelog')>('../data/changelog');
   return {
     ...actual,
     get CHANGELOG() {
-      return mockChangelog;
+      return changelogState.entries;
     },
   };
 });
 
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const Changelog = require('./Changelog').default;
+import Changelog from './Changelog';
 
-const realChangelog = jest.requireActual('../data/changelog').CHANGELOG as readonly ChangelogEntry[];
+const { CHANGELOG: realChangelog } = await vi.importActual<typeof import('../data/changelog')>('../data/changelog');
 
 beforeEach(() => {
-  mockChangelog = realChangelog;
+  changelogState.entries = realChangelog;
 });
 
 test('renders every changelog entry with its date and title', () => {
@@ -67,7 +63,7 @@ test('labels each item with its Korean tag', () => {
 });
 
 test('renders the empty state when there are no entries', () => {
-  mockChangelog = [];
+  changelogState.entries = [];
 
   render(<Changelog />);
 

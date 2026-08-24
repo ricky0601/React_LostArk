@@ -32,7 +32,7 @@ afterEach(() => {
 
 const renderCard = ({
   hasCustomRaids = false,
-  onResetRaidSelection = jest.fn(),
+  onResetRaidSelection = vi.fn(),
   itemLevel = '1780.00',
   selectedRaidKeysOverride,
 }: RenderCardOptions = {}) => {
@@ -40,7 +40,7 @@ const renderCard = ({
   const selectedRaidKeys =
     selectedRaidKeysOverride?.slice() ??
     result.selectedRaids.map((raid) => `${raid.raidName}::${raid.difficulty}`);
-  const onRaidSelectionChange = jest.fn();
+  const onRaidSelectionChange = vi.fn();
 
   render(
     <MemoryRouter>
@@ -49,13 +49,13 @@ const renderCard = ({
         index={0}
         formatGold={(gold) => gold.toLocaleString()}
         bonusSelections={new Set()}
-        onToggleBonus={jest.fn()}
-        onToggleAllCharBonus={jest.fn()}
+        onToggleBonus={vi.fn()}
+        onToggleAllCharBonus={vi.fn()}
         isAllCharBonusSelected={false}
         characterBonusCost={0}
         coreData={{ base: 16, bonus: 0 }}
         completedRaids={new Set()}
-        onToggleComplete={jest.fn()}
+        onToggleComplete={vi.fn()}
         selectedRaidKeys={selectedRaidKeys}
         onRaidSelectionChange={onRaidSelectionChange}
         onResetRaidSelection={onResetRaidSelection}
@@ -276,7 +276,7 @@ describe('CharacterRaidCard raid simulation flow', () => {
   });
 
   it('resets a custom selection without losing the open panel context', async () => {
-    const onResetRaidSelection = jest.fn();
+    const onResetRaidSelection = vi.fn();
     renderCard({ hasCustomRaids: true, onResetRaidSelection });
 
     await userEvent.click(screen.getByRole('button', { name: '레이드 변경' }));

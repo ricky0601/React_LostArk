@@ -1,10 +1,9 @@
 import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
-jest.mock(
+vi.mock(
   'react-router-dom',
   () => {
-    const React = require('react');
     return {
       Link: ({ to, children, ...rest }: { to: string; children: React.ReactNode }) => (
         <a href={to} {...rest}>

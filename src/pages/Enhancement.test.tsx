@@ -14,20 +14,20 @@ import {
   fetchProfile,
 } from '../utils/api';
 
-jest.mock('../components/NavBar', () => () => <div>NavBar</div>);
-jest.mock('../components/GlassCard', () => ({ children }: { children: React.ReactNode }) => <div>{children}</div>);
+vi.mock('../components/NavBar', () => ({ default: () => <div>NavBar</div> }));
+vi.mock('../components/GlassCard', () => ({ default: ({ children }: { children: React.ReactNode }) => <div>{children}</div> }));
 
-jest.mock('../utils/api', () => ({
-  fetchEquipment: jest.fn(),
-  fetchMarketItems: jest.fn(),
-  fetchMarketOptions: jest.fn(),
-  fetchProfile: jest.fn(),
+vi.mock('../utils/api', () => ({
+  fetchEquipment: vi.fn(),
+  fetchMarketItems: vi.fn(),
+  fetchMarketOptions: vi.fn(),
+  fetchProfile: vi.fn(),
 }));
 
-const mockedFetchEquipment = jest.mocked(fetchEquipment);
-const mockedFetchMarketItems = jest.mocked(fetchMarketItems);
-const mockedFetchMarketOptions = jest.mocked(fetchMarketOptions);
-const mockedFetchProfile = jest.mocked(fetchProfile);
+const mockedFetchEquipment = vi.mocked(fetchEquipment);
+const mockedFetchMarketItems = vi.mocked(fetchMarketItems);
+const mockedFetchMarketOptions = vi.mocked(fetchMarketOptions);
+const mockedFetchProfile = vi.mocked(fetchProfile);
 
 const profile: CharacterProfile = {
   CharacterImage: '',
@@ -74,7 +74,7 @@ const setViewportWidth = (width: number): void => {
 describe('Enhancement armlet calculations', () => {
   beforeEach(() => {
     setViewportWidth(1024);
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     mockedFetchMarketOptions.mockResolvedValue({ Categories: [] });
     mockedFetchMarketItems.mockResolvedValue({ PageNo: 1, PageSize: 10, TotalCount: 0, Items: [] });
     mockedFetchProfile.mockResolvedValue(profile);

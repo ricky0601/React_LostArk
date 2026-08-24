@@ -39,8 +39,8 @@ describe('SpecScoreGemPanel glow gem selector', () => {
         gemMods={{}}
         changedCount={0}
         summaryLabel="테스트"
-        onGemChange={jest.fn()}
-        onApplyBulkGems={jest.fn()}
+        onGemChange={vi.fn()}
+        onApplyBulkGems={vi.fn()}
       />,
     );
 

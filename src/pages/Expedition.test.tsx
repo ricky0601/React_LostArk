@@ -4,10 +4,10 @@ import Expedition from './Expedition';
 import type { CharacterProfile } from '../types/lostark';
 import { fetchProfile, fetchSiblings } from '../utils/api';
 
-const mockSetSearchParams = jest.fn();
+const mockSetSearchParams = vi.fn();
 let mockCurrentSearchParams = new URLSearchParams('nickname=원정대장');
 
-jest.mock(
+vi.mock(
   'react-router-dom',
   () => ({
     Link: ({ children }: { children: React.ReactNode }) => <>{children}</>,
@@ -17,17 +17,17 @@ jest.mock(
   { virtual: true },
 );
 
-jest.mock('../components/NavBar', () => () => <div>NavBar</div>);
-jest.mock('../components/PullToRefresh', () => ({ children }: { children: React.ReactNode }) => <>{children}</>);
+vi.mock('../components/NavBar', () => ({ default: () => <div>NavBar</div> }));
+vi.mock('../components/PullToRefresh', () => ({ default: ({ children }: { children: React.ReactNode }) => <>{children}</> }));
 
-jest.mock('../utils/api', () => ({
-  fetchProfile: jest.fn(),
-  fetchSiblings: jest.fn(),
+vi.mock('../utils/api', () => ({
+  fetchProfile: vi.fn(),
+  fetchSiblings: vi.fn(),
   LS_NICKNAME: 'lostark_nickname',
 }));
 
-const mockedFetchProfile = fetchProfile as jest.MockedFunction<typeof fetchProfile>;
-const mockedFetchSiblings = fetchSiblings as jest.MockedFunction<typeof fetchSiblings>;
+const mockedFetchProfile = vi.mocked(fetchProfile);
+const mockedFetchSiblings = vi.mocked(fetchSiblings);
 
 const profile: CharacterProfile = {
   CharacterImage: 'https://example.com/expedition.png',
@@ -52,7 +52,7 @@ const profile: CharacterProfile = {
 
 describe('Expedition route state affordances', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     mockCurrentSearchParams = new URLSearchParams('nickname=원정대장');
     mockSetSearchParams.mockImplementation((nextInit) => {
       mockCurrentSearchParams = new URLSearchParams(nextInit);

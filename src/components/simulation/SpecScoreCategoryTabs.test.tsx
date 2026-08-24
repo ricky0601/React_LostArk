@@ -9,7 +9,7 @@ const categories = [
 ] satisfies readonly SpecScoreCategory[];
 
 test('renders section summaries and calls category change with native button behavior', async () => {
-  const onCategoryChange = jest.fn();
+  const onCategoryChange = vi.fn();
 
   render(
     <SpecScoreCategoryTabs

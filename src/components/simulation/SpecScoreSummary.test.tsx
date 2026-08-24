@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { SpecScoreSummary } from './SpecScoreSummary';
 
 test('shows combat cockpit context and mobile delta summary when values changed', async () => {
-  const onReset = jest.fn();
+  const onReset = vi.fn();
 
   render(
     <SpecScoreSummary

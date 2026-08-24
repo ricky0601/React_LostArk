@@ -5,10 +5,12 @@
 ## 1) 기본 로컬 개발 환경
 
 ### 필수 버전
-- Node.js 20 LTS 권장
+- Node.js `^20.19.0` 또는 `>=22.12.0` (현재 CI: 22.19.0)
 - Yarn 1.22.x
 - Git 최신 버전
 - (Windows 기준) PowerShell 5.1 이상
+
+패키지 관리자 및 Node 버전 고정/통일은 Issue #31의 별도 범위입니다. 현재 저장소의 Yarn 실행 흐름과 lockfile 정책을 임의로 변경하지 않습니다.
 
 ### 프로젝트 실행
 ```bash
@@ -16,8 +18,10 @@ yarn install
 yarn start
 ```
 - 기본 접속: `http://localhost:3000`
+- 기존 보조 개발 포트: `yarn dev` → `http://localhost:3001`
 - 빌드 검증: `yarn build`
-- 테스트 검증: `yarn test --watchAll=false`
+- 테스트 검증: `yarn test`
+- watch 테스트: `yarn test:watch`
 
 ### Lost Ark API 로컬 키
 
@@ -27,8 +31,9 @@ Lost Ark API 조회가 필요한 화면은 `LOSTARK_API_KEY`가 필요합니다.
 LOSTARK_API_KEY=...
 ```
 
-- 로컬 개발: `src/setupProxy.js`가 `/api/lostark/*` 요청에 key를 주입
-- Production: `api/lostark/[...].js` Vercel Function이 key를 주입
+- 로컬 개발: `vite.config.mts`의 서버 프록시가 `/api/lostark/*` 요청에 key를 주입
+- Production/Preview: `api/lostark/[...].js` Vercel Function이 key를 주입
+- 보안 경계: `LOSTARK_API_KEY`는 서버 전용이며 `VITE_` 접두사나 클라이언트의 `import.meta.env`를 통해 노출하지 않음
 
 ---
 
@@ -109,7 +114,7 @@ Vercel production에서는 `LOSTARK_API_KEY`를 Project Settings의 Production s
 - [ ] `yarn install` 성공
 - [ ] `yarn start` 후 앱 정상 접속
 - [ ] `yarn build` 성공
-- [ ] `yarn test --watchAll=false` 성공
+- [ ] `yarn test` 성공
 - [ ] `/api/lostark/news/events` 로컬/production 조회 성공
 - [ ] AI 에이전트가 프로젝트 규칙/워크플로우 파일 인식
 - [ ] 주요 MCP 1회 이상 호출 성공

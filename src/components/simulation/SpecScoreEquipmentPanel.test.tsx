@@ -36,8 +36,8 @@ const renderPanel = (
       equipmentCount={1}
       changedCount={0}
       summaryLabel="테스트"
-      onEquipmentChange={jest.fn()}
-      onApplyBulkEquipment={jest.fn()}
+      onEquipmentChange={vi.fn()}
+      onApplyBulkEquipment={vi.fn()}
     />,
   );
 
@@ -130,7 +130,7 @@ describe('SpecScoreEquipmentPanel armlet grade source', () => {
 
   it('sends only the next armlet grade when limit-breaking', () => {
     // Given
-    const onEquipmentChange = jest.fn();
+    const onEquipmentChange = vi.fn();
     render(
       <SpecScoreEquipmentPanel
         visible={true}
@@ -141,7 +141,7 @@ describe('SpecScoreEquipmentPanel armlet grade source', () => {
         changedCount={0}
         summaryLabel="테스트"
         onEquipmentChange={onEquipmentChange}
-        onApplyBulkEquipment={jest.fn()}
+        onApplyBulkEquipment={vi.fn()}
       />,
     );
 
@@ -169,7 +169,7 @@ describe('SpecScoreEquipmentPanel armlet grade source', () => {
           onEquipmentChange={(_, patch) => {
             setMods((previous) => ({ armlet: { ...previous.armlet, ...patch } }));
           }}
-          onApplyBulkEquipment={jest.fn()}
+          onApplyBulkEquipment={vi.fn()}
         />
       );
     };
@@ -198,7 +198,7 @@ describe('SpecScoreEquipmentPanel armlet grade source', () => {
 
   it('does not carry a stale promoted grade when selecting another armlet level', () => {
     // Given
-    const onEquipmentChange = jest.fn();
+    const onEquipmentChange = vi.fn();
     render(
       <SpecScoreEquipmentPanel
         visible={true}
@@ -209,7 +209,7 @@ describe('SpecScoreEquipmentPanel armlet grade source', () => {
         changedCount={0}
         summaryLabel="테스트"
         onEquipmentChange={onEquipmentChange}
-        onApplyBulkEquipment={jest.fn()}
+        onApplyBulkEquipment={vi.fn()}
       />,
     );
 
