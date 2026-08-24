@@ -8,5 +8,7 @@ export default defineConfig({
     globals: true,
     setupFiles: ['./src/setupTests.ts'],
     include: ['src/**/*.{test,spec}.{ts,tsx,js,jsx}'],
+    // Keep parallelism bounded so UI-heavy jsdom tests do not compete for CPU in CI.
+    maxWorkers: 4,
   },
 });
