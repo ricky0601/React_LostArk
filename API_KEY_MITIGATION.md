@@ -36,7 +36,7 @@ Do not rename the function back to `api/lostark/[...path].js`; that shape previo
 
 ## Deployment Checklist
 
-1. Set `LOSTARK_API_KEY` in Vercel project environment variables.
+1. Set `LOSTARK_API_KEY` in the Vercel Production environment only. If Preview deployments need the key, protect them separately before enabling it.
 2. Do not set or use `REACT_APP_API_KEY` for production builds.
 3. Rotate any Lost Ark API key that may have been exposed through a previous client build.
 4. Confirm browser network requests go to `/api/lostark/...`, not directly to `developer-lostark.game.onstove.com`.
