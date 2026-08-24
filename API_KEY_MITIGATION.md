@@ -45,5 +45,6 @@ Do not rename the function back to `api/lostark/[...path].js`; that shape previo
 ## Notes
 
 - This does not require changing page-level UI code.
-- The current proxy includes an endpoint allowlist and a lightweight per-instance rate limit. For higher traffic, move rate limiting to a durable store or platform firewall.
+- The proxy keeps its endpoint and method allowlists, but rate limiting is enforced by a production Vercel WAF rule instead of ephemeral function memory. Configure the rule before deploying a version containing this change; see `docs/vercel-waf-rate-limit.md`.
+- The proxy aborts Lost Ark upstream requests after 10 seconds and returns sanitized `502`/`504` responses for upstream failures.
 - See `docs/troubleshooting/vercel-lostark-api-route-404.md` for the production routing failure that led to the current splat function shape.
