@@ -6,6 +6,7 @@ import {
   resolveArmletLevel,
   resolveArmletPower,
 } from '../../data/specScore/equipmentPowerTables';
+import { resolveArmletIconUrl } from '../../data/specScore/armletIcons';
 import type { EquipSlot } from '../../data/specScore/lopecCoefficients';
 import type { EquipmentState, EquipmentTier } from '../../utils/equipmentState';
 import { gradeFrame } from '../../utils/equipmentColors';
@@ -14,6 +15,7 @@ import type { ArmletGrade, EquipMod } from './specScoreSimulatorTypes';
 
 interface SpecScoreEquipmentPanelProps {
   readonly visible: boolean;
+  readonly characterClassName: string;
   readonly equipment: Partial<Record<EquipSlot, EquipmentState>>;
   readonly equipmentMods: Partial<Record<EquipSlot, EquipMod>>;
   readonly equipmentCount: number;
@@ -74,6 +76,7 @@ const extractQuality = (tooltip: string): number | null => {
 
 export const SpecScoreEquipmentPanel = ({
   visible,
+  characterClassName,
   equipment,
   equipmentMods,
   equipmentCount,
@@ -160,7 +163,7 @@ export const SpecScoreEquipmentPanel = ({
             const armletLevel = resolveArmletLevel(curNormal);
             const armletPower = armletLevel === null ? null : ARMLET_POWER_BY_LEVEL[armletLevel];
             const armletIsUnequipped = curNormal === ARMLET_UNEQUIPPED_LEVEL;
-            // 등급/아이콘 출처는 API가 권위다. 값이 실제로 달라진 경우에만 계수 테이블로 넘어간다.
+            // 착용 등급은 API를 따르고, 아이콘은 직업 그룹과 현재 시뮬레이션 등급으로 계산한다.
             const armletIsModified = curNormal !== cur.normalLevel;
             const sourceArmletGrade = m?.armletGrade ?? (armletIsUnequipped
               ? ARMLET_POWER_BY_LEVEL[ARMLET_UNEQUIPPED_LEVEL].grade
@@ -171,11 +174,7 @@ export const SpecScoreEquipmentPanel = ({
               ? resolveArmletPower({ normalLevel: curNormal, grade: m.armletGrade })
               : null;
             const armletGrade = resolvedArmletPower?.grade ?? sourceArmletGrade;
-            const armletIcon = resolvedArmletPower?.icon ?? (armletIsUnequipped
-              ? ARMLET_POWER_BY_LEVEL[ARMLET_UNEQUIPPED_LEVEL].icon
-              : armletIsModified && armletPower !== null
-                ? armletPower.icon
-                : cur.raw.Icon);
+            const armletIcon = resolveArmletIconUrl(characterClassName, armletGrade) ?? cur.raw.Icon;
             const limitBreak = ARMLET_LIMIT_BREAKS.find(
               ({ normalLevel, currentGrade }) =>
                 normalLevel === curNormal && currentGrade === armletGrade,
@@ -191,12 +190,14 @@ export const SpecScoreEquipmentPanel = ({
                     className={`h-14 w-14 overflow-hidden rounded border ${armletFrame.className}`}
                     style={armletFrame.style}
                   >
-                    <img
-                      src={armletIcon}
-                      alt=""
-                      loading="lazy"
-                      className={`h-full w-full object-contain ${armletIsUnequipped ? 'opacity-45 grayscale' : ''}`}
-                    />
+                    {armletIcon && (
+                      <img
+                        src={armletIcon}
+                        alt=""
+                        loading="lazy"
+                        className={`h-full w-full object-contain ${armletIsUnequipped ? 'opacity-45 grayscale' : ''}`}
+                      />
+                    )}
                   </div>
                   <span className="absolute top-0.5 left-0.5 rounded bg-black/70 px-1 text-[9px] font-bold leading-tight text-white">
                     완갑

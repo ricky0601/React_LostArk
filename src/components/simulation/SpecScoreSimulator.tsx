@@ -135,6 +135,7 @@ const SpecScoreSimulator: FC<Props> = ({ profile }) => {
   const equipmentPanel = (
     <SpecScoreEquipmentPanel
       visible={showSection('gear')}
+      characterClassName={profile.CharacterClassName}
       equipment={raw.equip}
       equipmentMods={mods.equip}
       equipmentCount={equipCount}

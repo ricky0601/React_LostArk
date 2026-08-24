@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { SpecScoreEquipmentPanel } from './SpecScoreEquipmentPanel';
-import { ARMLET_POWER_BY_LEVEL } from '../../data/specScore/equipmentPowerTables';
+import { ARMLET_POWER_BY_LEVEL, ARMLET_SELECT_LEVELS } from '../../data/specScore/equipmentPowerTables';
+import { resolveArmletIconUrl } from '../../data/specScore/armletIcons';
 import { equipment } from '../../utils/lopecSimulator.testUtils';
 import type { EquipMod } from './specScoreSimulatorTypes';
 
@@ -29,6 +30,7 @@ const renderPanel = (
   const { container } = render(
     <SpecScoreEquipmentPanel
       visible={true}
+      characterClassName="바드"
       equipment={{ armlet: armletAt(normalLevel, grade) }}
       equipmentMods={mods}
       equipmentCount={1}
@@ -45,7 +47,24 @@ const renderPanel = (
 };
 
 describe('SpecScoreEquipmentPanel armlet grade source', () => {
-  it('keeps the API grade and icon while the armlet is untouched', () => {
+  it('offers every armlet level from +0 through +25 exactly once', () => {
+    renderPanel(15);
+
+    fireEvent.click(screen.getByRole('button', { name: '완갑 레벨 15' }));
+
+    const labels = screen.getAllByRole('option').map((option) => option.textContent);
+    expect(labels).toEqual(ARMLET_SELECT_LEVELS.map((level) => (level === -1 ? '미착용' : String(level))));
+    expect(new Set(labels).size).toBe(ARMLET_SELECT_LEVELS.length);
+  });
+
+  it('uses the class-specific first-grade icon while the armlet is unequipped', () => {
+    const icon = renderPanel(-1, {}, '미착용');
+
+    expect(icon).toHaveAttribute('src', resolveArmletIconUrl('바드', '미착용'));
+    expect(icon).toHaveClass('opacity-45', 'grayscale');
+  });
+
+  it('keeps the API grade and uses the class-specific icon while the armlet is untouched', () => {
     // Given: +9는 지원 레벨이라 계수 테이블에도 grade/icon이 있다.
     expect(ARMLET_POWER_BY_LEVEL[9].grade).not.toBe('고대');
 
@@ -54,7 +73,7 @@ describe('SpecScoreEquipmentPanel armlet grade source', () => {
 
     // Then
     expect(screen.getByText('고대')).toBeInTheDocument();
-    expect(icon).toHaveAttribute('src', ARMLET_ICON);
+    expect(icon).toHaveAttribute('src', resolveArmletIconUrl('바드', '고대'));
   });
 
   it('keeps the API grade when the same level is re-selected', () => {
@@ -63,7 +82,7 @@ describe('SpecScoreEquipmentPanel armlet grade source', () => {
 
     // Then
     expect(screen.getByText('고대')).toBeInTheDocument();
-    expect(icon).toHaveAttribute('src', ARMLET_ICON);
+    expect(icon).toHaveAttribute('src', resolveArmletIconUrl('바드', '고대'));
   });
 
   it('switches to the coefficient table once a different level is selected', () => {
@@ -72,7 +91,7 @@ describe('SpecScoreEquipmentPanel armlet grade source', () => {
 
     // Then
     expect(screen.getByText(ARMLET_POWER_BY_LEVEL[15].grade)).toBeInTheDocument();
-    expect(icon).toHaveAttribute('src', ARMLET_POWER_BY_LEVEL[15].icon);
+    expect(icon).toHaveAttribute('src', resolveArmletIconUrl('바드', '전설'));
   });
 
   it('shows the untouched supported +13 API level with its API grade', () => {
@@ -81,7 +100,7 @@ describe('SpecScoreEquipmentPanel armlet grade source', () => {
 
     // Then
     expect(screen.getByText('고대')).toBeInTheDocument();
-    expect(icon).toHaveAttribute('src', ARMLET_ICON);
+    expect(icon).toHaveAttribute('src', resolveArmletIconUrl('바드', '고대'));
   });
 
   it.each([
@@ -115,6 +134,7 @@ describe('SpecScoreEquipmentPanel armlet grade source', () => {
     render(
       <SpecScoreEquipmentPanel
         visible={true}
+        characterClassName="바드"
         equipment={{ armlet: armletAt(10, '영웅') }}
         equipmentMods={{}}
         equipmentCount={1}
@@ -140,6 +160,7 @@ describe('SpecScoreEquipmentPanel armlet grade source', () => {
       return (
         <SpecScoreEquipmentPanel
           visible={true}
+          characterClassName="바드"
           equipment={{ armlet: armletAt(10, '영웅') }}
           equipmentMods={mods}
           equipmentCount={1}
@@ -181,6 +202,7 @@ describe('SpecScoreEquipmentPanel armlet grade source', () => {
     render(
       <SpecScoreEquipmentPanel
         visible={true}
+        characterClassName="바드"
         equipment={{ armlet: armletAt(10, '영웅') }}
         equipmentMods={{ armlet: { armletGrade: '전설' } }}
         equipmentCount={1}
@@ -199,12 +221,12 @@ describe('SpecScoreEquipmentPanel armlet grade source', () => {
     expect(onEquipmentChange).toHaveBeenCalledWith('armlet', { normalLevel: 11 });
   });
 
-  it('uses the promoted grade and icon from armlet power resolution', () => {
+  it('uses the promoted grade and class-specific icon', () => {
     // Given / When
     const icon = renderPanel(10, { armlet: { armletGrade: '전설' } }, '영웅');
 
     // Then
     expect(screen.getByText('전설')).toBeInTheDocument();
-    expect(icon).toHaveAttribute('src', '/images/arms2.webp');
+    expect(icon).toHaveAttribute('src', resolveArmletIconUrl('바드', '전설'));
   });
 });

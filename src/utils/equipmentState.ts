@@ -186,7 +186,7 @@ export const createEmptyArmletState = (): EquipmentState => ({
   raw: {
     Type: '완갑',
     Name: '완갑 미착용',
-    Icon: ARMLET_POWER_BY_LEVEL[ARMLET_UNEQUIPPED_LEVEL].icon,
+    Icon: '',
     Grade: ARMLET_POWER_BY_LEVEL[ARMLET_UNEQUIPPED_LEVEL].grade,
     Tooltip: '{}',
   },
