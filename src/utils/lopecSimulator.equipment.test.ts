@@ -1,3 +1,4 @@
+import { ARMLET_POWER_BY_LEVEL } from '../data/specScore/armletEquipmentPowerTables';
 import { calcLopecDelta } from './lopecSimulator';
 import { charStatsFor, emptyGems, engravings, equipment } from './lopecSimulator.testUtils';
 
@@ -110,6 +111,54 @@ describe('calcLopecDelta equipment API/table formula changes', () => {
 
     expect(result).toBeCloseTo(currentScore * (modifiedBaseAttack / currentBaseAttack), 6);
   });
+
+  it.each([
+    [15, 16, '전설', '유물'],
+    [19, 20, '유물', '유물'],
+    [20, 21, '유물', '고대'],
+    [24, 25, '고대', '고대'],
+  ] as const)(
+    'applies the exact armlet +%i to +%i delta',
+    (fromLevel, toLevel, fromGrade, toGrade) => {
+      const currentScore = 100_000;
+      const weaponAttack = 200_000;
+      const mainStat = 900_000;
+      const fromPower = ARMLET_POWER_BY_LEVEL[fromLevel];
+      const toPower = ARMLET_POWER_BY_LEVEL[toLevel];
+      const current = equipment('armlet', { normalLevel: fromLevel, tier: fromGrade });
+      const modified = { ...current, normalLevel: toLevel, tier: toGrade };
+      const currentBaseAttack = (
+        Math.sqrt((weaponAttack * mainStat) / 6) + fromPower.baseAttack
+      ) * (1 + fromPower.baseAttackPercent / 100);
+
+      const result = calcLopecDelta(
+        currentScore,
+        engravings([]),
+        engravings([]),
+        emptyGems,
+        emptyGems,
+        { armlet: current },
+        { armlet: modified },
+        undefined,
+        undefined,
+        {
+          ...charStatsFor(weaponAttack, mainStat),
+          baseAttack: currentBaseAttack,
+          pureBaseAttack: currentBaseAttack,
+          displayedMainStat: mainStat,
+          baseAttackFlatSum: fromPower.baseAttack,
+          baseAttackPercentSum: fromPower.baseAttackPercent,
+        },
+      );
+      const nextWeaponAttack = weaponAttack + toPower.weaponAttack - fromPower.weaponAttack;
+      const nextMainStat = mainStat + toPower.mainStat - fromPower.mainStat;
+      const nextBaseAttack = (
+        Math.sqrt((nextWeaponAttack * nextMainStat) / 6) + toPower.baseAttack
+      ) * (1 + toPower.baseAttackPercent / 100);
+
+      expect(result).toBeCloseTo(currentScore * (nextBaseAttack / currentBaseAttack), 6);
+    },
+  );
 
   it('applies equipped +0 armlet separately from unequipped armlet', () => {
     const currentScore = 100_000;
