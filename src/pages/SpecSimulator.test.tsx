@@ -4,25 +4,25 @@ import { fetchProfile } from '../utils/api';
 
 const longNickname = '모바일에서도아주긴캐릭터닉네임이잘리는일없이표시되어야합니다';
 
-jest.mock(
+vi.mock(
   'react-router-dom',
   () => ({
     Link: ({ children }: { children: React.ReactNode }) => <>{children}</>,
-    useSearchParams: () => [new URLSearchParams(`nickname=${longNickname}`), jest.fn()],
+    useSearchParams: () => [new URLSearchParams(`nickname=${longNickname}`), vi.fn()],
   }),
   { virtual: true },
 );
 
-jest.mock('../components/NavBar', () => () => <div>NavBar</div>);
-jest.mock('../components/PullToRefresh', () => ({ children }: { children: React.ReactNode }) => <>{children}</>);
-jest.mock('../components/simulation/SpecScoreSimulator', () => () => <div>SpecScoreSimulator</div>);
+vi.mock('../components/NavBar', () => ({ default: () => <div>NavBar</div> }));
+vi.mock('../components/PullToRefresh', () => ({ default: ({ children }: { children: React.ReactNode }) => <>{children}</> }));
+vi.mock('../components/simulation/SpecScoreSimulator', () => ({ default: () => <div>SpecScoreSimulator</div> }));
 
-jest.mock('../utils/api', () => ({
-  fetchProfile: jest.fn(),
+vi.mock('../utils/api', () => ({
+  fetchProfile: vi.fn(),
   LS_NICKNAME: 'lostark_nickname',
 }));
 
-const mockedFetchProfile = fetchProfile as jest.MockedFunction<typeof fetchProfile>;
+const mockedFetchProfile = vi.mocked(fetchProfile);
 
 describe('SpecSimulator route error guidance', () => {
   it('keeps the searched nickname in a wrapping-friendly error heading', async () => {

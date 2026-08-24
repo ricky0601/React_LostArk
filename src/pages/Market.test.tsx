@@ -2,26 +2,26 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import Market, { EngravingRanking, GemRanking } from './Market';
 import { fetchAuctionItems, fetchMarketItems } from '../utils/api';
 
-jest.mock('../components/NavBar', () => () => <div>NavBar</div>);
+vi.mock('../components/NavBar', () => ({ default: () => <div>NavBar</div> }));
 
-jest.mock('../utils/api', () => ({
-  fetchAuctionItems: jest.fn(),
-  fetchMarketItems: jest.fn(),
+vi.mock('../utils/api', () => ({
+  fetchAuctionItems: vi.fn(),
+  fetchMarketItems: vi.fn(),
 }));
 
-const mockedFetchAuctionItems = fetchAuctionItems as jest.MockedFunction<typeof fetchAuctionItems>;
-const mockedFetchMarketItems = fetchMarketItems as jest.MockedFunction<typeof fetchMarketItems>;
+const mockedFetchAuctionItems = vi.mocked(fetchAuctionItems);
+const mockedFetchMarketItems = vi.mocked(fetchMarketItems);
 
 describe('Market ranking states', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it('uses shared feedback for loading and empty rankings', () => {
     const { rerender } = render(
       <EngravingRanking
         state={{ status: 'loading', items: [], fetchedAt: null, failedCount: 0 }}
-        onRetry={jest.fn()}
+        onRetry={vi.fn()}
       />,
     );
 
@@ -30,7 +30,7 @@ describe('Market ranking states', () => {
     rerender(
       <GemRanking
         state={{ status: 'success', items: [], fetchedAt: null, failedCount: 0 }}
-        onRetry={jest.fn()}
+        onRetry={vi.fn()}
       />,
     );
 
@@ -38,7 +38,7 @@ describe('Market ranking states', () => {
   });
 
   it('offers retry from the shared error feedback', () => {
-    const onRetry = jest.fn();
+    const onRetry = vi.fn();
 
     render(
       <EngravingRanking
@@ -68,7 +68,7 @@ describe('Market ranking states', () => {
             yDayAvgPrice: 10000,
           }],
         }}
-        onRetry={jest.fn()}
+        onRetry={vi.fn()}
       />,
     );
 

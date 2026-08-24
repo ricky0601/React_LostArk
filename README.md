@@ -24,24 +24,32 @@
 - TypeScript
 - React Router DOM
 - Tailwind CSS
-- Create React App (react-scripts)
+- Vite
+- Vitest + React Testing Library
 - Vercel Functions (`api/lostark/[...].js`)
 
 ## 시작하기
 
-### 1) 의존성 설치
+### 1) 실행 환경
+
+- Node.js `^20.19.0` 또는 `>=22.12.0` (CI: 22.19.0)
+- Yarn 1.22.x
+
+Issue #31에서 패키지 관리자와 Node 버전 고정을 별도로 다루므로, 이 마이그레이션에서는 기존 Yarn 명령과 lockfile 정책을 유지합니다.
+
+### 2) 의존성 설치
 
 ```bash
 yarn install
 ```
 
-### 2) 개발 서버 실행
+### 3) 개발 서버 실행
 
 ```bash
 yarn start
 ```
 
-브라우저에서 `http://localhost:3000` 접속
+브라우저에서 `http://localhost:3000` 접속 (`yarn dev`는 기존 개발 포트인 `3001` 사용)
 
 Lost Ark API 조회가 필요하면 `.env` 또는 로컬 환경변수에 아래 값을 설정합니다.
 
@@ -49,15 +57,18 @@ Lost Ark API 조회가 필요하면 `.env` 또는 로컬 환경변수에 아래 
 LOSTARK_API_KEY=...
 ```
 
-로컬 개발에서는 `src/setupProxy.js`가 `/api/lostark/*` 요청에 API key를 주입합니다.
+로컬 개발에서는 `vite.config.mts`의 개발 서버 프록시가 `/api/lostark/*` 요청에 API key를 주입합니다. `LOSTARK_API_KEY`는 서버 전용이며 `VITE_` 접두사를 붙이거나 클라이언트 코드에서 접근하면 안 됩니다.
 
 ## 스크립트
 
 ```bash
-yarn start   # 개발 서버 실행
-yarn test    # 테스트 실행
-yarn build   # 프로덕션 빌드
-yarn eject   # CRA 설정 분리(되돌릴 수 없음)
+yarn start       # Vite 개발 서버 실행 (3000)
+yarn dev         # Vite 개발 서버 실행 (3001)
+yarn test        # Vitest 전체 테스트 1회 실행
+yarn test:watch  # Vitest watch 모드
+yarn typecheck   # TypeScript 검사
+yarn build       # sitemap 생성 → typecheck/Vite 빌드 → 정적 SEO 생성
+yarn preview     # production build 로컬 미리보기
 ```
 
 ## 프로젝트 구조
@@ -92,15 +103,16 @@ docs/
 
 이 프로젝트는 Vercel에서 Framework Preset `Other`로 배포합니다.
 
-- SPA fallback: `vercel.json`에서 `/api/`를 제외한 경로를 `/index.html`로 rewrite
+- 정적 라우트 SEO: `vercel.json`이 알려진 라우트를 빌드된 `<route>/index.html`로 rewrite
+- SPA fallback: 나머지 경로는 BrowserRouter 앱이 포함된 `/404.html`로 rewrite
 - API proxy: `/api/lostark/:path*`를 `api/lostark/[...].js` Vercel Function으로 rewrite
-- Production env: Vercel Project Settings에 `LOSTARK_API_KEY`를 Production scope로 설정
+- Production env: Vercel Project Settings에 서버 전용 `LOSTARK_API_KEY`를 Production 및 필요한 Preview scope로 설정
 
 ```bash
 yarn build
 ```
 
-빌드 결과물은 `build/` 폴더에 생성됩니다.
+빌드 결과물은 기존 Vercel 설정과 SEO 스크립트 호환을 위해 `build/` 폴더에 생성됩니다. `prebuild`가 sitemap을 만들고 Vite가 public 자산을 복사한 뒤, `postbuild`가 라우트별 HTML과 SPA fallback용 `404.html`을 생성합니다.
 
 ## 문서
 

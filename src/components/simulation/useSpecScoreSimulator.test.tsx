@@ -5,11 +5,11 @@ import { fetchSpecScoreRawData } from './specScoreSimulatorParsing';
 import type { SpecScoreRawData } from './specScoreSimulatorTypes';
 import { useSpecScoreSimulator } from './useSpecScoreSimulator';
 
-jest.mock('./specScoreSimulatorParsing', () => {
-  const actual = jest.requireActual('./specScoreSimulatorParsing');
+vi.mock('./specScoreSimulatorParsing', async () => {
+  const actual = await vi.importActual<typeof import('./specScoreSimulatorParsing')>('./specScoreSimulatorParsing');
   return {
     ...actual,
-    fetchSpecScoreRawData: jest.fn(),
+    fetchSpecScoreRawData: vi.fn(),
   };
 });
 
@@ -59,11 +59,11 @@ const createRawData = (): SpecScoreRawData => ({
 
 describe('useSpecScoreSimulator armlet grade override state', () => {
   beforeEach(() => {
-    jest.mocked(fetchSpecScoreRawData).mockResolvedValue(createRawData());
+    vi.mocked(fetchSpecScoreRawData).mockResolvedValue(createRawData());
   });
 
   afterEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it('clears a promoted armlet grade when the armlet normal level changes', async () => {

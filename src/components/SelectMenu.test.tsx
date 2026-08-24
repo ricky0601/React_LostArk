@@ -27,7 +27,7 @@ afterEach(() => {
 
 describe('SelectMenu', () => {
   it('opens and selects an enabled desktop option', async () => {
-    const onChange = jest.fn((_value: string | number | undefined): void => undefined);
+    const onChange = vi.fn((_value: string | number | undefined): void => undefined);
 
     render(
       <SelectMenu
@@ -53,7 +53,7 @@ describe('SelectMenu', () => {
       <SelectMenu
         value={1}
         options={options}
-        onChange={jest.fn()}
+        onChange={vi.fn()}
         ariaLabel="강화 단계"
         panelTitle="목표 강화 단계"
       />,
@@ -79,7 +79,7 @@ describe('SelectMenu', () => {
       <SelectMenu
         value={1}
         options={options}
-        onChange={jest.fn()}
+        onChange={vi.fn()}
         ariaLabel="강화 단계"
       />,
     );
@@ -109,7 +109,7 @@ describe('SelectMenu', () => {
   });
 
   it('closes an open menu with Escape without changing the value', async () => {
-    const onChange = jest.fn((_value: string | number | undefined): void => undefined);
+    const onChange = vi.fn((_value: string | number | undefined): void => undefined);
 
     render(
       <SelectMenu
@@ -128,7 +128,7 @@ describe('SelectMenu', () => {
   });
 
   it('keeps the menu open when a disabled option is pressed', async () => {
-    const onChange = jest.fn((_value: string | number | undefined): void => undefined);
+    const onChange = vi.fn((_value: string | number | undefined): void => undefined);
 
     render(
       <SelectMenu
@@ -148,7 +148,7 @@ describe('SelectMenu', () => {
 
   it('focuses the selected enabled mobile option and restores body scroll after selection', async () => {
     setViewportWidth(390);
-    const onChange = jest.fn((_value: string | number | undefined): void => undefined);
+    const onChange = vi.fn((_value: string | number | undefined): void => undefined);
 
     render(
       <SelectMenu
@@ -182,7 +182,7 @@ describe('SelectMenu', () => {
       <SelectMenu
         value={3}
         options={[{ value: 3, label: '선택 불가', disabled: true }]}
-        onChange={jest.fn()}
+        onChange={vi.fn()}
         ariaLabel="강화 단계"
         panelTitle="목표 강화 단계"
       />,
@@ -203,7 +203,7 @@ describe('SelectMenu', () => {
       <SelectMenu
         value={1}
         options={options}
-        onChange={jest.fn()}
+        onChange={vi.fn()}
         ariaLabel="강화 단계"
         panelTitle="목표 강화 단계"
       />,
@@ -237,7 +237,7 @@ describe('SelectMenu', () => {
     render(
       <SelectMenu
         options={options}
-        onChange={jest.fn()}
+        onChange={vi.fn()}
         ariaLabel="강화 단계"
         panelTitle="목표 강화 단계"
       />,

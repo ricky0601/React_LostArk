@@ -1,7 +1,7 @@
 import { render, screen, within } from '@testing-library/react';
 import HomeDashboardIntro from './HomeDashboardIntro';
 
-jest.mock(
+vi.mock(
   'react-router-dom',
   () => ({
     Link: ({ to, children, ...rest }: { to: string; children: React.ReactNode }) => (

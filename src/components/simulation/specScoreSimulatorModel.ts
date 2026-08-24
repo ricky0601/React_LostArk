@@ -299,7 +299,7 @@ export const calculateSpecScore = (
   );
 
   // 계산 중간값은 화면에 노출하지 않는다. 검증은 dev 콘솔로만 한다.
-  if (process.env.NODE_ENV === 'development') {
+  if (import.meta.env.DEV) {
     console.log('[SpecScore][combat-power]', breakdown === null
       ? { mode: 'ratio-fallback', reason: 'base attack inputs unavailable', simulated: lopecSimulated }
       : {

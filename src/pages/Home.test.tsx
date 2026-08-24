@@ -2,23 +2,23 @@ import { render, screen, within } from '@testing-library/react';
 import Home from './Home';
 import { fetchCalendar, fetchEvents } from '../utils/api';
 
-jest.mock('../components/NavBar', () => () => <div>NavBar</div>);
-jest.mock('../components/PullToRefresh', () => ({ children }: { readonly children: React.ReactNode }) => <>{children}</>);
-jest.mock('../components/home/HomeDashboardIntro', () => () => <section>Dashboard intro</section>);
+vi.mock('../components/NavBar', () => ({ default: () => <div>NavBar</div> }));
+vi.mock('../components/PullToRefresh', () => ({ default: ({ children }: { readonly children: React.ReactNode }) => <>{children}</> }));
+vi.mock('../components/home/HomeDashboardIntro', () => ({ default: () => <section>Dashboard intro</section> }));
 
-jest.mock('../utils/api', () => ({
-  fetchEvents: jest.fn(),
-  fetchCalendar: jest.fn(),
+vi.mock('../utils/api', () => ({
+  fetchEvents: vi.fn(),
+  fetchCalendar: vi.fn(),
 }));
 
-const mockedFetchEvents = fetchEvents as jest.MockedFunction<typeof fetchEvents>;
-const mockedFetchCalendar = fetchCalendar as jest.MockedFunction<typeof fetchCalendar>;
+const mockedFetchEvents = vi.mocked(fetchEvents);
+const mockedFetchCalendar = vi.mocked(fetchCalendar);
 
 const activeDate = new Date(Date.now() + 86_400_000).toISOString();
 
 describe('Home event links', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     mockedFetchCalendar.mockResolvedValue([]);
   });
 

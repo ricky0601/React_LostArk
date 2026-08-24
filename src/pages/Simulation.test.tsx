@@ -4,24 +4,28 @@ import Simulation from './Simulation';
 import type { CharacterProfile, SiblingCharacter } from '../types/lostark';
 import { fetchProfile, fetchSiblings } from '../utils/api';
 
-jest.mock('../components/NavBar', () => () => <div>NavBar</div>);
-jest.mock('../components/PullToRefresh', () => ({ children }: { children: React.ReactNode }) => <>{children}</>);
-jest.mock('../components/NicknameInput', () => ({ onSubmit }: { onSubmit: (name: string) => void }) => (
-  <button onClick={() => onSubmit('테스트캐릭터')}>골드 계산 시작</button>
-));
-jest.mock('../components/NicknameSearchBar', () => () => <div>NicknameSearchBar</div>);
-jest.mock('../components/simulation/GoldLoadingSkeleton', () => () => <div>Loading</div>);
-jest.mock('../components/simulation/CharacterRaidCard', () => ({ result }: { result: { characterName: string } }) => (
-  <div>{result.characterName} RaidCard</div>
-));
-jest.mock('../utils/api', () => ({
-  fetchSiblings: jest.fn(),
-  fetchProfile: jest.fn(),
+vi.mock('../components/NavBar', () => ({ default: () => <div>NavBar</div> }));
+vi.mock('../components/PullToRefresh', () => ({ default: ({ children }: { children: React.ReactNode }) => <>{children}</> }));
+vi.mock('../components/NicknameInput', () => ({
+  default: ({ onSubmit }: { onSubmit: (name: string) => void }) => (
+    <button onClick={() => onSubmit('테스트캐릭터')}>골드 계산 시작</button>
+  ),
+}));
+vi.mock('../components/NicknameSearchBar', () => ({ default: () => <div>NicknameSearchBar</div> }));
+vi.mock('../components/simulation/GoldLoadingSkeleton', () => ({ default: () => <div>Loading</div> }));
+vi.mock('../components/simulation/CharacterRaidCard', () => ({
+  default: ({ result }: { result: { characterName: string } }) => (
+    <div>{result.characterName} RaidCard</div>
+  ),
+}));
+vi.mock('../utils/api', () => ({
+  fetchSiblings: vi.fn(),
+  fetchProfile: vi.fn(),
   LS_NICKNAME: 'lostark_nickname',
 }));
 
-const mockedFetchSiblings = jest.mocked(fetchSiblings);
-const mockedFetchProfile = jest.mocked(fetchProfile);
+const mockedFetchSiblings = vi.mocked(fetchSiblings);
+const mockedFetchProfile = vi.mocked(fetchProfile);
 
 const sibling: SiblingCharacter = {
   ServerName: '루페온',
@@ -56,7 +60,7 @@ const profile: CharacterProfile = {
 describe('Simulation page orchestration', () => {
   beforeEach(() => {
     localStorage.clear();
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     mockedFetchSiblings.mockResolvedValue([sibling]);
     mockedFetchProfile.mockResolvedValue(profile);
   });

@@ -9,7 +9,7 @@ import {
   fetchProfile,
 } from '../utils/api';
 
-jest.mock(
+vi.mock(
   'react-router-dom',
   () => ({
     Link: ({ children }: { children: React.ReactNode }) => <>{children}</>,
@@ -18,23 +18,23 @@ jest.mock(
   { virtual: true },
 );
 
-jest.mock('../components/NavBar', () => () => <div>NavBar</div>);
-jest.mock('../components/PullToRefresh', () => ({ children }: { children: React.ReactNode }) => <>{children}</>);
-jest.mock('../components/GlassCard', () => ({ children }: { children: React.ReactNode }) => <div>{children}</div>);
+vi.mock('../components/NavBar', () => ({ default: () => <div>NavBar</div> }));
+vi.mock('../components/PullToRefresh', () => ({ default: ({ children }: { children: React.ReactNode }) => <>{children}</> }));
+vi.mock('../components/GlassCard', () => ({ default: ({ children }: { children: React.ReactNode }) => <div>{children}</div> }));
 
-jest.mock('../utils/api', () => ({
-  fetchProfile: jest.fn(),
-  fetchEquipment: jest.fn(),
-  fetchGems: jest.fn(),
-  fetchEngravings: jest.fn(),
-  fetchArkGrid: jest.fn(),
+vi.mock('../utils/api', () => ({
+  fetchProfile: vi.fn(),
+  fetchEquipment: vi.fn(),
+  fetchGems: vi.fn(),
+  fetchEngravings: vi.fn(),
+  fetchArkGrid: vi.fn(),
 }));
 
-const mockedFetchProfile = fetchProfile as jest.MockedFunction<typeof fetchProfile>;
-const mockedFetchEquipment = fetchEquipment as jest.MockedFunction<typeof fetchEquipment>;
-const mockedFetchGems = fetchGems as jest.MockedFunction<typeof fetchGems>;
-const mockedFetchEngravings = fetchEngravings as jest.MockedFunction<typeof fetchEngravings>;
-const mockedFetchArkGrid = fetchArkGrid as jest.MockedFunction<typeof fetchArkGrid>;
+const mockedFetchProfile = vi.mocked(fetchProfile);
+const mockedFetchEquipment = vi.mocked(fetchEquipment);
+const mockedFetchGems = vi.mocked(fetchGems);
+const mockedFetchEngravings = vi.mocked(fetchEngravings);
+const mockedFetchArkGrid = vi.mocked(fetchArkGrid);
 
 const validProfile: CharacterProfile = {
   CharacterImage: '',
@@ -67,7 +67,7 @@ const equipment = (type: string, name: string): EquipmentItem => ({
 
 describe('Compare', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     mockedFetchProfile.mockImplementation(async (name) => {
       if (name === '정상캐릭터' || name === '비교캐릭터') return { ...validProfile, CharacterName: name };
       return null as unknown as CharacterProfile;

@@ -212,6 +212,7 @@ const RaidPicker: React.FC<RaidPickerProps> = ({
                     type="button"
                     aria-expanded={!collapsed}
                     aria-controls={panelId}
+                    aria-label={`${group.label} ${group.raids.length}개`}
                     onClick={() => toggleGroup(group.key)}
                     className="flex min-h-10 w-full items-center justify-between gap-3 rounded-lg px-2 py-2 text-left transition-colors hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-la-gold/40 dark:hover:bg-white/5"
                   >

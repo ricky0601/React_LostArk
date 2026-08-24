@@ -3,36 +3,23 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
-    "@testing-library/jest-dom": "^5.14.1",
-    "@testing-library/user-event": "^13.2.1",
     "@vercel/analytics": "^2.0.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-router-dom": "7.18.2",
-    "react-scripts": "5.0.1",
     "web-vitals": "^2.1.0"
   },
   "scripts": {
-    "dev": "set PORT=3001&& react-scripts start",
-    "start": "react-scripts start",
+    "dev": "vite --port 3001",
+    "start": "vite",
     "prebuild": "node scripts/generateSitemap.js",
-    "build": "react-scripts build",
+    "build": "yarn typecheck && vite build",
     "postbuild": "node scripts/generateStaticSeo.js",
-    "test": "react-scripts test",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "test:proxy": "node --test api/lostark/proxy.test.js",
-    "eject": "react-scripts eject"
-  },
-  "eslintConfig": {
-    "extends": [
-      "react-app",
-      "react-app/jest"
-    ]
-  },
-  "jest": {
-    "moduleNameMapper": {
-      "^react-router-dom$": "<rootDir>/node_modules/react-router-dom/dist/index.js",
-      "^react-router/dom$": "<rootDir>/node_modules/react-router/dist/development/dom-export.js"
-    }
+    "typecheck": "tsc --noEmit"
   },
   "browserslist": {
     "production": [
@@ -47,14 +34,20 @@
     ]
   },
   "devDependencies": {
-    "@babel/plugin-proposal-private-property-in-object": "7.21.0-placeholder-for-preset-env.2",
     "@testing-library/dom": "^10.4.1",
+    "@testing-library/jest-dom": "6.9.1",
     "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^13.2.1",
     "@types/node": "^25.2.3",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
-    "@types/testing-library__jest-dom": "^5.14.9",
+    "@vitejs/plugin-react": "^6.1.0",
+    "autoprefixer": "^10.5.4",
+    "jsdom": "^27.4.0",
+    "postcss": "^8.5.26",
     "tailwindcss": "^3.4.19",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vite": "^8.2.2",
+    "vitest": "^4.1.11"
   }
 }

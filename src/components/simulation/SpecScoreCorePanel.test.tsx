@@ -22,7 +22,7 @@ const stone: StoneState = {
 describe('SpecScoreCorePanel engraving selectors', () => {
   it('selects common engraving names and disables names already used elsewhere', async () => {
     // Given
-    const onEngravingChange = jest.fn();
+    const onEngravingChange = vi.fn();
 
     render(
       <SpecScoreCorePanel
@@ -37,7 +37,7 @@ describe('SpecScoreCorePanel engraving selectors', () => {
         changedCount={0}
         summaryLabel="테스트"
         onEngravingChange={onEngravingChange}
-        onStoneSlotChange={jest.fn()}
+        onStoneSlotChange={vi.fn()}
       />,
     );
 

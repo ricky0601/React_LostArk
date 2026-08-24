@@ -48,7 +48,7 @@
 
 ## 최종 원인
 
-이 프로젝트는 Next.js가 아니라 Create React App을 Vercel `Other` 설정으로 배포합니다.
+장애 당시 이 프로젝트는 Next.js가 아니라 Create React App을 Vercel `Other` 설정으로 배포했습니다. 현재는 Vite로 빌드하지만 root `api/`의 Vercel Function route 규칙은 동일합니다.
 
 Next.js `pages/api` semantics에 기대면 안 되고, root `api/`의 Vercel Function route 규칙을 맞춰야 합니다. 기존 파일명은 다음과 같았습니다.
 
@@ -94,8 +94,8 @@ api/lostark/[...path].js -> api/lostark/[...].js
 
 ## 검증
 
-- `npm run build`: 성공
-- `npm test -- --watchAll=false`: 9 suites / 68 tests 성공
+- 당시 `npm run build`: 성공
+- 당시 `npm test -- --watchAll=false`: 9 suites / 68 tests 성공
 - Vercel production deployment: `dpl_3JQLSzNkPywXNjApBnrGqWFQMxQ4` READY
 - `https://lokki.vercel.app/`: `200`
 - `https://lokki.vercel.app/api/lostark/news/events`: `200` JSON
@@ -105,10 +105,10 @@ api/lostark/[...path].js -> api/lostark/[...].js
 
 ### local success와 production success를 분리해서 판단
 
-로컬 개발은 `src/setupProxy.js`가 동작합니다.
+로컬 개발은 `vite.config.mts`의 개발 서버 proxy가 동작합니다.
 
 ```text
-browser -> /api/lostark/... -> CRA setupProxy.js -> Lost Ark API
+browser -> /api/lostark/... -> Vite server.proxy -> Lost Ark API
 ```
 
 Production은 Vercel Function이 동작합니다.
@@ -144,7 +144,7 @@ browser -> /api/lostark/... -> api/lostark/[...].js -> Lost Ark API
   - `LOSTARK_API_KEY` 주입 proxy
 - `src/utils/api.ts`
   - browser에서 `/api/lostark`만 호출
-- `src/setupProxy.js`
-  - CRA local development 전용 proxy
+- `vite.config.mts`
+  - Vite local development 전용 server proxy
 - `API_KEY_MITIGATION.md`
   - API key server-side migration 설계 기록

@@ -110,7 +110,7 @@ test('drops non-string members of a stored array', () => {
 });
 
 test('degrades to "everything unseen" when storage writes fail', () => {
-  const setItem = jest.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+  const setItem = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
     throw new DOMException('quota', 'QuotaExceededError');
   });
 

@@ -10,14 +10,14 @@ import {
 } from '../../utils/api';
 import { fetchSpecScoreRawData } from './specScoreSimulatorParsing';
 
-jest.mock('../../utils/api', () => ({
-  fetchArkGrid: jest.fn(),
-  fetchArkPassive: jest.fn(),
-  fetchAvatars: jest.fn(),
-  fetchCards: jest.fn(),
-  fetchEngravings: jest.fn(),
-  fetchEquipment: jest.fn(),
-  fetchGems: jest.fn(),
+vi.mock('../../utils/api', () => ({
+  fetchArkGrid: vi.fn(),
+  fetchArkPassive: vi.fn(),
+  fetchAvatars: vi.fn(),
+  fetchCards: vi.fn(),
+  fetchEngravings: vi.fn(),
+  fetchEquipment: vi.fn(),
+  fetchGems: vi.fn(),
 }));
 
 const profile: CharacterProfile = {
@@ -99,18 +99,18 @@ const malformedAvatar: AvatarItem = {
 };
 
 const setupApiMocks = (items: readonly EquipmentItem[], avatars: readonly AvatarItem[]): void => {
-  jest.mocked(fetchEngravings).mockResolvedValue({ Engravings: null, Effects: null, ArkPassiveEffects: null });
-  jest.mocked(fetchGems).mockResolvedValue({ Gems: null, Effects: null });
-  jest.mocked(fetchArkPassive).mockResolvedValue({ IsArkPassive: true, Points: null, Effects: null });
-  jest.mocked(fetchArkGrid).mockResolvedValue({ Slots: null, Effects: null });
-  jest.mocked(fetchCards).mockResolvedValue({ Cards: null, Effects: null });
-  jest.mocked(fetchEquipment).mockResolvedValue([...items]);
-  jest.mocked(fetchAvatars).mockResolvedValue([...avatars]);
+  vi.mocked(fetchEngravings).mockResolvedValue({ Engravings: null, Effects: null, ArkPassiveEffects: null });
+  vi.mocked(fetchGems).mockResolvedValue({ Gems: null, Effects: null });
+  vi.mocked(fetchArkPassive).mockResolvedValue({ IsArkPassive: true, Points: null, Effects: null });
+  vi.mocked(fetchArkGrid).mockResolvedValue({ Slots: null, Effects: null });
+  vi.mocked(fetchCards).mockResolvedValue({ Cards: null, Effects: null });
+  vi.mocked(fetchEquipment).mockResolvedValue([...items]);
+  vi.mocked(fetchAvatars).mockResolvedValue([...avatars]);
 };
 
 describe('fetchSpecScoreRawData main stat parsing', () => {
   beforeEach(() => {
-    jest.resetAllMocks();
+    vi.resetAllMocks();
   });
 
   it('populates displayed main stat from equipment raw stat and active inner avatar multipliers', async () => {
@@ -216,7 +216,7 @@ describe('fetchSpecScoreRawData main stat parsing', () => {
 
 describe('fetchSpecScoreRawData weapon attack parsing', () => {
   beforeEach(() => {
-    jest.resetAllMocks();
+    vi.resetAllMocks();
   });
 
   it('includes Parkbitina standalone bracelet weapon attack in effective weapon attack', async () => {
@@ -258,7 +258,7 @@ describe('fetchSpecScoreRawData weapon attack parsing', () => {
       { ...accessory, Name: '테스트 반지 2' },
       bracelet,
     ], []);
-    jest.mocked(fetchArkPassive).mockResolvedValue({
+    vi.mocked(fetchArkPassive).mockResolvedValue({
       IsArkPassive: true,
       Points: [{ Name: '깨달음', Value: 0, Tooltip: '', Description: '6랭크 64레벨' }],
       Effects: null,
@@ -375,7 +375,7 @@ describe('fetchSpecScoreRawData weapon attack parsing', () => {
       equipment('무기', '무기 공격력 +100,000'),
       equipment('어빌리티 스톤', '공격력 +100'),
     ], []);
-    jest.mocked(fetchEngravings).mockResolvedValue({
+    vi.mocked(fetchEngravings).mockResolvedValue({
       Engravings: null,
       Effects: null,
       ArkPassiveEffects: [

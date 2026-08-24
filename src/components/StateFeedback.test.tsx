@@ -17,7 +17,7 @@ describe('StateFeedback', () => {
   });
 
   it('renders an empty state action', async () => {
-    const onAction = jest.fn();
+    const onAction = vi.fn();
 
     render(
       <StateFeedback

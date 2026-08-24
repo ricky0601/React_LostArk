@@ -25,7 +25,7 @@ beforeAll(() => {
   mkdirSync(join(fixtureRoot, 'src', 'constants'), { recursive: true });
   mkdirSync(fixtureBuild, { recursive: true });
   cpSync(join(projectRoot, 'src', 'constants', 'routeSeo.json'), join(fixtureRoot, 'src', 'constants', 'routeSeo.json'));
-  cpSync(join(projectRoot, 'public', 'index.html'), join(fixtureBuild, 'index.html'));
+  cpSync(join(projectRoot, 'index.html'), join(fixtureBuild, 'index.html'));
 
   execFileSync(process.execPath, [join(projectRoot, 'scripts', 'generateStaticSeo.js')], {
     cwd: fixtureRoot,
@@ -37,7 +37,7 @@ afterAll(() => {
 });
 
 test('uses a 1200 by 630 PNG for static social metadata', () => {
-  const indexHtml = readFileSync(join(projectRoot, 'public', 'index.html'), 'utf8');
+  const indexHtml = readFileSync(join(projectRoot, 'index.html'), 'utf8');
   const png = readFileSync(join(projectRoot, 'public', 'og-banner.png'));
 
   expect(indexHtml).toContain(`property="og:image" content="${siteUrl}/og-banner.png"`);
@@ -88,7 +88,7 @@ test('generates a noindex static 404 document with the home canonical', () => {
 });
 
 test('keeps API, known routes, missing routes, and static assets distinct in Vercel routing', () => {
-  const { rewrites } = require(join(projectRoot, 'vercel.json'));
+  const { outputDirectory, rewrites } = require(join(projectRoot, 'vercel.json'));
   const apiRewrite = rewrites[0];
   const fallbackRewrite = rewrites[rewrites.length - 1];
   const pageRewrites = rewrites.slice(1, -1);
@@ -97,6 +97,7 @@ test('keeps API, known routes, missing routes, and static assets distinct in Ver
     .map((route) => route.path)
     .sort();
 
+  expect(outputDirectory).toBe('build');
   expect(apiRewrite).toEqual({
     source: '/api/lostark/:path*',
     destination: '/api/lostark/[...]',

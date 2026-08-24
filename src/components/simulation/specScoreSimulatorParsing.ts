@@ -222,7 +222,7 @@ export const fetchSpecScoreRawData = async (profile: CharacterProfile): Promise<
     combatStats: extractCombatStats(profile.Stats),
   };
 
-  if (process.env.NODE_ENV === 'development') {
+  if (import.meta.env.DEV) {
     console.log('[SpecScore][api-parsed]', {
       characterName: profile.CharacterName,
       combatPower: profile.CombatPower,

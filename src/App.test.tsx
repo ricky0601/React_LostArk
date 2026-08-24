@@ -1,5 +1,6 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
+import React from 'react';
 import { act, render, screen } from '@testing-library/react';
 import { CHUNK_ERROR_EVENT, CHUNK_ERROR_KEY } from './context/PwaChunkContext';
 import routeSeoEntries from './constants/routeSeo.json';
@@ -8,9 +9,8 @@ let mockPathname = '/';
 
 // BrowserRouter만 MemoryRouter로 바꾼다. Routes/Route/useLocation을 stub하면
 // 모든 라우트가 동시에 렌더되어 경로 매칭(오타, 누락)이 검증되지 않는다.
-jest.mock('react-router-dom', () => {
-  const actual = jest.requireActual('react-router-dom');
-  const React = require('react');
+vi.mock('react-router-dom', async () => {
+  const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
   return {
     ...actual,
     BrowserRouter: ({ children }: { children: React.ReactNode }) =>
@@ -18,17 +18,17 @@ jest.mock('react-router-dom', () => {
   };
 });
 
-jest.mock('./pages/Home', () => () => <div>Home Page</div>);
-jest.mock('./pages/Character', () => () => <div>Character Page</div>);
-jest.mock('./pages/Simulation', () => () => <div>Simulation Page</div>);
-jest.mock('./pages/SpecSimulator', () => () => <div>Spec Simulator Page</div>);
-jest.mock('./pages/Expedition', () => () => <div>Expedition Page</div>);
-jest.mock('./pages/Compare', () => () => <div>Compare Page</div>);
-jest.mock('./pages/Enhancement', () => () => <div>Enhancement Page</div>);
-jest.mock('./pages/Market', () => () => <div>Market Page</div>);
-jest.mock('./pages/Spending', () => () => <div>Spending Page</div>);
-jest.mock('./pages/Changelog', () => () => <div>Changelog Page</div>);
-jest.mock('./pages/NotFound', () => () => <div>Not Found Page</div>);
+vi.mock('./pages/Home', () => ({ default: () => <div>Home Page</div> }));
+vi.mock('./pages/Character', () => ({ default: () => <div>Character Page</div> }));
+vi.mock('./pages/Simulation', () => ({ default: () => <div>Simulation Page</div> }));
+vi.mock('./pages/SpecSimulator', () => ({ default: () => <div>Spec Simulator Page</div> }));
+vi.mock('./pages/Expedition', () => ({ default: () => <div>Expedition Page</div> }));
+vi.mock('./pages/Compare', () => ({ default: () => <div>Compare Page</div> }));
+vi.mock('./pages/Enhancement', () => ({ default: () => <div>Enhancement Page</div> }));
+vi.mock('./pages/Market', () => ({ default: () => <div>Market Page</div> }));
+vi.mock('./pages/Spending', () => ({ default: () => <div>Spending Page</div> }));
+vi.mock('./pages/Changelog', () => ({ default: () => <div>Changelog Page</div> }));
+vi.mock('./pages/NotFound', () => ({ default: () => <div>Not Found Page</div> }));
 
 import App from './App';
 
@@ -149,7 +149,7 @@ test('lists every indexable route in the sitemap', () => {
 });
 
 test('keeps static social and structured metadata available before hydration', () => {
-  const indexHtml = readFileSync(join(process.cwd(), 'public', 'index.html'), 'utf8');
+  const indexHtml = readFileSync(join(process.cwd(), 'index.html'), 'utf8');
 
   expect(indexHtml).toContain('property="og:locale" content="ko_KR"');
   expect(indexHtml).toContain('name="twitter:card" content="summary_large_image"');

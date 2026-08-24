@@ -38,7 +38,7 @@ jobs:
         run: yarn test:proxy
 
       - name: Run frontend tests
-        run: yarn test --watchAll=false
+        run: yarn test
         env:
           CI: true
 

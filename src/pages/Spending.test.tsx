@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import Spending from './Spending';
 
-jest.mock('../components/NavBar', () => () => <div>NavBar</div>);
+vi.mock('../components/NavBar', () => ({ default: () => <div>NavBar</div> }));
 
 describe('Spending mobile guidance', () => {
   it('makes the PC-only requirement and script wrapping explicit', () => {

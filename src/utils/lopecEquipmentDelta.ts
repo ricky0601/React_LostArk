@@ -201,7 +201,7 @@ export const calcNormalHoningBaseStatDelta = ({
   ) * (1 + nextBaseAttackPercentSum / 100);
   const multiplier = newBaseAttack / currentBaseAttack;
 
-  if (process.env.NODE_ENV === 'development' && slotBreakdown.length > 0) {
+  if (import.meta.env.DEV && slotBreakdown.length > 0) {
     console.log('[SpecScore][equipment-normal-honing]', {
       currentMainStat,
       rawArmorStatDelta,
