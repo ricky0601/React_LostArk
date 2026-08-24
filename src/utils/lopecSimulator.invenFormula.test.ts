@@ -12,7 +12,20 @@ describe('calcLopecDelta Inven combat-power formula changes', () => {
       tier: '전율',
     });
     const modified = { ...current, normalLevel: 17 };
+    const charStats = { W: 200_000, baseAttack: 150_000, pureBaseAttack: 140_000, displayedMainStat };
 
+    const unchangedResult = calcLopecDelta(
+      currentScore,
+      engravings([]),
+      engravings([]),
+      emptyGems,
+      emptyGems,
+      { helmet: current },
+      { helmet: current },
+      undefined,
+      undefined,
+      charStats,
+    );
     const result = calcLopecDelta(
       currentScore,
       engravings([]),
@@ -23,9 +36,10 @@ describe('calcLopecDelta Inven combat-power formula changes', () => {
       { helmet: modified },
       undefined,
       undefined,
-      { W: 200_000, baseAttack: 150_000, pureBaseAttack: 140_000, displayedMainStat },
+      charStats,
     );
 
+    expect(unchangedResult).toBeCloseTo(currentScore, 6);
     expect(result).toBeCloseTo(currentScore * Math.sqrt((displayedMainStat + 2793) / displayedMainStat), 6);
   });
 
