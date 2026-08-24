@@ -32,6 +32,14 @@ export const CHANGELOG_TAG_LABEL: Readonly<Record<ChangelogTag, string>> = {
 
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
+    id: 'release-006',
+    date: '2026-08-24',
+    title: '완갑 데이터 100% 추가 완료',
+    items: [
+      { tag: 'added', text: '완갑 관련 데이터가 모두 반영되었습니다.' },
+    ],
+  },
+  {
     id: 'release-005',
     date: '2026-08-04',
     title: '벨가르딘 레이드 골드와 카드 화면 추가',
