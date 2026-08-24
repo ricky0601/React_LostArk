@@ -50,7 +50,7 @@ const Character: React.FC = () => {
       setArkGrid(null);
       setError(null);
     }
-  }, [urlNickname]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [urlNickname, nickname]);
 
   // AbortController로 이전 요청을 취소해 늦게 도착한 응답이 최신 상태를 덮지 않게 한다.
   useEffect(() => {
@@ -94,7 +94,6 @@ const Character: React.FC = () => {
 
   const handleSearch = (name: string) => {
     setSearchParams({ nickname: name });
-    setNickname(name);
   };
 
   const handleResetSearch = (): void => {
