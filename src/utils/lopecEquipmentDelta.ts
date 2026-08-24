@@ -188,7 +188,9 @@ export const calcNormalHoningBaseStatDelta = ({
   const rawDeltas = sumNormalHoningRawDeltas({ slots, currentEquip, modifiedEquip });
   const currentBaseAttackFlatSum = charStats.baseAttackFlatSum ?? 0;
   const currentBaseAttackPercentSum = charStats.baseAttackPercentSum ?? 0;
-  const currentBaseAttack = charStats.pureBaseAttack ?? (
+  // 분모와 분자는 동일하게 선택된 주스탯/무기 공격력 기준으로 재구성한다.
+  // pureBaseAttack만 분모에 사용하면 displayedMainStat fallback과 기준이 갈려 가짜 배율이 생긴다.
+  const currentBaseAttack = (
     Math.sqrt((currentMainStat * currentWeaponAttack) / 6) + currentBaseAttackFlatSum
   ) * (1 + currentBaseAttackPercentSum / 100);
   if (currentBaseAttack <= 0) return 1;
