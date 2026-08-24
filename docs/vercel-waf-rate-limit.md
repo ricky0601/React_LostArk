@@ -35,13 +35,14 @@ See Vercel's current documentation before changing the rule:
 
 ## Safe rollout
 
-1. Publish the WAF rule.
-2. Confirm the production request path condition is `/api/lostark/`.
-3. Merge and deploy the proxy hardening change.
-4. Verify normal allowed requests still succeed.
-5. Verify blocked and failed requests do not expose `LOSTARK_API_KEY` or upstream exception details.
+1. Confirm `LOSTARK_API_KEY` is scoped to the Vercel Production environment only. Production WAF rules do not protect a Preview deployment that has separately been given the key.
+2. Publish the WAF rule.
+3. Confirm the production request path condition is `/api/lostark/`.
+4. Merge and deploy the proxy hardening change.
+5. Verify normal allowed requests still succeed.
+6. Verify blocked and failed requests do not expose `LOSTARK_API_KEY` or upstream exception details.
 
-Do not disable the WAF rule while this proxy is publicly reachable unless another distributed rate limiter is already active.
+Do not disable the WAF rule while this proxy is publicly reachable unless another distributed rate limiter is already active. If Preview deployments later require Lost Ark API access, add equivalent protection before enabling the key there.
 
 ## Production verification
 
