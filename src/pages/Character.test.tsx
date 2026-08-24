@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import Character from './Character';
 import type { CharacterProfile, EquipmentItem } from '../types/lostark';
@@ -136,5 +136,28 @@ describe('Character route state affordances', () => {
     expect(await screen.findByRole('status', { name: '캐릭터 정보가 없습니다' })).toHaveTextContent(
       '닉네임을 확인한 뒤 다시 검색해 주세요',
     );
+  });
+
+  it('aborts an outdated request and ignores its late response', async () => {
+    let resolveFirst!: (value: CharacterProfile) => void;
+    let firstSignal: AbortSignal | undefined;
+    mockedFetchProfile
+      .mockImplementationOnce((_nickname, options) => {
+        firstSignal = options?.signal ?? undefined;
+        return new Promise<CharacterProfile>((resolve) => { resolveFirst = resolve; });
+      })
+      .mockResolvedValueOnce({ ...profile, CharacterName: '최신캐릭터' });
+
+    const { rerender } = render(<Character />);
+    await waitFor(() => expect(mockedFetchProfile).toHaveBeenCalledTimes(1));
+
+    mockCurrentSearchParams = new URLSearchParams('nickname=최신캐릭터');
+    rerender(<Character />);
+
+    expect(await screen.findByRole('img', { name: '최신캐릭터' })).toBeInTheDocument();
+    expect(firstSignal?.aborted).toBe(true);
+
+    await act(async () => { resolveFirst(profile); });
+    expect(screen.queryByRole('img', { name: '테스트캐릭터' })).not.toBeInTheDocument();
   });
 });

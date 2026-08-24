@@ -11,7 +11,11 @@ vi.mock('../components/NicknameInput', () => ({
     <button onClick={() => onSubmit('테스트캐릭터')}>골드 계산 시작</button>
   ),
 }));
-vi.mock('../components/NicknameSearchBar', () => ({ default: () => <div>NicknameSearchBar</div> }));
+vi.mock('../components/NicknameSearchBar', () => ({
+  default: ({ onSearch }: { onSearch: (name: string) => void }) => (
+    <button onClick={() => onSearch('최신캐릭터')}>다른 캐릭터 검색</button>
+  ),
+}));
 vi.mock('../components/simulation/GoldLoadingSkeleton', () => ({ default: () => <div>Loading</div> }));
 vi.mock('../components/simulation/CharacterRaidCard', () => ({
   default: ({ result }: { result: { characterName: string } }) => (
@@ -77,11 +81,37 @@ describe('Simulation page orchestration', () => {
 
     fireEvent.click(screen.getByRole('button', { name: '골드 계산 시작' }));
 
-    await waitFor(() => expect(mockedFetchSiblings).toHaveBeenCalledWith('테스트캐릭터'));
-    await waitFor(() => expect(mockedFetchProfile).toHaveBeenCalledWith('테스트캐릭터'));
+    await waitFor(() => expect(mockedFetchSiblings).toHaveBeenCalledWith(
+      '테스트캐릭터',
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
+    ));
+    await waitFor(() => expect(mockedFetchProfile).toHaveBeenCalledWith(
+      '테스트캐릭터',
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
+    ));
     expect(await screen.findByRole('heading', { name: /테스트캐릭터.*주간 골드/ })).toBeInTheDocument();
     expect(screen.getByText((_, element) =>
       element?.tagName === 'P' && element.textContent?.includes('루페온 서버 | 1 캐릭터') === true,
     )).toBeInTheDocument();
+  });
+
+  it('aborts an outdated expedition request when the nickname changes', async () => {
+    let firstSignal: AbortSignal | undefined;
+    mockedFetchSiblings
+      .mockImplementationOnce((_nickname, options) => {
+        firstSignal = options?.signal ?? undefined;
+        return new Promise(() => undefined);
+      })
+      .mockResolvedValueOnce([{ ...sibling, CharacterName: '최신캐릭터' }]);
+    mockedFetchProfile.mockResolvedValue({ ...profile, CharacterName: '최신캐릭터' });
+
+    render(<MemoryRouter><Simulation /></MemoryRouter>);
+    fireEvent.click(screen.getByRole('button', { name: '골드 계산 시작' }));
+    await waitFor(() => expect(mockedFetchSiblings).toHaveBeenCalledTimes(1));
+
+    fireEvent.click(screen.getByRole('button', { name: '다른 캐릭터 검색' }));
+
+    await waitFor(() => expect(firstSignal?.aborted).toBe(true));
+    expect(await screen.findByRole('heading', { name: /최신캐릭터.*주간 골드/ })).toBeInTheDocument();
   });
 });

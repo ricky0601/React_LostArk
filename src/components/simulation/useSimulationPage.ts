@@ -131,20 +131,21 @@ export const useSimulationPage = () => {
             setSelectedNames(new Set());
             setError(null);
         }
-    }, [urlNickname]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [urlNickname, nickname]);
 
     // 닉네임 변경 시 siblings API 호출 + 서버 자동 감지.
-    // cancelled 플래그로 race 방지: 닉네임을 빠르게 바꾸면 이전 요청의 응답이 늦게 도착해도 무시.
+    // 이전 요청을 취소해 늦게 도착한 응답이 최신 상태를 덮지 않게 한다.
     useEffect(() => {
         if (!nickname) return;
-        let cancelled = false;
+
+        const controller = new AbortController();
         safeLocalStorage.setItem(LS_NICKNAME, nickname);
         setLoading(true);
         setError(null);
 
-        fetchSiblings(nickname)
+        fetchSiblings(nickname, { signal: controller.signal })
             .then((data) => {
-                if (cancelled) return;
+                if (controller.signal.aborted) return;
                 if (Array.isArray(data) && data.length > 0) {
                     const serverCounts = new Map<string, number>();
                     data.forEach((c) => {
@@ -166,19 +167,18 @@ export const useSimulationPage = () => {
                 setLoading(false);
             })
             .catch((err: unknown) => {
-                if (cancelled) return;
+                if (controller.signal.aborted) return;
                 console.error(err);
                 setError('캐릭터 정보를 불러오는 데 실패했습니다.');
                 setLoading(false);
             });
 
-        return () => { cancelled = true; };
+        return () => controller.abort();
     }, [nickname]);
 
 
     const handleNicknameSubmit = (name: string): void => {
         setSearchParams({ nickname: name });
-        setNickname(name);
         setServer(null);
         setCharacterNames([]);
         setCharacterInfo([]);
@@ -188,31 +188,31 @@ export const useSimulationPage = () => {
     };
 
     const fetchCharacterInfo = useCallback(
-        async (characterName: string): Promise<CharacterProfile | null> => {
+        async (characterName: string, signal: AbortSignal): Promise<CharacterProfile | null> => {
             try {
-                const data = await fetchProfile(characterName);
+                const data = await fetchProfile(characterName, { signal });
                 if (data && data.CharacterName) {
                     return data;
                 }
                 return null;
             } catch (err) {
-                console.error(err);
+                if (!signal.aborted) console.error(err);
                 return null;
             }
         },
         []
     );
 
-    // characterNames 팬아웃 fetchProfile. 동일 race 방지 패턴.
-    // fetchCharacterInfo는 내부 try/catch로 null을 리턴하지만 시그니처 변경 회귀 방지 위해 .catch 가드.
+    // characterNames 팬아웃 fetchProfile. 이전 팬아웃 요청은 모두 취소한다.
     useEffect(() => {
         if (characterNames.length === 0) return;
-        let cancelled = false;
+
+        const controller = new AbortController();
         setLoading(true);
 
-        Promise.all(characterNames.map((c) => fetchCharacterInfo(c.CharacterName)))
+        Promise.all(characterNames.map((c) => fetchCharacterInfo(c.CharacterName, controller.signal)))
             .then((results) => {
-                if (cancelled) return;
+                if (controller.signal.aborted) return;
                 results.sort((a, b) => {
                     const lvA = a ? parseFloat(a.ItemAvgLevel.replace(/,/g, '')) : 0;
                     const lvB = b ? parseFloat(b.ItemAvgLevel.replace(/,/g, '')) : 0;
@@ -222,12 +222,12 @@ export const useSimulationPage = () => {
                 setLoading(false);
             })
             .catch((err) => {
-                if (cancelled) return;
+                if (controller.signal.aborted) return;
                 console.error(err);
                 setLoading(false);
             });
 
-        return () => { cancelled = true; };
+        return () => controller.abort();
     }, [characterNames, fetchCharacterInfo]);
 
     const allResults: CharacterGoldResult[] = useMemo(() => {

@@ -41,7 +41,7 @@ const SpecSimulator: React.FC = () => {
       setProfile(null);
       setError(null);
     }
-  }, [urlNickname]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [urlNickname, nickname]);
 
   useEffect(() => {
     if (!nickname) return;
@@ -79,7 +79,6 @@ const SpecSimulator: React.FC = () => {
 
   const handleSearch = (name: string): void => {
     setSearchParams({ nickname: name });
-    setNickname(name);
   };
 
   if (!nickname) {
