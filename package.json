@@ -19,6 +19,7 @@
     "build": "react-scripts build",
     "postbuild": "node scripts/generateStaticSeo.js",
     "test": "react-scripts test",
+    "test:proxy": "node --test api/lostark/proxy.test.js",
     "eject": "react-scripts eject"
   },
   "eslintConfig": {
