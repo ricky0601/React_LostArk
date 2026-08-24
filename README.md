@@ -32,15 +32,15 @@
 
 ### 1) 실행 환경
 
-- Node.js `^20.19.0` 또는 `>=22.12.0` (CI: 22.19.0)
-- Yarn 1.22.x
-
-Issue #31에서 패키지 관리자와 Node 버전 고정을 별도로 다루므로, 이 마이그레이션에서는 기존 Yarn 명령과 lockfile 정책을 유지합니다.
+- Node.js 24.x (로컬·CI 기준: 24.15.0)
+- Yarn 1.22.22
 
 ### 2) 의존성 설치
 
 ```bash
-yarn install
+corepack enable
+corepack prepare yarn@1.22.22 --activate
+yarn install --frozen-lockfile
 ```
 
 ### 3) 개발 서버 실행
@@ -101,7 +101,7 @@ docs/
 
 ## 배포
 
-이 프로젝트는 Vercel에서 Framework Preset `Other`로 배포합니다.
+이 프로젝트는 Vercel에서 Framework Preset `Other`로 배포합니다. `vercel.json`은 Yarn 1.22.22 frozen 설치와 `yarn build`를 명시하며, Vercel 런타임은 `package.json`의 `engines.node`에 따라 최신 Node 24.x를 사용합니다.
 
 - 정적 라우트 SEO: `vercel.json`이 알려진 라우트를 빌드된 `<route>/index.html`로 rewrite
 - SPA fallback: 나머지 경로는 BrowserRouter 앱이 포함된 `/404.html`로 rewrite

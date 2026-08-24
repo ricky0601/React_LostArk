@@ -5,16 +5,18 @@
 ## 1) 기본 로컬 개발 환경
 
 ### 필수 버전
-- Node.js `^20.19.0` 또는 `>=22.12.0` (현재 CI: 22.19.0)
-- Yarn 1.22.x
+- Node.js 24.x (로컬·CI 기준: 24.15.0)
+- Yarn 1.22.22
 - Git 최신 버전
 - (Windows 기준) PowerShell 5.1 이상
 
-패키지 관리자 및 Node 버전 고정/통일은 Issue #31의 별도 범위입니다. 현재 저장소의 Yarn 실행 흐름과 lockfile 정책을 임의로 변경하지 않습니다.
+Node 버전은 `.nvmrc`와 GitHub Actions에서 24.15.0으로 고정합니다. Vercel은 `package.json`의 `engines.node`에 따라 최신 Node 24.x를 사용합니다.
 
 ### 프로젝트 실행
 ```bash
-yarn install
+corepack enable
+corepack prepare yarn@1.22.22 --activate
+yarn install --frozen-lockfile
 yarn start
 ```
 - 기본 접속: `http://localhost:3000`
@@ -111,7 +113,7 @@ Vercel production에서는 `LOSTARK_API_KEY`를 Project Settings의 Production s
 
 아래가 모두 통과되면 “현재와 동일한 작업 환경”으로 간주:
 
-- [ ] `yarn install` 성공
+- [ ] `yarn install --frozen-lockfile` 성공
 - [ ] `yarn start` 후 앱 정상 접속
 - [ ] `yarn build` 성공
 - [ ] `yarn test` 성공
