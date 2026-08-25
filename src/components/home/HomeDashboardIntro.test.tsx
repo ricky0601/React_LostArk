@@ -195,7 +195,7 @@ describe('HomeDashboardIntro', () => {
       clientX: 10,
       clientY: window.innerHeight - 1,
     });
-    act(() => vi.advanceTimersByTime(240));
+    act(() => vi.advanceTimersByTime(190));
     expect(scrollBy).not.toHaveBeenCalled();
 
     act(() => vi.advanceTimersByTime(40));

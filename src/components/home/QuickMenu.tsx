@@ -60,8 +60,8 @@ const TOUCH_LONG_PRESS_DELAY_MS = 350;
 const TOUCH_SCROLL_CANCEL_THRESHOLD_PX = 8;
 const TOUCH_DRAG_START_THRESHOLD_PX = 12;
 const EDGE_SCROLL_ZONE_PX = 64;
-const EDGE_SCROLL_DWELL_MS = 250;
-const MAX_EDGE_SCROLL_PX = 6;
+const EDGE_SCROLL_DWELL_MS = 200;
+const MAX_EDGE_SCROLL_PX = 8;
 const REORDER_COOLDOWN_MS = 120;
 
 const CardContents: React.FC<{ readonly action: QuickAction }> = ({ action }) => (
