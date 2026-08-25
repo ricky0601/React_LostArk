@@ -1,4 +1,5 @@
 const { execFileSync } = require('child_process');
+const { applyRouteSeo } = require('../scripts/generateStaticSeo');
 const {
   cpSync,
   existsSync,
@@ -59,6 +60,31 @@ test('generates route HTML with metadata matching routeSeo.json', () => {
     expect(html).toContain(`<title>${route.title}</title>`);
     expect(html).toContain(`<meta name="robots" content="${route.robots}" />`);
     expect(html).toContain(`<link rel="canonical" href="${canonical}" />`);
+
+    const structuredDataMatch = html.match(/<script id="route-structured-data" type="application\/ld\+json">(.*?)<\/script>/s);
+    expect(structuredDataMatch).not.toBeNull();
+    const structuredData = JSON.parse(structuredDataMatch[1]);
+    expect(structuredData['@graph']).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        '@type': 'WebSite',
+        '@id': `${siteUrl}/#website`,
+        description: '로아끼욧에서 로스트아크 캐릭터 조회, 원정대 주간 골드 계산, 스펙 시뮬레이터, 강화·거래소·지출 관리를 한 번에 확인하세요.',
+      }),
+    ]));
+    const page = structuredData['@graph'].find((entry) => entry['@id'] === `${canonical}#webpage`);
+    expect(page).toMatchObject({
+      '@type': route.schemaType === 'WebApplication' ? 'WebApplication' : 'WebPage',
+      url: canonical,
+      name: route.name || route.title.replace(/\s[-|]\s로아끼욧$/, ''),
+      description: route.description,
+      inLanguage: 'ko-KR',
+    });
+
+    if (route.path !== '/') {
+      expect(structuredData['@graph']).toEqual(expect.arrayContaining([
+        expect.objectContaining({ '@type': 'BreadcrumbList', '@id': `${canonical}#breadcrumb` }),
+      ]));
+    }
   }
 
   const generatedRouteDirectories = readdirSync(fixtureBuild, { withFileTypes: true })
@@ -79,12 +105,52 @@ test('generates route HTML with metadata matching routeSeo.json', () => {
   }
 });
 
+
+test('normalizes unsupported schema types and preserves dollar sequences in replacements', () => {
+  const indexHtml = readFileSync(join(projectRoot, 'index.html'), 'utf8');
+  const description = "골드 시세 $' 안내";
+  const canonical = `${siteUrl}/schema-test`;
+  const html = applyRouteSeo(indexHtml, {
+    path: '/schema-test',
+    title: '스키마 $$ 테스트 - 로아끼욧',
+    description,
+    schemaType: 'Article',
+    robots: 'index, follow',
+  });
+
+  expect(html).toContain('<title>스키마 $$ 테스트 - 로아끼욧</title>');
+  expect(html).toContain(`<meta name="description" content="${description}" />`);
+
+  const structuredDataMatch = html.match(/<script id="route-structured-data" type="application\/ld\+json">(.*?)<\/script>/s);
+  expect(structuredDataMatch).not.toBeNull();
+  const structuredData = JSON.parse(structuredDataMatch[1]);
+  expect(structuredData['@graph']).toEqual(expect.arrayContaining([
+    expect.objectContaining({
+      '@type': 'WebPage',
+      '@id': `${canonical}#webpage`,
+      description,
+    }),
+  ]));
+});
+
 test('generates a noindex static 404 document with the home canonical', () => {
   const notFoundHtml = readFileSync(join(fixtureBuild, '404.html'), 'utf8');
+  const canonical = `${siteUrl}/`;
 
   expect(notFoundHtml).toContain('<title>페이지를 찾을 수 없습니다 - 로아끼욧</title>');
   expect(notFoundHtml).toContain('<meta name="robots" content="noindex, follow" />');
-  expect(notFoundHtml).toContain(`<link rel="canonical" href="${siteUrl}/" />`);
+  expect(notFoundHtml).toContain(`<link rel="canonical" href="${canonical}" />`);
+
+  const structuredDataMatch = notFoundHtml.match(/<script id="route-structured-data" type="application\/ld\+json">(.*?)<\/script>/s);
+  expect(structuredDataMatch).not.toBeNull();
+  const structuredData = JSON.parse(structuredDataMatch[1]);
+  expect(structuredData['@graph']).toEqual([
+    expect.objectContaining({
+      '@type': 'WebSite',
+      '@id': `${siteUrl}/#website`,
+      url: canonical,
+    }),
+  ]);
 });
 
 test('keeps API, known routes, missing routes, and static assets distinct in Vercel routing', () => {

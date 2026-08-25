@@ -56,8 +56,8 @@ const SimulationView: React.FC<{ model: SimulationPageModel }> = ({ model }) => 
             <div className="min-h-screen bg-gray-50 dark:bg-la-dark transition-colors duration-300">
                 <NavBar />
                 <NicknameInput
-                    title="주간 골드 계산기"
-                    description="캐릭터 닉네임을 입력하면 원정대 주간 골드를 계산합니다"
+                    title="로아 주간 골드 계산기"
+                    description="캐릭터별 레이드 보상과 더보기 비용을 반영해 원정대 주간 골드를 계산하고 숙제 현황을 관리하세요."
                     buttonText="골드 계산 시작"
                     onSubmit={handleNicknameSubmit}
                 />
@@ -73,9 +73,12 @@ const SimulationView: React.FC<{ model: SimulationPageModel }> = ({ model }) => 
                 {/* Header */}
                 <div className="mb-6 text-center animate-fade-in">
                     <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-                        <span className="text-la-gold-dark dark:text-la-gold">{nickname}</span>님의 주간 골드
+                        로아 주간 골드 계산기
                     </h1>
                     <p className="text-gray-500 dark:text-gray-400 mt-2">
+                        <span className="font-semibold text-la-gold-dark dark:text-la-gold">{nickname}</span>님의 레이드 보상과 더보기 비용을 반영해 원정대 주간 골드를 계산합니다.
+                    </p>
+                    <p className="mt-1 text-sm text-gray-400 dark:text-gray-500">
                         {server ? `${server} 서버` : ''} {!loading && allResults.length > 0 && `| ${allResults.length} 캐릭터`}
                     </p>
                     <div className="mt-3">

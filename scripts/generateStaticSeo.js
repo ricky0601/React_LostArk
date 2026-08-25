@@ -9,7 +9,7 @@ const buildNotFoundPath = join(process.cwd(), 'build', '404.html');
 const NOT_FOUND_ROUTE = {
   path: '/',
   title: '페이지를 찾을 수 없습니다 - 로아끼욧',
-  description: '요청하신 페이지를 찾을 수 없습니다. 로아끼욧 홈에서 원하는 기능을 찾아보세요.',
+  description: '요청하신 로아끼욧 페이지를 찾을 수 없습니다. 홈에서 로스트아크 캐릭터 조회와 주간 골드 계산 기능을 이용해 주세요.',
   robots: 'noindex, follow',
 };
 
@@ -29,7 +29,59 @@ function replaceTag(html, pattern, tag) {
   if (!pattern.test(html)) {
     throw new Error(`Missing SEO tag for ${tag}`);
   }
-  return html.replace(pattern, tag);
+  return html.replace(pattern, () => tag);
+}
+
+function buildStructuredData(route) {
+  const canonical = routeUrl(route.path);
+  const websiteId = `${SITE_URL}/#website`;
+  const graph = [
+    {
+      '@type': 'WebSite',
+      '@id': websiteId,
+      name: '로아끼욧',
+      url: `${SITE_URL}/`,
+      inLanguage: 'ko-KR',
+      description: '로아끼욧에서 로스트아크 캐릭터 조회, 원정대 주간 골드 계산, 스펙 시뮬레이터, 강화·거래소·지출 관리를 한 번에 확인하세요.',
+    },
+  ];
+
+  if (route.robots === 'noindex, follow') {
+    return { '@context': 'https://schema.org', '@graph': graph };
+  }
+
+  const pageName = route.name || route.title.replace(/\s[-|]\s로아끼욧$/, '');
+  const schemaType = route.schemaType === 'WebApplication' ? 'WebApplication' : 'WebPage';
+  const page = {
+    '@type': schemaType,
+    '@id': `${canonical}#webpage`,
+    url: canonical,
+    name: pageName,
+    description: route.description,
+    inLanguage: 'ko-KR',
+    isPartOf: { '@id': websiteId },
+  };
+
+  if (schemaType === 'WebApplication') {
+    page.applicationCategory = 'GameApplication';
+    page.operatingSystem = 'Web';
+    page.offers = { '@type': 'Offer', price: '0', priceCurrency: 'KRW' };
+  }
+
+  graph.push(page);
+
+  if (route.path !== '/') {
+    graph.push({
+      '@type': 'BreadcrumbList',
+      '@id': `${canonical}#breadcrumb`,
+      itemListElement: [
+        { '@type': 'ListItem', position: 1, name: '홈', item: `${SITE_URL}/` },
+        { '@type': 'ListItem', position: 2, name: pageName, item: canonical },
+      ],
+    });
+  }
+
+  return { '@context': 'https://schema.org', '@graph': graph };
 }
 
 function applyRouteSeo(html, route) {
@@ -37,6 +89,7 @@ function applyRouteSeo(html, route) {
   const description = escapeHtml(route.description);
   const robots = escapeHtml(route.robots);
   const canonical = escapeHtml(routeUrl(route.path));
+  const structuredData = JSON.stringify(buildStructuredData(route)).replaceAll('<', '\\u003c');
 
   return [
     (value) => replaceTag(value, /<title>.*?<\/title>/, `<title>${title}</title>`),
@@ -48,6 +101,7 @@ function applyRouteSeo(html, route) {
     (value) => replaceTag(value, /<meta property="og:url" content="[^"]*"\s*\/>/, `<meta property="og:url" content="${canonical}" />`),
     (value) => replaceTag(value, /<meta name="twitter:title" content="[^"]*"\s*\/>/, `<meta name="twitter:title" content="${title}" />`),
     (value) => replaceTag(value, /<meta name="twitter:description" content="[^"]*"\s*\/>/, `<meta name="twitter:description" content="${description}" />`),
+    (value) => replaceTag(value, /<script id="route-structured-data" type="application\/ld\+json">.*?<\/script>/s, `<script id="route-structured-data" type="application/ld+json">${structuredData}</script>`),
   ].reduce((currentHtml, transform) => transform(currentHtml), html);
 }
 

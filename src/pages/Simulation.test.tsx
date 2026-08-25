@@ -7,8 +7,12 @@ import { fetchProfile, fetchSiblings } from '../utils/api';
 vi.mock('../components/NavBar', () => ({ default: () => <div>NavBar</div> }));
 vi.mock('../components/PullToRefresh', () => ({ default: ({ children }: { children: React.ReactNode }) => <>{children}</> }));
 vi.mock('../components/NicknameInput', () => ({
-  default: ({ onSubmit }: { onSubmit: (name: string) => void }) => (
-    <button onClick={() => onSubmit('테스트캐릭터')}>골드 계산 시작</button>
+  default: ({ title, description, onSubmit }: { title: string; description: string; onSubmit: (name: string) => void }) => (
+    <div>
+      <h1>{title}</h1>
+      <p>{description}</p>
+      <button onClick={() => onSubmit('테스트캐릭터')}>골드 계산 시작</button>
+    </div>
   ),
 }));
 vi.mock('../components/NicknameSearchBar', () => ({
@@ -72,6 +76,8 @@ describe('Simulation page orchestration', () => {
   it('shows the nickname entry state without a persisted or URL nickname', () => {
     render(<MemoryRouter><Simulation /></MemoryRouter>);
 
+    expect(screen.getByRole('heading', { level: 1, name: '로아 주간 골드 계산기' })).toBeInTheDocument();
+    expect(screen.getByText(/레이드 보상과 더보기 비용/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '골드 계산 시작' })).toBeInTheDocument();
     expect(mockedFetchSiblings).not.toHaveBeenCalled();
   });
@@ -89,7 +95,10 @@ describe('Simulation page orchestration', () => {
       '테스트캐릭터',
       expect.objectContaining({ signal: expect.any(AbortSignal) }),
     ));
-    expect(await screen.findByRole('heading', { name: /테스트캐릭터.*주간 골드/ })).toBeInTheDocument();
+    expect(await screen.findByText((_, element) =>
+      element?.tagName === 'P' && element.textContent?.includes('테스트캐릭터님의 레이드 보상과 더보기 비용') === true,
+    )).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: '로아 주간 골드 계산기' })).toBeInTheDocument();
     expect(screen.getByText((_, element) =>
       element?.tagName === 'P' && element.textContent?.includes('루페온 서버 | 1 캐릭터') === true,
     )).toBeInTheDocument();
@@ -112,6 +121,8 @@ describe('Simulation page orchestration', () => {
     fireEvent.click(screen.getByRole('button', { name: '다른 캐릭터 검색' }));
 
     await waitFor(() => expect(firstSignal?.aborted).toBe(true));
-    expect(await screen.findByRole('heading', { name: /최신캐릭터.*주간 골드/ })).toBeInTheDocument();
+    expect(await screen.findByText((_, element) =>
+      element?.tagName === 'P' && element.textContent?.includes('최신캐릭터님의 레이드 보상과 더보기 비용') === true,
+    )).toBeInTheDocument();
   });
 });

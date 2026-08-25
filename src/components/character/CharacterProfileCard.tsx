@@ -16,7 +16,7 @@ const ProfileCard: React.FC<{ profile: CharacterProfile; nickname: string }> = (
       />
       <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
       <div className="absolute bottom-0 left-0 right-0 p-4">
-        <h1 className="text-2xl font-bold text-white leading-tight">{profile.CharacterName}</h1>
+        <h2 className="text-2xl font-bold text-white leading-tight">{profile.CharacterName}</h2>
         <span className="text-sm text-la-gold">{profile.CharacterClassName}</span>
       </div>
     </div>

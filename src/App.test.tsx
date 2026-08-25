@@ -97,9 +97,20 @@ test('marks unknown routes as noindex with the home canonical', async () => {
 
   render(<App />);
 
+  const description = '요청하신 로아끼욧 페이지를 찾을 수 없습니다. 홈에서 로스트아크 캐릭터 조회와 주간 골드 계산 기능을 이용해 주세요.';
   expect(document.title).toBe('페이지를 찾을 수 없습니다 - 로아끼욧');
+  expect(document.querySelector('meta[name="description"]')).toHaveAttribute('content', description);
   expect(document.querySelector('meta[name="robots"]')).toHaveAttribute('content', 'noindex, follow');
   expect(document.querySelector('link[rel="canonical"]')).toHaveAttribute('href', 'https://lokki.vercel.app/');
+
+  const structuredData = JSON.parse(document.getElementById('route-structured-data')?.textContent ?? '{}');
+  expect(structuredData['@graph']).toEqual([
+    expect.objectContaining({
+      '@type': 'WebSite',
+      '@id': 'https://lokki.vercel.app/#website',
+      url: 'https://lokki.vercel.app/',
+    }),
+  ]);
   expect(await screen.findByText('Not Found Page')).toBeInTheDocument();
 });
 

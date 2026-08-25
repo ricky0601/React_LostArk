@@ -3,24 +3,30 @@
     "path": "/",
     "title": "로아끼욧 - 로스트아크 캐릭터 조회·주간 골드 계산기",
     "description": "로아끼욧에서 로스트아크 캐릭터 조회, 원정대 주간 골드 계산, 스펙 시뮬레이터, 강화·거래소·지출 관리를 한 번에 확인하세요.",
+    "name": "로아끼욧",
+    "schemaType": "WebApplication",
     "robots": "index, follow",
     "lastmod": "2026-08-18",
     "priority": "1.0"
   },
   {
     "path": "/character",
-    "title": "로스트아크 캐릭터 조회 - 로아끼욧",
-    "description": "로스트아크 캐릭터의 장비, 보석, 카드, 각인, 전투 정보와 성장 상태를 로아끼욧에서 빠르게 조회하세요.",
+    "title": "로스트아크 캐릭터 조회 - 장비·보석·각인 검색 | 로아끼욧",
+    "description": "로스트아크 캐릭터 닉네임을 검색해 장비, 보석, 카드, 각인, 전투 정보와 성장 상태를 한눈에 조회하세요.",
+    "name": "로스트아크 캐릭터 조회",
+    "schemaType": "WebApplication",
     "robots": "index, follow",
-    "lastmod": "2026-08-18",
+    "lastmod": "2026-08-25",
     "priority": "0.9"
   },
   {
     "path": "/simulation",
-    "title": "로스트아크 주간 골드 시뮬레이터 - 로아끼욧",
-    "description": "캐릭터별 레이드와 수익을 조합해 로스트아크 원정대 주간 골드 수입을 계산하고 계획하세요.",
+    "title": "로아 골드 계산기 - 로스트아크 주간 골드 | 로아끼욧",
+    "description": "로아 원정대 캐릭터별 레이드 보상과 더보기 비용을 반영해 로스트아크 주간 골드 수입을 계산하고 숙제를 관리하세요.",
+    "name": "로아 주간 골드 계산기",
+    "schemaType": "WebApplication",
     "robots": "index, follow",
-    "lastmod": "2026-08-18",
+    "lastmod": "2026-08-25",
     "priority": "0.9"
   },
   {
@@ -49,10 +55,12 @@
   },
   {
     "path": "/enhancement",
-    "title": "로스트아크 강화 계산기 - 로아끼욧",
-    "description": "로스트아크 장비 강화 비용과 성장 재료를 계산해 다음 강화 목표를 준비하세요.",
+    "title": "로아 강화 계산기 - 재련 비용·재료 견적 | 로아끼욧",
+    "description": "로아 장비의 일반·상급 재련 목표를 설정하고 재료 시세를 반영한 로스트아크 강화 비용과 재련 견적을 계산하세요.",
+    "name": "로아 강화 계산기",
+    "schemaType": "WebApplication",
     "robots": "index, follow",
-    "lastmod": "2026-08-18",
+    "lastmod": "2026-08-25",
     "priority": "0.8"
   },
   {

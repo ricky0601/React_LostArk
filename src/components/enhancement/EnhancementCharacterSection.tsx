@@ -37,10 +37,10 @@ const EnhancementCharacterSection: React.FC<{ model: EnhancementPageModel }> = (
         {/* ── 헤더 ── */}
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-            재련 계산기
+            로아 강화 계산기
           </h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-            계산할 장비를 선택하고 목표 수치를 설정하세요
+          <p className="text-sm leading-relaxed text-gray-500 dark:text-gray-400 mt-1">
+            일반 재련과 상급 재련 목표를 설정하면 재료 시세를 반영한 로스트아크 강화 비용과 필요한 재료 견적을 계산합니다.
           </p>
         </div>
 

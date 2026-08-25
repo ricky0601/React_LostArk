@@ -112,8 +112,8 @@ const Character: React.FC = () => {
       <div className="min-h-screen bg-gray-50 dark:bg-la-dark transition-colors duration-300">
         <NavBar />
         <NicknameInput
-          title="캐릭터 프로필"
-          description="캐릭터 닉네임을 입력하면 상세 정보를 조회합니다"
+          title="로스트아크 캐릭터 조회"
+          description="캐릭터 닉네임을 검색해 장비, 보석, 카드, 각인과 전투 정보를 한눈에 확인하세요."
           buttonText="캐릭터 조회"
           onSubmit={handleSearch}
         />
@@ -127,7 +127,13 @@ const Character: React.FC = () => {
       <PullToRefresh>
       <main className="max-w-6xl mx-auto px-4 py-8">
         <div className="mb-6 text-center animate-fade-in">
-          <NicknameSearchBar onSearch={handleSearch} placeholder="다른 캐릭터 검색" />
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">로스트아크 캐릭터 조회</h1>
+          <p className="mx-auto mt-2 max-w-2xl text-sm leading-relaxed text-gray-500 dark:text-gray-400">
+            캐릭터의 장비, 보석, 카드, 각인과 전투 정보를 확인하고 현재 성장 상태를 살펴보세요.
+          </p>
+          <div className="mt-4">
+            <NicknameSearchBar onSearch={handleSearch} placeholder="다른 캐릭터 검색" />
+          </div>
         </div>
 
         {loading ? (
