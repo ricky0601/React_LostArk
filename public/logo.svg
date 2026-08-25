@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 64 64" role="img" aria-labelledby="title desc">
+  <title id="title">로아끼욧 강화 코어 로고</title>
+  <desc id="desc">금빛 코어와 세 개의 강화 조각으로 이루어진 로고</desc>
+
+  <!-- Three pieces gathering around the core: calculate, prepare, enhance. -->
+  <path d="M17.2 17.8A21 21 0 0 1 43.8 12l-3.2 6.2a14.1 14.1 0 0 0-18.1 3.8z" fill="#d6a53d"/>
+  <path d="M48.1 17.2A21 21 0 0 1 51.2 43l-5.9-3.8a14.1 14.1 0 0 0-2.1-17.5z" fill="#efc75e"/>
+  <path d="M45.2 47.4A21 21 0 0 1 15 42.8l6.2-3.2a14.1 14.1 0 0 0 19.5 3z" fill="#b98228"/>
+
+  <!-- Central golden enhancement core. -->
+  <path d="m32 17.8 12.3 7.1v14.2L32 46.2l-12.3-7.1V24.9z" fill="#e5ad36"/>
+  <path d="m32 17.8 12.3 7.1L32 29.7l-12.3-4.8z" fill="#ffdc73"/>
+  <path d="m19.7 24.9 12.3 4.8v16.5l-12.3-7.1z" fill="#c98a24"/>
+  <path d="m44.3 24.9-12.3 4.8v16.5l12.3-7.1z" fill="#eab642"/>
+
+  <!-- A compact success spark that remains legible at favicon size. -->
+  <path d="M46.8 9.6c.5 3.1 2.1 4.7 5.2 5.2-3.1.5-4.7 2.1-5.2 5.2-.5-3.1-2.1-4.7-5.2-5.2 3.1-.5 4.7-2.1 5.2-5.2z" fill="#fff1b2"/>
+</svg>
