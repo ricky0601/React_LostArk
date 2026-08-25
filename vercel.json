@@ -14,6 +14,7 @@
     { "source": "/market", "destination": "/market/index.html" },
     { "source": "/spending", "destination": "/spending/index.html" },
     { "source": "/changelog", "destination": "/changelog/index.html" },
+    { "source": "/policy", "destination": "/policy/index.html" },
     { "source": "/:path*", "destination": "/404.html" }
   ]
 }
