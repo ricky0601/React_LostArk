@@ -57,9 +57,12 @@ const DEFAULT_ACTION_IDS = QUICK_ACTIONS.map((action) => action.to);
 const DEFAULT_VISIBLE_IDS = ['/simulation', '/enhancement', '/spec-simulator', '/market'];
 const ACTIONS_BY_ID = new Map<string, QuickAction>(QUICK_ACTIONS.map((action) => [action.to, action]));
 const TOUCH_LONG_PRESS_DELAY_MS = 350;
-const TOUCH_SCROLL_THRESHOLD_PX = 8;
-const EDGE_SCROLL_ZONE_PX = 72;
-const MAX_EDGE_SCROLL_PX = 14;
+const TOUCH_SCROLL_CANCEL_THRESHOLD_PX = 8;
+const TOUCH_DRAG_START_THRESHOLD_PX = 12;
+const EDGE_SCROLL_ZONE_PX = 64;
+const EDGE_SCROLL_DWELL_MS = 250;
+const MAX_EDGE_SCROLL_PX = 6;
+const REORDER_COOLDOWN_MS = 120;
 
 const CardContents: React.FC<{ readonly action: QuickAction }> = ({ action }) => (
   <>
@@ -90,12 +93,15 @@ const QuickMenu: React.FC = () => {
   const draggedIdRef = useRef<string | null>(null);
   const dragTargetIdRef = useRef<string | null>(null);
   const touchPointerIdRef = useRef<number | null>(null);
-  const touchStartYRef = useRef<number | null>(null);
-  const touchLastYRef = useRef<number | null>(null);
-  const touchScrollingRef = useRef(false);
+  const touchCandidateIdRef = useRef<string | null>(null);
+  const touchStartPointRef = useRef<{ x: number; y: number } | null>(null);
+  const touchLongPressReadyRef = useRef(false);
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dragPointerRef = useRef<{ x: number; y: number } | null>(null);
   const autoScrollFrameRef = useRef<number | null>(null);
+  const edgeScrollDirectionRef = useRef<-1 | 0 | 1>(0);
+  const edgeScrollEnteredAtRef = useRef<number | null>(null);
+  const lastReorderAtRef = useRef(Number.NEGATIVE_INFINITY);
   const visibleSet = new Set(menuState.visibleIds);
 
   const updateMenuState = (updater: (current: QuickMenuState) => QuickMenuState) => {
@@ -139,20 +145,25 @@ const QuickMenu: React.FC = () => {
   };
 
   const stopAutoScroll = () => {
-    if (autoScrollFrameRef.current === null) return;
-    cancelAnimationFrame(autoScrollFrameRef.current);
+    if (autoScrollFrameRef.current !== null) cancelAnimationFrame(autoScrollFrameRef.current);
     autoScrollFrameRef.current = null;
+    edgeScrollDirectionRef.current = 0;
+    edgeScrollEnteredAtRef.current = null;
+  };
+
+  const resetTouchCandidate = () => {
+    clearLongPressTimer();
+    touchPointerIdRef.current = null;
+    touchCandidateIdRef.current = null;
+    touchStartPointRef.current = null;
+    touchLongPressReadyRef.current = false;
   };
 
   const stopDragging = () => {
-    clearLongPressTimer();
+    resetTouchCandidate();
     stopAutoScroll();
     draggedIdRef.current = null;
     dragTargetIdRef.current = null;
-    touchPointerIdRef.current = null;
-    touchStartYRef.current = null;
-    touchLastYRef.current = null;
-    touchScrollingRef.current = false;
     dragPointerRef.current = null;
     setDraggedId(null);
   };
@@ -163,10 +174,42 @@ const QuickMenu: React.FC = () => {
 
     const target = document.elementFromPoint(clientX, clientY)?.closest<HTMLElement>('[data-quick-menu-id]');
     const targetId = target?.dataset.quickMenuId;
-    if (!targetId || targetId === dragTargetIdRef.current) return;
+    if (!targetId) return;
+    if (targetId === movingId) {
+      dragTargetIdRef.current = movingId;
+      return;
+    }
+    if (targetId === dragTargetIdRef.current) return;
+
+    const now = performance.now();
+    if (now - lastReorderAtRef.current < REORDER_COOLDOWN_MS) return;
+
+    const currentOrder = menuStateRef.current.order;
+    const movingIndex = currentOrder.indexOf(movingId);
+    const targetIndex = currentOrder.indexOf(targetId);
+    if (movingIndex < 0 || targetIndex < 0) return;
+
+    const movingElement = Array.from(document.querySelectorAll<HTMLElement>('[data-quick-menu-id]'))
+      .find((element) => element.dataset.quickMenuId === movingId);
+    if (!movingElement) return;
+
+    const movingRect = movingElement.getBoundingClientRect();
+    const targetRect = target.getBoundingClientRect();
+    const sameRow = Math.abs(movingRect.top - targetRect.top)
+      < Math.min(movingRect.height, targetRect.height) / 2;
+    const movingForward = movingIndex < targetIndex;
+    const crossedTargetCenter = sameRow
+      ? (movingForward
+        ? clientX >= targetRect.left + targetRect.width / 2
+        : clientX <= targetRect.left + targetRect.width / 2)
+      : (movingForward
+        ? clientY >= targetRect.top + targetRect.height / 2
+        : clientY <= targetRect.top + targetRect.height / 2);
+    if (!crossedTargetCenter) return;
 
     dragTargetIdRef.current = targetId;
-    if (targetId !== movingId) moveTo(movingId, targetId);
+    lastReorderAtRef.current = now;
+    moveTo(movingId, targetId);
   };
 
   const runAutoScroll = () => {
@@ -176,23 +219,31 @@ const QuickMenu: React.FC = () => {
       return;
     }
 
-    let scrollDelta = 0;
-    if (point.y < EDGE_SCROLL_ZONE_PX) {
-      scrollDelta = -Math.ceil(
-        MAX_EDGE_SCROLL_PX * (EDGE_SCROLL_ZONE_PX - point.y) / EDGE_SCROLL_ZONE_PX,
-      );
-    } else if (point.y > window.innerHeight - EDGE_SCROLL_ZONE_PX) {
-      scrollDelta = Math.ceil(
-        MAX_EDGE_SCROLL_PX
-          * (point.y - (window.innerHeight - EDGE_SCROLL_ZONE_PX))
-          / EDGE_SCROLL_ZONE_PX,
-      );
-    }
+    const direction: -1 | 0 | 1 = point.y < EDGE_SCROLL_ZONE_PX
+      ? -1
+      : point.y > window.innerHeight - EDGE_SCROLL_ZONE_PX ? 1 : 0;
+    const now = performance.now();
 
-    if (scrollDelta !== 0) {
-      window.scrollBy(0, scrollDelta);
+    if (direction === 0) {
+      edgeScrollDirectionRef.current = 0;
+      edgeScrollEnteredAtRef.current = null;
+    } else if (direction !== edgeScrollDirectionRef.current) {
+      edgeScrollDirectionRef.current = direction;
+      edgeScrollEnteredAtRef.current = now;
+    } else if (
+      edgeScrollEnteredAtRef.current !== null
+      && now - edgeScrollEnteredAtRef.current >= EDGE_SCROLL_DWELL_MS
+    ) {
+      const edgeDistance = direction < 0
+        ? EDGE_SCROLL_ZONE_PX - point.y
+        : point.y - (window.innerHeight - EDGE_SCROLL_ZONE_PX);
+      const speed = Math.max(1, Math.ceil(
+        MAX_EDGE_SCROLL_PX * Math.min(1, edgeDistance / EDGE_SCROLL_ZONE_PX),
+      ));
+      window.scrollBy(0, direction * speed);
       updateDragTarget(point.x, point.y);
     }
+
     autoScrollFrameRef.current = requestAnimationFrame(runAutoScroll);
   };
 
@@ -201,6 +252,7 @@ const QuickMenu: React.FC = () => {
     draggedIdRef.current = id;
     dragTargetIdRef.current = id;
     dragPointerRef.current = { x: clientX, y: clientY };
+    lastReorderAtRef.current = Number.NEGATIVE_INFINITY;
     setDraggedId(id);
     if (autoScrollFrameRef.current === null) {
       autoScrollFrameRef.current = requestAnimationFrame(runAutoScroll);
@@ -210,36 +262,41 @@ const QuickMenu: React.FC = () => {
   const handlePointerDown = (event: React.PointerEvent<HTMLElement>, id: string) => {
     if (event.button !== 0 || (event.target as Element).closest('button')) return;
 
-    event.preventDefault();
-    event.currentTarget.setPointerCapture?.(event.pointerId);
     if (event.pointerType !== 'touch') {
+      event.preventDefault();
+      event.currentTarget.setPointerCapture?.(event.pointerId);
       beginDragging(id, event.clientX, event.clientY);
       return;
     }
 
-    touchPointerIdRef.current = event.pointerId;
-    touchStartYRef.current = event.clientY;
-    touchLastYRef.current = event.clientY;
-    touchScrollingRef.current = false;
+    const pointerId = event.pointerId;
+    touchPointerIdRef.current = pointerId;
+    touchCandidateIdRef.current = id;
+    touchStartPointRef.current = { x: event.clientX, y: event.clientY };
+    touchLongPressReadyRef.current = false;
     longPressTimerRef.current = setTimeout(() => {
-      if (touchPointerIdRef.current !== event.pointerId || touchScrollingRef.current) return;
-      beginDragging(id, event.clientX, event.clientY);
+      if (touchPointerIdRef.current !== pointerId) return;
+      longPressTimerRef.current = null;
+      touchLongPressReadyRef.current = true;
     }, TOUCH_LONG_PRESS_DELAY_MS);
   };
 
   const handlePointerMove = (event: React.PointerEvent<HTMLElement>) => {
     if (touchPointerIdRef.current === event.pointerId && !draggedIdRef.current) {
-      const startY = touchStartYRef.current ?? event.clientY;
-      const previousY = touchLastYRef.current ?? event.clientY;
-      if (Math.abs(event.clientY - startY) > TOUCH_SCROLL_THRESHOLD_PX) {
-        clearLongPressTimer();
-        touchScrollingRef.current = true;
+      const startPoint = touchStartPointRef.current;
+      const candidateId = touchCandidateIdRef.current;
+      if (!startPoint || !candidateId) return;
+
+      const distance = Math.hypot(event.clientX - startPoint.x, event.clientY - startPoint.y);
+      if (!touchLongPressReadyRef.current) {
+        if (distance > TOUCH_SCROLL_CANCEL_THRESHOLD_PX) resetTouchCandidate();
+        return;
       }
-      if (touchScrollingRef.current) {
-        event.preventDefault();
-        window.scrollBy(0, previousY - event.clientY);
-      }
-      touchLastYRef.current = event.clientY;
+      if (distance < TOUCH_DRAG_START_THRESHOLD_PX) return;
+
+      event.preventDefault();
+      beginDragging(candidateId, event.clientX, event.clientY);
+      updateDragTarget(event.clientX, event.clientY);
       return;
     }
 
@@ -249,9 +306,17 @@ const QuickMenu: React.FC = () => {
     updateDragTarget(event.clientX, event.clientY);
   };
 
-  useEffect(() => () => {
-    if (longPressTimerRef.current !== null) clearTimeout(longPressTimerRef.current);
-    if (autoScrollFrameRef.current !== null) cancelAnimationFrame(autoScrollFrameRef.current);
+  useEffect(() => {
+    const preventNativeScrollWhileDragging = (event: TouchEvent) => {
+      if (touchLongPressReadyRef.current || draggedIdRef.current) event.preventDefault();
+    };
+
+    document.addEventListener('touchmove', preventNativeScrollWhileDragging, { passive: false });
+    return () => {
+      document.removeEventListener('touchmove', preventNativeScrollWhileDragging);
+      if (longPressTimerRef.current !== null) clearTimeout(longPressTimerRef.current);
+      if (autoScrollFrameRef.current !== null) cancelAnimationFrame(autoScrollFrameRef.current);
+    };
   }, []);
 
   const handleReset = () => {
@@ -331,7 +396,7 @@ const QuickMenu: React.FC = () => {
                 moveBy(id, event.key === 'ArrowLeft' ? -1 : 1);
               }}
               onPointerDown={(event) => handlePointerDown(event, id)}
-              className={`${cardClassName} relative cursor-grab touch-none select-none border-dashed pr-14 focus:outline-none focus:ring-2 focus:ring-la-gold active:cursor-grabbing ${
+              className={`${cardClassName} relative cursor-grab select-none border-dashed pr-14 focus:outline-none focus:ring-2 focus:ring-la-gold active:cursor-grabbing ${draggedId === id ? 'touch-none' : 'touch-pan-y'} ${
                 isVisible
                   ? 'border-la-gold/50'
                   : 'border-gray-300 opacity-55 grayscale dark:border-gray-600'

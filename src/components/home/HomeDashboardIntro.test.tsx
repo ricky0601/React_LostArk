@@ -119,11 +119,12 @@ describe('HomeDashboardIntro', () => {
     expect(readStoredState().visibleIds.slice(0, 2)).toEqual(['/enhancement', '/simulation']);
   });
 
-  it('scrolls the page instead of dragging when a touch moves before the long press', () => {
+  it('leaves touch scrolling to the browser when movement starts before the long press', () => {
     renderIntro();
     userEvent.click(screen.getByRole('button', { name: '순서 편집' }));
     const sourceCard = screen.getByRole('group', { name: '주간 골드 계산, 노출, 순서 편집' });
     const scrollBy = vi.spyOn(window, 'scrollBy').mockImplementation(() => {});
+    expect(sourceCard).toHaveClass('touch-pan-y');
 
     fireEvent.pointerDown(sourceCard, {
       button: 0, pointerId: 2, pointerType: 'touch', clientX: 10, clientY: 300,
@@ -134,7 +135,7 @@ describe('HomeDashboardIntro', () => {
     });
     fireEvent.pointerUp(editMenu, { pointerId: 2, pointerType: 'touch' });
 
-    expect(scrollBy).toHaveBeenCalledWith(0, 40);
+    expect(scrollBy).not.toHaveBeenCalled();
     expect(renderedTitles().slice(0, 2)).toEqual(['주간 골드 계산', '재련 계산']);
   });
 
@@ -159,13 +160,14 @@ describe('HomeDashboardIntro', () => {
     fireEvent.pointerMove(editMenu, {
       pointerId: 3, pointerType: 'touch', clientX: 10, clientY: 320,
     });
+    expect(sourceCard).toHaveClass('touch-none');
     fireEvent.pointerUp(editMenu, { pointerId: 3, pointerType: 'touch' });
 
     expect(renderedTitles().slice(0, 2)).toEqual(['재련 계산', '주간 골드 계산']);
     expect(readStoredState().visibleIds.slice(0, 2)).toEqual(['/enhancement', '/simulation']);
   });
 
-  it('auto-scrolls while a dragged touch stays near the viewport edge', () => {
+  it('waits before auto-scrolling a dragged touch near the viewport edge', () => {
     renderIntro();
     userEvent.click(screen.getByRole('button', { name: '순서 편집' }));
     vi.useFakeTimers();
@@ -181,15 +183,24 @@ describe('HomeDashboardIntro', () => {
       pointerId: 4,
       pointerType: 'touch',
       clientX: 10,
+      clientY: window.innerHeight - 30,
+    });
+    act(() => vi.advanceTimersByTime(350));
+    expect(scrollBy).not.toHaveBeenCalled();
+
+    const editMenu = screen.getByRole('navigation', { name: '빠른 메뉴 편집' });
+    fireEvent.pointerMove(editMenu, {
+      pointerId: 4,
+      pointerType: 'touch',
+      clientX: 10,
       clientY: window.innerHeight - 1,
     });
-    act(() => vi.advanceTimersByTime(370));
-    fireEvent.pointerUp(
-      screen.getByRole('navigation', { name: '빠른 메뉴 편집' }),
-      { pointerId: 4, pointerType: 'touch' },
-    );
+    act(() => vi.advanceTimersByTime(240));
+    expect(scrollBy).not.toHaveBeenCalled();
 
-    expect(scrollBy).toHaveBeenCalledWith(0, expect.any(Number));
+    act(() => vi.advanceTimersByTime(40));
+    fireEvent.pointerUp(editMenu, { pointerId: 4, pointerType: 'touch' });
+
     expect(scrollBy.mock.calls.some(([, y]) => Number(y) > 0)).toBe(true);
   });
 
