@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import {
@@ -56,6 +56,10 @@ type QuickAction = (typeof QUICK_ACTIONS)[number];
 const DEFAULT_ACTION_IDS = QUICK_ACTIONS.map((action) => action.to);
 const DEFAULT_VISIBLE_IDS = ['/simulation', '/enhancement', '/spec-simulator', '/market'];
 const ACTIONS_BY_ID = new Map<string, QuickAction>(QUICK_ACTIONS.map((action) => [action.to, action]));
+const TOUCH_LONG_PRESS_DELAY_MS = 350;
+const TOUCH_SCROLL_THRESHOLD_PX = 8;
+const EDGE_SCROLL_ZONE_PX = 72;
+const MAX_EDGE_SCROLL_PX = 14;
 
 const CardContents: React.FC<{ readonly action: QuickAction }> = ({ action }) => (
   <>
@@ -82,16 +86,25 @@ const QuickMenu: React.FC = () => {
     readQuickMenuState(DEFAULT_ACTION_IDS, DEFAULT_VISIBLE_IDS));
   const [isEditing, setIsEditing] = useState(false);
   const [draggedId, setDraggedId] = useState<string | null>(null);
+  const menuStateRef = useRef(menuState);
   const draggedIdRef = useRef<string | null>(null);
   const dragTargetIdRef = useRef<string | null>(null);
+  const touchPointerIdRef = useRef<number | null>(null);
+  const touchStartYRef = useRef<number | null>(null);
+  const touchLastYRef = useRef<number | null>(null);
+  const touchScrollingRef = useRef(false);
+  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const dragPointerRef = useRef<{ x: number; y: number } | null>(null);
+  const autoScrollFrameRef = useRef<number | null>(null);
   const visibleSet = new Set(menuState.visibleIds);
 
   const updateMenuState = (updater: (current: QuickMenuState) => QuickMenuState) => {
-    setMenuState((current) => {
-      const next = updater(current);
-      saveQuickMenuState(next);
-      return next;
-    });
+    const next = updater(menuStateRef.current);
+    if (next === menuStateRef.current) return;
+
+    menuStateRef.current = next;
+    setMenuState(next);
+    saveQuickMenuState(next);
   };
 
   const moveTo = (movingId: string, targetId: string) => {
@@ -104,8 +117,9 @@ const QuickMenu: React.FC = () => {
   };
 
   const moveBy = (id: string, offset: -1 | 1) => {
-    const currentIndex = menuState.order.indexOf(id);
-    const targetId = menuState.order[currentIndex + offset];
+    const currentOrder = menuStateRef.current.order;
+    const currentIndex = currentOrder.indexOf(id);
+    const targetId = currentOrder[currentIndex + offset];
     if (targetId) moveTo(id, targetId);
   };
 
@@ -118,17 +132,36 @@ const QuickMenu: React.FC = () => {
     });
   };
 
+  const clearLongPressTimer = () => {
+    if (longPressTimerRef.current === null) return;
+    clearTimeout(longPressTimerRef.current);
+    longPressTimerRef.current = null;
+  };
+
+  const stopAutoScroll = () => {
+    if (autoScrollFrameRef.current === null) return;
+    cancelAnimationFrame(autoScrollFrameRef.current);
+    autoScrollFrameRef.current = null;
+  };
+
   const stopDragging = () => {
+    clearLongPressTimer();
+    stopAutoScroll();
     draggedIdRef.current = null;
     dragTargetIdRef.current = null;
+    touchPointerIdRef.current = null;
+    touchStartYRef.current = null;
+    touchLastYRef.current = null;
+    touchScrollingRef.current = false;
+    dragPointerRef.current = null;
     setDraggedId(null);
   };
 
-  const handlePointerMove = (event: React.PointerEvent<HTMLElement>) => {
+  const updateDragTarget = (clientX: number, clientY: number) => {
     const movingId = draggedIdRef.current;
     if (!movingId) return;
 
-    const target = document.elementFromPoint(event.clientX, event.clientY)?.closest<HTMLElement>('[data-quick-menu-id]');
+    const target = document.elementFromPoint(clientX, clientY)?.closest<HTMLElement>('[data-quick-menu-id]');
     const targetId = target?.dataset.quickMenuId;
     if (!targetId || targetId === dragTargetIdRef.current) return;
 
@@ -136,9 +169,99 @@ const QuickMenu: React.FC = () => {
     if (targetId !== movingId) moveTo(movingId, targetId);
   };
 
+  const runAutoScroll = () => {
+    const point = dragPointerRef.current;
+    if (!point || !draggedIdRef.current) {
+      autoScrollFrameRef.current = null;
+      return;
+    }
+
+    let scrollDelta = 0;
+    if (point.y < EDGE_SCROLL_ZONE_PX) {
+      scrollDelta = -Math.ceil(
+        MAX_EDGE_SCROLL_PX * (EDGE_SCROLL_ZONE_PX - point.y) / EDGE_SCROLL_ZONE_PX,
+      );
+    } else if (point.y > window.innerHeight - EDGE_SCROLL_ZONE_PX) {
+      scrollDelta = Math.ceil(
+        MAX_EDGE_SCROLL_PX
+          * (point.y - (window.innerHeight - EDGE_SCROLL_ZONE_PX))
+          / EDGE_SCROLL_ZONE_PX,
+      );
+    }
+
+    if (scrollDelta !== 0) {
+      window.scrollBy(0, scrollDelta);
+      updateDragTarget(point.x, point.y);
+    }
+    autoScrollFrameRef.current = requestAnimationFrame(runAutoScroll);
+  };
+
+  const beginDragging = (id: string, clientX: number, clientY: number) => {
+    clearLongPressTimer();
+    draggedIdRef.current = id;
+    dragTargetIdRef.current = id;
+    dragPointerRef.current = { x: clientX, y: clientY };
+    setDraggedId(id);
+    if (autoScrollFrameRef.current === null) {
+      autoScrollFrameRef.current = requestAnimationFrame(runAutoScroll);
+    }
+  };
+
+  const handlePointerDown = (event: React.PointerEvent<HTMLElement>, id: string) => {
+    if (event.button !== 0 || (event.target as Element).closest('button')) return;
+
+    event.preventDefault();
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+    if (event.pointerType !== 'touch') {
+      beginDragging(id, event.clientX, event.clientY);
+      return;
+    }
+
+    touchPointerIdRef.current = event.pointerId;
+    touchStartYRef.current = event.clientY;
+    touchLastYRef.current = event.clientY;
+    touchScrollingRef.current = false;
+    longPressTimerRef.current = setTimeout(() => {
+      if (touchPointerIdRef.current !== event.pointerId || touchScrollingRef.current) return;
+      beginDragging(id, event.clientX, event.clientY);
+    }, TOUCH_LONG_PRESS_DELAY_MS);
+  };
+
+  const handlePointerMove = (event: React.PointerEvent<HTMLElement>) => {
+    if (touchPointerIdRef.current === event.pointerId && !draggedIdRef.current) {
+      const startY = touchStartYRef.current ?? event.clientY;
+      const previousY = touchLastYRef.current ?? event.clientY;
+      if (Math.abs(event.clientY - startY) > TOUCH_SCROLL_THRESHOLD_PX) {
+        clearLongPressTimer();
+        touchScrollingRef.current = true;
+      }
+      if (touchScrollingRef.current) {
+        event.preventDefault();
+        window.scrollBy(0, previousY - event.clientY);
+      }
+      touchLastYRef.current = event.clientY;
+      return;
+    }
+
+    if (!draggedIdRef.current) return;
+    event.preventDefault();
+    dragPointerRef.current = { x: event.clientX, y: event.clientY };
+    updateDragTarget(event.clientX, event.clientY);
+  };
+
+  useEffect(() => () => {
+    if (longPressTimerRef.current !== null) clearTimeout(longPressTimerRef.current);
+    if (autoScrollFrameRef.current !== null) cancelAnimationFrame(autoScrollFrameRef.current);
+  }, []);
+
   const handleReset = () => {
+    const next: QuickMenuState = {
+      order: [...DEFAULT_ACTION_IDS],
+      visibleIds: [...DEFAULT_VISIBLE_IDS],
+    };
     resetQuickMenuState();
-    setMenuState({ order: [...DEFAULT_ACTION_IDS], visibleIds: [...DEFAULT_VISIBLE_IDS] });
+    menuStateRef.current = next;
+    setMenuState(next);
     stopDragging();
   };
 
@@ -158,7 +281,7 @@ const QuickMenu: React.FC = () => {
           <h2 id="home-quick-menu-title" className="text-xl font-bold text-gray-900 dark:text-white">빠른 메뉴</h2>
           <p id="quick-menu-edit-instructions" className="mt-1 break-keep text-sm text-gray-500 dark:text-gray-400">
             {isEditing
-              ? '눈 아이콘으로 노출 여부를 정하고, 카드 전체를 드래그해 순서를 바꾸세요. 키보드는 Alt와 좌우 방향키를 사용합니다.'
+              ? '눈 아이콘으로 노출 여부를 정하고, 카드 전체를 드래그해 순서를 바꾸세요. 터치는 카드를 길게 누른 뒤 이동하고, 키보드는 Alt와 좌우 방향키를 사용합니다.'
               : '선택한 성장 도구로 바로 이동합니다.'}
           </p>
         </div>
@@ -207,14 +330,7 @@ const QuickMenu: React.FC = () => {
                 event.preventDefault();
                 moveBy(id, event.key === 'ArrowLeft' ? -1 : 1);
               }}
-              onPointerDown={(event) => {
-                if (event.button !== 0 || (event.target as Element).closest('button')) return;
-                event.preventDefault();
-                event.currentTarget.setPointerCapture?.(event.pointerId);
-                draggedIdRef.current = id;
-                dragTargetIdRef.current = id;
-                setDraggedId(id);
-              }}
+              onPointerDown={(event) => handlePointerDown(event, id)}
               className={`${cardClassName} relative cursor-grab touch-none select-none border-dashed pr-14 focus:outline-none focus:ring-2 focus:ring-la-gold active:cursor-grabbing ${
                 isVisible
                   ? 'border-la-gold/50'

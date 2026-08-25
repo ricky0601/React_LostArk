@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 
@@ -39,6 +39,8 @@ describe('HomeDashboardIntro', () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
     Reflect.deleteProperty(document, 'elementFromPoint');
   });
 
@@ -98,7 +100,7 @@ describe('HomeDashboardIntro', () => {
     ]);
   });
 
-  it.each(['mouse', 'touch'] as const)('drags the card itself with a %s pointer', (pointerType) => {
+  it('drags the card itself with a mouse pointer', () => {
     renderIntro();
     userEvent.click(screen.getByRole('button', { name: '순서 편집' }));
     const sourceCard = screen.getByRole('group', { name: '주간 골드 계산, 노출, 순서 편집' });
@@ -108,14 +110,87 @@ describe('HomeDashboardIntro', () => {
       value: vi.fn().mockReturnValue(targetCard),
     });
 
-    fireEvent.pointerDown(sourceCard, { button: 0, pointerId: 1, pointerType });
+    fireEvent.pointerDown(sourceCard, { button: 0, pointerId: 1, pointerType: 'mouse' });
     const editMenu = screen.getByRole('navigation', { name: '빠른 메뉴 편집' });
-    fireEvent.pointerMove(editMenu, { clientX: 10, clientY: 10, pointerType });
-    fireEvent.pointerMove(editMenu, { clientX: 10, clientY: 10, pointerType });
-    fireEvent.pointerUp(editMenu);
+    fireEvent.pointerMove(editMenu, { clientX: 10, clientY: 10, pointerId: 1, pointerType: 'mouse' });
+    fireEvent.pointerUp(editMenu, { pointerId: 1, pointerType: 'mouse' });
 
     expect(renderedTitles().slice(0, 2)).toEqual(['재련 계산', '주간 골드 계산']);
     expect(readStoredState().visibleIds.slice(0, 2)).toEqual(['/enhancement', '/simulation']);
+  });
+
+  it('scrolls the page instead of dragging when a touch moves before the long press', () => {
+    renderIntro();
+    userEvent.click(screen.getByRole('button', { name: '순서 편집' }));
+    const sourceCard = screen.getByRole('group', { name: '주간 골드 계산, 노출, 순서 편집' });
+    const scrollBy = vi.spyOn(window, 'scrollBy').mockImplementation(() => {});
+
+    fireEvent.pointerDown(sourceCard, {
+      button: 0, pointerId: 2, pointerType: 'touch', clientX: 10, clientY: 300,
+    });
+    const editMenu = screen.getByRole('navigation', { name: '빠른 메뉴 편집' });
+    fireEvent.pointerMove(editMenu, {
+      pointerId: 2, pointerType: 'touch', clientX: 10, clientY: 260,
+    });
+    fireEvent.pointerUp(editMenu, { pointerId: 2, pointerType: 'touch' });
+
+    expect(scrollBy).toHaveBeenCalledWith(0, 40);
+    expect(renderedTitles().slice(0, 2)).toEqual(['주간 골드 계산', '재련 계산']);
+  });
+
+  it('starts touch dragging after a long press', () => {
+    renderIntro();
+    userEvent.click(screen.getByRole('button', { name: '순서 편집' }));
+    vi.useFakeTimers();
+    const sourceCard = screen.getByRole('group', { name: '주간 골드 계산, 노출, 순서 편집' });
+    const targetCard = screen.getByRole('group', { name: '재련 계산, 노출, 순서 편집' });
+    const elementFromPoint = vi.fn().mockReturnValue(sourceCard);
+    Object.defineProperty(document, 'elementFromPoint', {
+      configurable: true,
+      value: elementFromPoint,
+    });
+
+    fireEvent.pointerDown(sourceCard, {
+      button: 0, pointerId: 3, pointerType: 'touch', clientX: 10, clientY: 300,
+    });
+    act(() => vi.advanceTimersByTime(350));
+    elementFromPoint.mockReturnValue(targetCard);
+    const editMenu = screen.getByRole('navigation', { name: '빠른 메뉴 편집' });
+    fireEvent.pointerMove(editMenu, {
+      pointerId: 3, pointerType: 'touch', clientX: 10, clientY: 320,
+    });
+    fireEvent.pointerUp(editMenu, { pointerId: 3, pointerType: 'touch' });
+
+    expect(renderedTitles().slice(0, 2)).toEqual(['재련 계산', '주간 골드 계산']);
+    expect(readStoredState().visibleIds.slice(0, 2)).toEqual(['/enhancement', '/simulation']);
+  });
+
+  it('auto-scrolls while a dragged touch stays near the viewport edge', () => {
+    renderIntro();
+    userEvent.click(screen.getByRole('button', { name: '순서 편집' }));
+    vi.useFakeTimers();
+    const sourceCard = screen.getByRole('group', { name: '주간 골드 계산, 노출, 순서 편집' });
+    const scrollBy = vi.spyOn(window, 'scrollBy').mockImplementation(() => {});
+    Object.defineProperty(document, 'elementFromPoint', {
+      configurable: true,
+      value: vi.fn().mockReturnValue(sourceCard),
+    });
+
+    fireEvent.pointerDown(sourceCard, {
+      button: 0,
+      pointerId: 4,
+      pointerType: 'touch',
+      clientX: 10,
+      clientY: window.innerHeight - 1,
+    });
+    act(() => vi.advanceTimersByTime(370));
+    fireEvent.pointerUp(
+      screen.getByRole('navigation', { name: '빠른 메뉴 편집' }),
+      { pointerId: 4, pointerType: 'touch' },
+    );
+
+    expect(scrollBy).toHaveBeenCalledWith(0, expect.any(Number));
+    expect(scrollBy.mock.calls.some(([, y]) => Number(y) > 0)).toBe(true);
   });
 
   it('supports keyboard ordering without rendering arrow buttons', () => {
