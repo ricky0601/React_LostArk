@@ -86,5 +86,13 @@
     "robots": "index, follow",
     "lastmod": "2026-08-18",
     "priority": "0.6"
+  },
+  {
+    "path": "/policy",
+    "title": "개인정보처리방침 - 로아끼욧",
+    "description": "로아끼욧의 개인정보 처리 항목, 이용 목적, 보관 기준과 이용자 권리를 확인하세요.",
+    "robots": "index, follow",
+    "lastmod": "2026-08-25",
+    "priority": "0.3"
   }
 ]

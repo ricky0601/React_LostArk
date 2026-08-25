@@ -1,5 +1,6 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import Footer from './components/Footer';
 import { LoadingIndicator } from './components/Loading';
 import { RouteSeo } from './components/RouteSeo';
 import { ROUTES } from './utils/routes';
@@ -16,6 +17,7 @@ const Enhancement = React.lazy(() => import(/* webpackChunkName: "route-enhancem
 const Spending = React.lazy(() => import(/* webpackChunkName: "route-spending" */ './pages/Spending'));
 const Market = React.lazy(() => import(/* webpackChunkName: "route-market" */ './pages/Market'));
 const Changelog = React.lazy(() => import(/* webpackChunkName: "route-changelog" */ './pages/Changelog'));
+const Policy = React.lazy(() => import(/* webpackChunkName: "route-policy" */ './pages/Policy'));
 const NotFound = React.lazy(() => import(/* webpackChunkName: "route-not-found" */ './pages/NotFound'));
 
 const ChunkErrorBanner: React.FC = () => {
@@ -46,31 +48,35 @@ const ChunkErrorBanner: React.FC = () => {
 const AppContent: React.FC = () => {
   return (
     <Router>
-      <div className="min-h-screen font-[Pretendard,sans-serif] bg-gray-50 dark:bg-la-dark transition-colors duration-300">
+      <div className="flex min-h-screen flex-col bg-gray-50 font-[Pretendard,sans-serif] transition-colors duration-300 dark:bg-la-dark">
         <RouteSeo />
         <ChunkErrorBanner />
-        <React.Suspense
-          fallback={
-            <LoadingIndicator
-              message="페이지 불러오는 중..."
-              className="mx-auto mt-8 max-w-7xl"
-            />
-          }
-        >
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/character" element={<Character />} />
-            <Route path="/simulation" element={<Simulation />} />
-            <Route path="/spec-simulator" element={<SpecSimulator />} />
-            <Route path="/expedition" element={<Expedition />} />
-            <Route path="/compare" element={<Compare />} />
-            <Route path="/enhancement" element={<Enhancement />} />
-            <Route path="/market" element={<Market />} />
-            <Route path="/spending" element={<Spending />} />
-            <Route path={ROUTES.changelog} element={<Changelog />} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </React.Suspense>
+        <div className="flex flex-1 flex-col [&>div]:min-h-0 [&>div]:flex-1">
+          <React.Suspense
+            fallback={
+              <LoadingIndicator
+                message="페이지 불러오는 중..."
+                className="mx-auto mt-8 max-w-7xl"
+              />
+            }
+          >
+            <Routes>
+              <Route path="/" element={<Home />} />
+              <Route path="/character" element={<Character />} />
+              <Route path="/simulation" element={<Simulation />} />
+              <Route path="/spec-simulator" element={<SpecSimulator />} />
+              <Route path="/expedition" element={<Expedition />} />
+              <Route path="/compare" element={<Compare />} />
+              <Route path="/enhancement" element={<Enhancement />} />
+              <Route path="/market" element={<Market />} />
+              <Route path="/spending" element={<Spending />} />
+              <Route path={ROUTES.changelog} element={<Changelog />} />
+              <Route path={ROUTES.policy} element={<Policy />} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </React.Suspense>
+        </div>
+        <Footer />
       </div>
     </Router>
   );
