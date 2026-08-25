@@ -4,6 +4,7 @@
 
 export const ROUTES = {
   changelog: '/changelog',
+  policy: '/policy',
 } as const;
 
 /** 뒤따르는 슬래시를 제거한 경로. 루트('/', '//')는 항상 '/'로 수렴한다. */
