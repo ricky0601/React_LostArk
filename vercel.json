@@ -5,6 +5,7 @@
   "outputDirectory": "build",
   "rewrites": [
     { "source": "/api/lostark/:path*", "destination": "/api/lostark/[...]" },
+    { "source": "/api/material-icon/:path*", "destination": "https://cdn-lostark.game.onstove.com/:path*" },
     { "source": "/character", "destination": "/character/index.html" },
     { "source": "/simulation", "destination": "/simulation/index.html" },
     { "source": "/spec-simulator", "destination": "/spec-simulator/index.html" },

@@ -1,12 +1,25 @@
 import { describe, expect, it } from 'vitest';
 import {
   createHoningObservation,
+  materialIconRequestUrl,
   parseHoningFateShardQuantity,
   parseHoningOwnedQuantity,
   parseTooltipQuantity,
   parseTooltipTitleQuantity,
   parseTopBarFateShardQuantity,
 } from './recognizeMaterialFrame';
+
+describe('materialIconRequestUrl', () => {
+  it('loads Lost Ark CDN icons through the same-origin proxy', () => {
+    expect(materialIconRequestUrl(
+      'https://cdn-lostark.game.onstove.com/efui_iconatlas/use/use_6_104.png?cache=1',
+    )).toBe('/api/material-icon/efui_iconatlas/use/use_6_104.png?cache=1');
+  });
+
+  it('does not rewrite other icon origins', () => {
+    expect(materialIconRequestUrl('https://example.com/icon.png')).toBe('https://example.com/icon.png');
+  });
+});
 
 describe('parseTooltipTitleQuantity', () => {
   it.each([
