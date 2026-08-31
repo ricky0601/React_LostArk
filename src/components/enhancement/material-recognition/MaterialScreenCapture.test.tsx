@@ -146,7 +146,7 @@ describe('MaterialScreenCapture', () => {
     expect(screen.getByRole('button', { name: '보유 재료에 적용' })).toBeDisabled();
   });
 
-  it('allows review and applies only accepted corrected results', () => {
+  it('applies corrected results and preserves a recognized zero quantity', () => {
     const onApply = vi.fn();
     mockedUseMaterialScreenCapture.mockReturnValue({
       status: 'review',
@@ -165,7 +165,7 @@ describe('MaterialScreenCapture', () => {
     fireEvent.change(screen.getByLabelText('수호석 인식 수량'), { target: { value: '1500' } });
     fireEvent.click(screen.getByRole('button', { name: '보유 재료에 적용' }));
 
-    expect(onApply).toHaveBeenCalledWith({ 수호석: 1500 });
+    expect(onApply).toHaveBeenCalledWith({ 수호석: 1500, 파괴석: 0 });
     expect(reset).toHaveBeenCalledOnce();
   });
 });

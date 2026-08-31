@@ -28,7 +28,7 @@ const MaterialScreenCapture: React.FC<MaterialScreenCaptureProps> = ({
     if (status !== 'review') return;
     setQuantities(Object.fromEntries(results.map((result) => [result.material, result.quantity])));
     setExcluded(new Set(results.filter((result) => (
-      result.quantity <= 0 || result.needsTooltip
+      result.needsTooltip
     )).map((result) => result.material)));
   }, [results, status]);
 
