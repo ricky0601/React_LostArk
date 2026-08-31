@@ -42,6 +42,7 @@ export const ADV_TARGET_OPTIONS = [10, 20, 30, 40].map((level) => ({
 
 export interface MarketConfig {
   searchName: string;
+  itemName?: string;
   itemsPerUnit?: number;
   categoryCode?: number;
   extraParams?: Record<string, unknown>;
@@ -67,7 +68,7 @@ export const MARKET_SEARCH: Record<MaterialType, MarketConfig> = {
   // 세르카 방어구
   '운명의 수호석 결정':    { searchName: '운명의 수호석 결정' },
   '위대한 운명의 돌파석':  { searchName: '위대한 운명의 돌파석' },
-  '상급 아비도스 융화':    { searchName: '상급 아비도스 융화' },
+  '상급 아비도스 융화':    { searchName: '상급 아비도스 융화', itemName: '상급 아비도스 융화 재료' },
   // 세르카 무기
   '운명의 파괴석 결정':    { searchName: '운명의 파괴석 결정' },
   // 방어구 상급 재련 책

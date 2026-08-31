@@ -1,9 +1,20 @@
-import React from 'react';
+import React, { useState } from 'react';
 import GlassCard from '../GlassCard';
 import { formatGold, formatSilver } from './enhancementModel';
 import type { EnhancementPageModel } from './useEnhancementPage';
 
-const EnhancementResultsSection: React.FC<{ model: EnhancementPageModel }> = ({ model }) => {
+interface EnhancementResultsSectionProps {
+  model: EnhancementPageModel;
+  section?: 'all' | 'summary' | 'details';
+}
+
+const EnhancementResultsSection: React.FC<EnhancementResultsSectionProps> = ({
+  model,
+  section = 'all',
+}) => {
+  const [isStepCostsOpen, setIsStepCostsOpen] = useState(true);
+  const showSummary = section !== 'details';
+  const showDetails = section !== 'summary';
   const {
     advLevelMap,
     advTargetMap,
@@ -30,7 +41,7 @@ const EnhancementResultsSection: React.FC<{ model: EnhancementPageModel }> = ({ 
         {hasAnyResult && (
           <>
             {/* ── 합산 견적 ── */}
-            <GlassCard className="p-4 border border-la-gold/20">
+            {showSummary && <GlassCard className="p-4 border border-la-gold/20">
               <h2 className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-3">
                 강화 견적 합계{hasOwnedInput && hasPrices && <span className="ml-1 font-normal text-orange-500 dark:text-orange-400">(추가 구매 기준)</span>}
               </h2>
@@ -69,11 +80,53 @@ const EnhancementResultsSection: React.FC<{ model: EnhancementPageModel }> = ({ 
                   )}
                 </div>
               </div>
-            </GlassCard>
+            </GlassCard>}
 
+            {showDetails && <>
             {/* ── 일반 재련 섹션 ── */}
             {hasResult && (
               <>
+            {/* ── 예상 총 비용 요약 ── */}
+            <GlassCard className="p-4">
+              <h2 className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-3">
+                예상 총 비용{activeSlots.length >= 2 ? ' (전체)' : ''}
+              </h2>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <div>
+                  <p className="text-xs text-gray-400 mb-0.5">총 기대 시도</p>
+                  <p className="text-xl font-bold text-gray-900 dark:text-white">
+                    {totals.exp.toFixed(1)}
+                    <span className="text-sm font-normal text-gray-400 ml-0.5">트</span>
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-400 mb-0.5">직접 골드</p>
+                  <p className="text-xl font-bold text-la-gold-dark dark:text-la-gold">
+                    {formatGold(totals.directGold)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-400 mb-0.5">
+                    {hasOwnedInput ? '추가 재료비' : '재료 비용'}
+                  </p>
+                  <p className="text-xl font-bold text-la-gold-dark dark:text-la-gold">
+                    {hasPrices ? formatGold(hasOwnedInput ? normalShortfallMatGold : totals.matGold) : '—'}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-400 mb-0.5">합계</p>
+                  <p className="text-xl font-bold text-la-gold-dark dark:text-la-gold">
+                    {hasPrices ? formatGold(totals.directGold + (hasOwnedInput ? normalShortfallMatGold : totals.matGold)) : '—'}
+                  </p>
+                  {totals.silver > 0 && (
+                    <p className="text-[11px] text-gray-400 mt-0.5">
+                      실링 {formatSilver(Math.round(totals.silver))}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </GlassCard>
+
             {/* ── 슬롯별 소계 (2개 이상 선택 시) ── */}
             {activeSlots.length >= 2 && (
               <GlassCard className="p-4">
@@ -121,50 +174,20 @@ const EnhancementResultsSection: React.FC<{ model: EnhancementPageModel }> = ({ 
               </GlassCard>
             )}
 
-            {/* ── 예상 총 비용 요약 ── */}
-            <GlassCard className="p-4">
-              <h2 className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-3">
-                예상 총 비용{activeSlots.length >= 2 ? ' (전체)' : ''}
-              </h2>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                <div>
-                  <p className="text-xs text-gray-400 mb-0.5">총 기대 시도</p>
-                  <p className="text-xl font-bold text-gray-900 dark:text-white">
-                    {totals.exp.toFixed(1)}
-                    <span className="text-sm font-normal text-gray-400 ml-0.5">트</span>
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-400 mb-0.5">직접 골드</p>
-                  <p className="text-xl font-bold text-la-gold-dark dark:text-la-gold">
-                    {formatGold(totals.directGold)}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-400 mb-0.5">
-                    {hasOwnedInput ? '추가 재료비' : '재료 비용'}
-                  </p>
-                  <p className="text-xl font-bold text-la-gold-dark dark:text-la-gold">
-                    {hasPrices ? formatGold(hasOwnedInput ? normalShortfallMatGold : totals.matGold) : '—'}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-400 mb-0.5">합계</p>
-                  <p className="text-xl font-bold text-la-gold-dark dark:text-la-gold">
-                    {hasPrices ? formatGold(totals.directGold + (hasOwnedInput ? normalShortfallMatGold : totals.matGold)) : '—'}
-                  </p>
-                  {totals.silver > 0 && (
-                    <p className="text-[11px] text-gray-400 mt-0.5">
-                      실링 {formatSilver(Math.round(totals.silver))}
-                    </p>
-                  )}
-                </div>
-              </div>
-            </GlassCard>
-
             {/* ── 단계별 테이블 ── */}
             <GlassCard className="overflow-hidden p-0">
-              <div className="overflow-x-auto">
+              <button
+                type="button"
+                onClick={() => setIsStepCostsOpen((current) => !current)}
+                aria-expanded={isStepCostsOpen}
+                className="flex w-full items-center justify-between px-4 py-3 text-left"
+              >
+                <span className="text-xs font-semibold text-gray-500 dark:text-gray-400">단계 별 비용</span>
+                <span aria-hidden="true" className="text-xs text-gray-400 dark:text-gray-500">
+                  {isStepCostsOpen ? '▲' : '▼'}
+                </span>
+              </button>
+              {isStepCostsOpen && <div className="overflow-x-auto border-t border-gray-200/50 dark:border-white/8">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-gray-200/50 dark:border-white/8">
@@ -217,7 +240,7 @@ const EnhancementResultsSection: React.FC<{ model: EnhancementPageModel }> = ({ 
                     })}
                   </tbody>
                 </table>
-              </div>
+              </div>}
             </GlassCard>
               </>
             )}
@@ -291,6 +314,7 @@ const EnhancementResultsSection: React.FC<{ model: EnhancementPageModel }> = ({ 
                 </GlassCard>
               </>
             )}
+            </>}
           </>
         )}
     </>
