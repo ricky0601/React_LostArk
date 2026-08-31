@@ -3,9 +3,18 @@
   "installCommand": "corepack enable && corepack prepare yarn@1.22.22 --activate && yarn install --frozen-lockfile",
   "buildCommand": "yarn build",
   "outputDirectory": "build",
+  "headers": [
+    {
+      "source": "/api/material-icon/:path(.*\\.png)",
+      "headers": [
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "Cache-Control", "value": "public, max-age=86400, s-maxage=604800, stale-while-revalidate=86400" }
+      ]
+    }
+  ],
   "rewrites": [
     { "source": "/api/lostark/:path*", "destination": "/api/lostark/[...]" },
-    { "source": "/api/material-icon/:path*", "destination": "https://cdn-lostark.game.onstove.com/:path*" },
+    { "source": "/api/material-icon/:path(.*\\.png)", "destination": "https://cdn-lostark.game.onstove.com/:path" },
     { "source": "/character", "destination": "/character/index.html" },
     { "source": "/simulation", "destination": "/simulation/index.html" },
     { "source": "/spec-simulator", "destination": "/spec-simulator/index.html" },
