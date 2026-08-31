@@ -177,6 +177,25 @@ describe('Enhancement armlet calculations', () => {
     chooseTarget('무기', 11);
     await screen.findByText('일반 재련 설정');
 
+    const orderedSections = [
+      screen.getByText('캐릭터 강화 현황'),
+      screen.getByText('일반 재련 설정'),
+      screen.getByText(/강화 견적 합계/),
+      screen.getByText('보유 재료 입력'),
+      screen.getByText(/예상 총 비용/),
+      screen.getByRole('button', { name: '단계 별 비용' }),
+    ];
+    orderedSections.slice(0, -1).forEach((current, index) => {
+      expect(current.compareDocumentPosition(orderedSections[index + 1]))
+        .toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    });
+
+    const stepCostsButton = screen.getByRole('button', { name: '단계 별 비용' });
+    expect(stepCostsButton).toHaveAttribute('aria-expanded', 'true');
+    fireEvent.click(stepCostsButton);
+    expect(stepCostsButton).toHaveAttribute('aria-expanded', 'false');
+    fireEvent.click(stepCostsButton);
+
     const bookOn = screen.queryByRole('button', { name: '책 ON' });
     if (bookOn) fireEvent.click(bookOn);
     const breathOff = screen.queryByRole('button', { name: '숨결 OFF' });

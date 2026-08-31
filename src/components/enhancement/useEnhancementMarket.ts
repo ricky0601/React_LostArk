@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
-import { fetchMarketItems, fetchMarketOptions } from '../../utils/api';
+import {
+  fetchMarketItems,
+  fetchMarketOptions,
+  type MarketItem,
+} from '../../utils/api';
 import {
   ALL_MATERIAL_TYPES,
   flattenCategories,
@@ -8,6 +12,11 @@ import {
   MATERIAL_CATEGORY_KEYWORD,
   type PriceMap,
 } from './enhancementModel';
+
+export const selectMarketItem = (
+  items: MarketItem[] | undefined,
+  searchName: string,
+): MarketItem | undefined => items?.find(({ Name }) => Name === searchName);
 
 export const useEnhancementMarket = () => {
   const [prices, setPrices] = useState<PriceMap>({});
@@ -31,7 +40,7 @@ export const useEnhancementMarket = () => {
           const config = MARKET_SEARCH[type];
           const categoryCode = config.categoryCode ?? findCode(MATERIAL_CATEGORY_KEYWORD[type]);
           const data = await fetchMarketItems(config.searchName, categoryCode, config.extraParams);
-          const item = data.Items?.[0];
+          const item = selectMarketItem(data.Items, config.itemName ?? config.searchName);
           if (!item) return { type, price: 0, icon: '' };
           const itemsPerUnit = config.itemsPerUnit ?? 1;
           return {

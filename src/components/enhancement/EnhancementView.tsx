@@ -12,8 +12,9 @@ const EnhancementView: React.FC<{ model: EnhancementPageModel }> = ({ model }) =
     <main className="enhancement-page max-w-4xl mx-auto px-4 py-6 space-y-5">
       <EnhancementCharacterSection model={model} />
       <EnhancementSettingsSection model={model} />
-      <EnhancementResultsSection model={model} />
+      <EnhancementResultsSection model={model} section="summary" />
       <EnhancementMaterialsSection model={model} />
+      <EnhancementResultsSection model={model} section="details" />
     </main>
   </div>
 );
