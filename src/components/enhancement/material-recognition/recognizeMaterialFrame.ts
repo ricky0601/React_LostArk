@@ -27,9 +27,9 @@ const templateCanvasCache = new Map<string, HTMLCanvasElement>();
 
 const getOpenCv = (): Promise<OpenCv> => {
   if (openCvPromise) return openCvPromise;
-  openCvPromise = import('@techstark/opencv-js').then(async (module) => {
-    const candidate = ('default' in module ? module.default : module) as unknown;
-    const cv = await Promise.resolve(candidate) as OpenCv;
+  openCvPromise = import('./opencvModule').then(async ({ default: importedModule }) => {
+    const candidate: unknown = importedModule;
+    const cv = (candidate instanceof Promise ? await candidate : candidate) as OpenCv;
     if (cv.Mat) return cv;
     await new Promise<void>((resolve) => {
       cv.onRuntimeInitialized = resolve;
@@ -63,11 +63,17 @@ const getTooltipOcrWorker = (): Promise<OcrWorker> => {
   return tooltipOcrWorkerPromise;
 };
 
+export const materialIconRequestUrl = (url: string): string => {
+  const parsed = new URL(url, window.location.origin);
+  if (parsed.origin !== 'https://cdn-lostark.game.onstove.com') return url;
+  return `/api/material-icon${parsed.pathname}${parsed.search}`;
+};
+
 const loadTemplateCanvas = async (url: string): Promise<HTMLCanvasElement> => {
   const cached = templateCanvasCache.get(url);
   if (cached) return cached;
 
-  const response = await fetch(url, { mode: 'cors', credentials: 'omit' });
+  const response = await fetch(materialIconRequestUrl(url), { credentials: 'omit' });
   if (!response.ok) throw new Error('재료 아이콘을 불러오지 못했습니다.');
   const bitmap = await createImageBitmap(await response.blob());
   const canvas = document.createElement('canvas');
