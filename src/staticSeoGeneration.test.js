@@ -37,6 +37,12 @@ afterAll(() => {
   rmSync(fixtureRoot, { recursive: true, force: true });
 });
 
+test('keeps credentials enabled for the protected deployment manifest request', () => {
+  const indexHtml = readFileSync(join(projectRoot, 'index.html'), 'utf8');
+
+  expect(indexHtml).toContain('<link rel="manifest" href="/manifest.json" crossorigin="use-credentials" />');
+});
+
 test('uses a 1200 by 630 PNG for static social metadata', () => {
   const indexHtml = readFileSync(join(projectRoot, 'index.html'), 'utf8');
   const png = readFileSync(join(projectRoot, 'public', 'og-banner.png'));
