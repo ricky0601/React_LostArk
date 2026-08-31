@@ -3,7 +3,7 @@ const ALLOWED_METHODS = new Set(['GET', 'POST']);
 const UPSTREAM_TIMEOUT_MS = 10 * 1000;
 const ALLOWED_GET_PATHS = [
   /^characters\/[^/]+\/siblings$/,
-  /^armories\/characters\/[^/]+\/(profiles|arkgrid|equipment|gems|engravings|arkpassive|cards)$/,
+  /^armories\/characters\/[^/]+\/(profiles|arkgrid|equipment|gems|engravings|arkpassive|cards|avatars)$/,
   /^news\/events$/,
   /^gamecontents\/calendar$/,
   /^markets\/options$/,

@@ -107,6 +107,31 @@ nodeDescribe('Lost Ark API proxy', () => {
     });
   });
 
+  nodeTest('allows the character avatars endpoint used by the spec simulator', async () => {
+    let capturedUrl;
+    const handler = createHandler({
+      fetchImpl: async (url) => {
+        capturedUrl = url;
+        return createUpstreamResponse({ body: '[]' });
+      },
+    });
+    const res = createResponse();
+
+    await handler(
+      createRequest({
+        query: { path: ['armories', 'characters', '한건뜬', 'avatars'] },
+      }),
+      res
+    );
+
+    assert.equal(
+      capturedUrl.toString(),
+      'https://developer-lostark.game.onstove.com/armories/characters/%ED%95%9C%EA%B1%B4%EB%9C%AC/avatars'
+    );
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.payload, '[]');
+  });
+
   nodeTest('forwards only controlled headers to an allowed upstream endpoint', async () => {
     let capturedUrl;
     let capturedOptions;
