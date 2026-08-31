@@ -40,7 +40,7 @@ export const useEnhancementMarket = () => {
           const config = MARKET_SEARCH[type];
           const categoryCode = config.categoryCode ?? findCode(MATERIAL_CATEGORY_KEYWORD[type]);
           const data = await fetchMarketItems(config.searchName, categoryCode, config.extraParams);
-          const item = selectMarketItem(data.Items, config.searchName);
+          const item = selectMarketItem(data.Items, config.itemName ?? config.searchName);
           if (!item) return { type, price: 0, icon: '' };
           const itemsPerUnit = config.itemsPerUnit ?? 1;
           return {

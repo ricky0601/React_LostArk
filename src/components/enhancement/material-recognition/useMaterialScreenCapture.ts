@@ -36,7 +36,8 @@ export const useMaterialScreenCapture = ({
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const timerRef = useRef<number | null>(null);
   const processingRef = useRef(false);
-  const finishingRef = useRef(false);
+  const sessionIdRef = useRef(0);
+  const cleanupRef = useRef<Promise<void>>(Promise.resolve());
   const iconsRef = useRef(icons);
   const targetsRef = useRef(targetMaterials);
   const confirmedMaterialsRef = useRef(new Set<MaterialType>());
@@ -63,22 +64,32 @@ export const useMaterialScreenCapture = ({
     }
   }, []);
 
+  const queueRecognizerCleanup = useCallback(() => {
+    const cleanup = async () => {
+      while (processingRef.current) {
+        await new Promise((resolve) => window.setTimeout(resolve, 50));
+      }
+      await disposeMaterialRecognizer();
+    };
+    const nextCleanup = cleanupRef.current.catch(() => undefined).then(cleanup);
+    cleanupRef.current = nextCleanup;
+    return nextCleanup;
+  }, []);
+
   const finish = useCallback(async () => {
-    if (finishingRef.current) return;
-    finishingRef.current = true;
+    sessionIdRef.current += 1;
     clearTimer();
     releaseStream();
     setStatus('review');
-    while (processingRef.current) {
-      await new Promise((resolve) => window.setTimeout(resolve, 50));
-    }
-    await disposeMaterialRecognizer();
-    finishingRef.current = false;
-  }, [clearTimer, releaseStream]);
+    await queueRecognizerCleanup();
+  }, [clearTimer, queueRecognizerCleanup, releaseStream]);
 
-  const scanFrame = useCallback(async () => {
+  const scanFrame = useCallback(async (sessionId: number) => {
     const video = videoRef.current;
-    if (!video || processingRef.current || video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) return;
+    if (sessionId !== sessionIdRef.current
+      || !video
+      || processingRef.current
+      || video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) return;
     processingRef.current = true;
 
     try {
@@ -93,6 +104,7 @@ export const useMaterialScreenCapture = ({
       ));
       if (pendingTargets.length === 0) return;
       const frame = await recognizeMaterialFrame(canvas, iconsRef.current, pendingTargets);
+      if (sessionId !== sessionIdRef.current) return;
       frame.observations.forEach((observation) => {
         if (!observation.needsTooltip
           && !observation.needsReview
@@ -104,7 +116,7 @@ export const useMaterialScreenCapture = ({
       setScanCount((current) => current + 1);
       setError(null);
     } catch (scanError) {
-      setError(errorMessage(scanError));
+      if (sessionId === sessionIdRef.current) setError(errorMessage(scanError));
     } finally {
       processingRef.current = false;
     }
@@ -129,15 +141,23 @@ export const useMaterialScreenCapture = ({
       return;
     }
 
+    const sessionId = sessionIdRef.current + 1;
+    sessionIdRef.current = sessionId;
+    clearTimer();
+    releaseStream();
+    await queueRecognizerCleanup();
+    if (sessionId !== sessionIdRef.current) return;
+
     setStatus('requesting');
     setError(null);
     setSession(createRecognitionSessionResults());
     setScanCount(0);
     confirmedMaterialsRef.current.clear();
-    finishingRef.current = false;
 
+    let stream: MediaStream | null = null;
+    let video: HTMLVideoElement | null = null;
     try {
-      const stream = await navigator.mediaDevices.getDisplayMedia({
+      stream = await navigator.mediaDevices.getDisplayMedia({
         video: {
           displaySurface: 'window',
           width: { ideal: 1920 },
@@ -146,37 +166,55 @@ export const useMaterialScreenCapture = ({
         },
         audio: false,
       });
-      const video = document.createElement('video');
+      if (sessionId !== sessionIdRef.current) {
+        stream.getTracks().forEach((track) => track.stop());
+        return;
+      }
+      video = document.createElement('video');
       video.muted = true;
       video.playsInline = true;
       video.srcObject = stream;
       streamRef.current = stream;
       videoRef.current = video;
-      stream.getVideoTracks()[0]?.addEventListener('ended', () => { void finish(); }, { once: true });
+      stream.getVideoTracks()[0]?.addEventListener('ended', () => {
+        if (sessionId === sessionIdRef.current) void finish();
+      }, { once: true });
       await video.play();
+      if (sessionId !== sessionIdRef.current) return;
       setStatus('sharing');
-      await scanFrame();
-      timerRef.current = window.setInterval(() => { void scanFrame(); }, SCAN_INTERVAL_MS);
+      await scanFrame(sessionId);
+      if (sessionId !== sessionIdRef.current) return;
+      timerRef.current = window.setInterval(() => { void scanFrame(sessionId); }, SCAN_INTERVAL_MS);
     } catch (startError) {
-      releaseStream();
-      setStatus('error');
-      setError(errorMessage(startError));
+      stream?.getTracks().forEach((track) => track.stop());
+      if (streamRef.current === stream) streamRef.current = null;
+      if (video) video.srcObject = null;
+      if (videoRef.current === video) videoRef.current = null;
+      if (sessionId === sessionIdRef.current) {
+        setStatus('error');
+        setError(errorMessage(startError));
+      }
     }
-  }, [finish, releaseStream, scanFrame]);
+  }, [clearTimer, finish, queueRecognizerCleanup, releaseStream, scanFrame]);
 
   const reset = useCallback(() => {
+    sessionIdRef.current += 1;
+    clearTimer();
+    releaseStream();
+    void queueRecognizerCleanup();
     setStatus('idle');
     setError(null);
     setSession(createRecognitionSessionResults());
     setScanCount(0);
     confirmedMaterialsRef.current.clear();
-  }, []);
+  }, [clearTimer, queueRecognizerCleanup, releaseStream]);
 
   useEffect(() => () => {
+    sessionIdRef.current += 1;
     clearTimer();
     releaseStream();
-    void disposeMaterialRecognizer();
-  }, [clearTimer, releaseStream]);
+    void queueRecognizerCleanup();
+  }, [clearTimer, queueRecognizerCleanup, releaseStream]);
 
   const results = useMemo(() => summarizeRecognitionSession(session), [session]);
 

@@ -39,6 +39,13 @@ const MaterialScreenCapture: React.FC<MaterialScreenCaptureProps> = ({
     return value == null || !Number.isInteger(value) || value < 0 || value > MAX_OWNED_QUANTITY;
   }), [excluded, quantities, results]);
 
+  const hasUnconfirmedCappedMaterial = invalidMaterials.some((result) => (
+    result.needsTooltip && quantities[result.material] === result.quantity
+  ));
+  const hasInvalidQuantity = invalidMaterials.some((result) => (
+    !result.needsTooltip || quantities[result.material] !== result.quantity
+  ));
+
   const apply = () => {
     if (invalidMaterials.length > 0) return;
     const accepted: Partial<Record<MaterialType, number>> = {};
@@ -187,7 +194,12 @@ const MaterialScreenCapture: React.FC<MaterialScreenCaptureProps> = ({
           </div>
         )}
 
-        {invalidMaterials.length > 0 && (
+        {hasUnconfirmedCappedMaterial && (
+          <p className="text-xs text-red-500">
+            9999로 잘려 표시된 재료는 실제 수량을 입력하거나 적용 대상에서 제외해 주세요.
+          </p>
+        )}
+        {hasInvalidQuantity && (
           <p className="text-xs text-red-500">수량은 0 이상 {MAX_OWNED_QUANTITY.toLocaleString()} 이하의 정수여야 합니다.</p>
         )}
         {error && <p className="text-xs text-red-500">{error}</p>}

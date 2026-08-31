@@ -141,6 +141,8 @@ describe('MaterialScreenCapture', () => {
 
     fireEvent.click(screen.getByRole('checkbox'));
 
+    expect(screen.getByText('9999로 잘려 표시된 재료는 실제 수량을 입력하거나 적용 대상에서 제외해 주세요.')).toBeInTheDocument();
+    expect(screen.queryByText(/수량은 0 이상/)).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: '보유 재료에 적용' })).toBeDisabled();
   });
 
