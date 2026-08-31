@@ -1,0 +1,665 @@
+import type { Mat } from '@techstark/opencv-js';
+import type { MaterialType } from '../../../data/enhancement';
+import type {
+  MaterialIconMap,
+  MaterialObservation,
+  RecognitionFrame,
+  RecognitionMetrics,
+} from './types';
+
+const TEMPLATE_SIZES = [38, 42, 46, 50, 64, 80, 96, 112, 128];
+const MATCH_THRESHOLD = 0.72;
+const COARSE_MATCH_THRESHOLD = 0.5;
+const COARSE_SCALE = 0.25;
+const MAX_MATCHES_PER_SCALE = 4;
+const MAX_OWNED_QUANTITY = 999_999_999;
+
+type OpenCv = typeof import('@techstark/opencv-js') & {
+  onRuntimeInitialized?: () => void;
+};
+type OpenCvMat = Mat;
+type OcrWorker = Awaited<ReturnType<typeof import('tesseract.js')['createWorker']>>;
+
+let openCvPromise: Promise<OpenCv> | null = null;
+let numericOcrWorkerPromise: Promise<OcrWorker> | null = null;
+let tooltipOcrWorkerPromise: Promise<OcrWorker> | null = null;
+const templateCanvasCache = new Map<string, HTMLCanvasElement>();
+
+const getOpenCv = (): Promise<OpenCv> => {
+  if (openCvPromise) return openCvPromise;
+  openCvPromise = import('@techstark/opencv-js').then(async (module) => {
+    const candidate = ('default' in module ? module.default : module) as unknown;
+    const cv = await Promise.resolve(candidate) as OpenCv;
+    if (cv.Mat) return cv;
+    await new Promise<void>((resolve) => {
+      cv.onRuntimeInitialized = resolve;
+    });
+    return cv;
+  });
+  return openCvPromise;
+};
+
+const getNumericOcrWorker = (): Promise<OcrWorker> => {
+  if (numericOcrWorkerPromise) return numericOcrWorkerPromise;
+  numericOcrWorkerPromise = import('tesseract.js').then(async ({ createWorker, PSM }) => {
+    const worker = await createWorker('eng');
+    await worker.setParameters({
+      tessedit_char_whitelist: '0123456789,/Xx[] ',
+      tessedit_pageseg_mode: PSM.SINGLE_LINE,
+      preserve_interword_spaces: '0',
+    });
+    return worker;
+  });
+  return numericOcrWorkerPromise;
+};
+
+const getTooltipOcrWorker = (): Promise<OcrWorker> => {
+  if (tooltipOcrWorkerPromise) return tooltipOcrWorkerPromise;
+  tooltipOcrWorkerPromise = import('tesseract.js').then(async ({ createWorker, PSM }) => {
+    const worker = await createWorker('kor+eng');
+    await worker.setParameters({ tessedit_pageseg_mode: PSM.SINGLE_BLOCK });
+    return worker;
+  });
+  return tooltipOcrWorkerPromise;
+};
+
+const loadTemplateCanvas = async (url: string): Promise<HTMLCanvasElement> => {
+  const cached = templateCanvasCache.get(url);
+  if (cached) return cached;
+
+  const response = await fetch(url, { mode: 'cors', credentials: 'omit' });
+  if (!response.ok) throw new Error('재료 아이콘을 불러오지 못했습니다.');
+  const bitmap = await createImageBitmap(await response.blob());
+  const canvas = document.createElement('canvas');
+  canvas.width = bitmap.width;
+  canvas.height = bitmap.height;
+  const context = canvas.getContext('2d', { willReadFrequently: true });
+  try {
+    if (!context) throw new Error('이미지 분석을 시작할 수 없습니다.');
+    context.drawImage(bitmap, 0, 0);
+  } finally {
+    bitmap.close();
+  }
+  templateCanvasCache.set(url, canvas);
+  return canvas;
+};
+
+interface Match {
+  x: number;
+  y: number;
+  slotSize: number;
+  score: number;
+}
+
+interface TemplateMatchTiming {
+  coarseMs: number;
+  refineMs: number;
+}
+
+const findTemplateMatches = (
+  cv: OpenCv,
+  source: OpenCvMat,
+  templateCanvas: HTMLCanvasElement,
+  templateSizes = TEMPLATE_SIZES,
+  timing?: TemplateMatchTiming,
+): Match[] => {
+  const templateSource = cv.imread(templateCanvas);
+  const templateRgb = new cv.Mat();
+  const coarseSource = new cv.Mat();
+  const mask = new cv.Mat();
+  cv.cvtColor(templateSource, templateRgb, cv.COLOR_RGBA2RGB);
+  cv.resize(
+    source,
+    coarseSource,
+    new cv.Size(Math.round(source.cols * COARSE_SCALE), Math.round(source.rows * COARSE_SCALE)),
+    0,
+    0,
+    cv.INTER_AREA,
+  );
+  const matches: Match[] = [];
+
+  try {
+    for (const slotSize of templateSizes) {
+      const resized = new cv.Mat();
+      const coarseTemplate = new cv.Mat();
+      const coarseResult = new cv.Mat();
+      const cropX = Math.round(slotSize * 0.05);
+      const cropY = Math.round(slotSize * 0.2);
+      const cropWidth = Math.round(slotSize * 0.68);
+      const cropHeight = Math.round(slotSize * 0.68);
+      const coarseSlotSize = Math.max(10, Math.round(slotSize * COARSE_SCALE));
+      const coarseCropX = Math.round(coarseSlotSize * 0.05);
+      const coarseCropY = Math.round(coarseSlotSize * 0.2);
+      const coarseCropWidth = Math.round(coarseSlotSize * 0.68);
+      const coarseCropHeight = Math.round(coarseSlotSize * 0.68);
+      let templateCrop: OpenCvMat | null = null;
+      let coarseTemplateCrop: OpenCvMat | null = null;
+
+      try {
+        cv.resize(templateRgb, resized, new cv.Size(slotSize, slotSize), 0, 0, cv.INTER_AREA);
+        templateCrop = resized.roi(new cv.Rect(cropX, cropY, cropWidth, cropHeight));
+        cv.resize(
+          templateRgb,
+          coarseTemplate,
+          new cv.Size(coarseSlotSize, coarseSlotSize),
+          0,
+          0,
+          cv.INTER_AREA,
+        );
+        coarseTemplateCrop = coarseTemplate.roi(new cv.Rect(
+          coarseCropX,
+          coarseCropY,
+          coarseCropWidth,
+          coarseCropHeight,
+        ));
+        const coarseStarted = performance.now();
+        cv.matchTemplate(coarseSource, coarseTemplateCrop, coarseResult, cv.TM_CCOEFF_NORMED);
+        if (timing) timing.coarseMs += performance.now() - coarseStarted;
+
+        for (let count = 0; count < MAX_MATCHES_PER_SCALE; count += 1) {
+          const { maxVal: coarseScore, maxLoc: coarseLoc } = cv.minMaxLoc(coarseResult, mask);
+          if (coarseScore < COARSE_MATCH_THRESHOLD) break;
+
+          const expectedCropX = Math.round(coarseLoc.x / COARSE_SCALE);
+          const expectedCropY = Math.round(coarseLoc.y / COARSE_SCALE);
+          const margin = Math.round(slotSize * 0.4);
+          const left = Math.max(0, expectedCropX - margin);
+          const top = Math.max(0, expectedCropY - margin);
+          const right = Math.min(source.cols, expectedCropX + cropWidth + margin);
+          const bottom = Math.min(source.rows, expectedCropY + cropHeight + margin);
+          const sourceRoi = source.roi(new cv.Rect(left, top, right - left, bottom - top));
+          const refinedResult = new cv.Mat();
+
+          try {
+            const refineStarted = performance.now();
+            cv.matchTemplate(sourceRoi, templateCrop, refinedResult, cv.TM_CCOEFF_NORMED);
+            const { maxVal, maxLoc } = cv.minMaxLoc(refinedResult, mask);
+            if (timing) timing.refineMs += performance.now() - refineStarted;
+            if (maxVal >= MATCH_THRESHOLD) {
+              const x = left + maxLoc.x - cropX;
+              const y = top + maxLoc.y - cropY;
+              const duplicate = matches.some((match) => (
+                Math.hypot(match.x - x, match.y - y) < Math.min(match.slotSize, slotSize) * 0.55
+              ));
+              if (!duplicate) matches.push({ x, y, slotSize, score: maxVal });
+            }
+          } finally {
+            sourceRoi.delete();
+            refinedResult.delete();
+          }
+
+          const suppressLeft = Math.max(0, coarseLoc.x - coarseSlotSize);
+          const suppressTop = Math.max(0, coarseLoc.y - coarseSlotSize);
+          const suppressWidth = Math.min(coarseResult.cols - suppressLeft, coarseSlotSize * 2);
+          const suppressHeight = Math.min(coarseResult.rows - suppressTop, coarseSlotSize * 2);
+          const suppressed = coarseResult.roi(new cv.Rect(
+            suppressLeft,
+            suppressTop,
+            suppressWidth,
+            suppressHeight,
+          ));
+          suppressed.setTo(new cv.Scalar(-1));
+          suppressed.delete();
+        }
+      } finally {
+        templateCrop?.delete();
+        coarseTemplateCrop?.delete();
+        resized.delete();
+        coarseTemplate.delete();
+        coarseResult.delete();
+      }
+    }
+  } finally {
+    templateSource.delete();
+    templateRgb.delete();
+    coarseSource.delete();
+    mask.delete();
+  }
+
+  return matches;
+};
+
+interface OcrRegion {
+  canvas: HTMLCanvasElement;
+  hasTextPixels: boolean;
+}
+
+const createOcrRegion = (
+  frame: HTMLCanvasElement,
+  sourceX: number,
+  sourceY: number,
+  sourceWidth: number,
+  sourceHeight: number,
+  scale: number,
+  threshold: boolean,
+  includeColoredText = false,
+): OcrRegion => {
+  const x = Math.max(0, Math.round(sourceX));
+  const y = Math.max(0, Math.round(sourceY));
+  const width = Math.max(0, Math.min(frame.width - x, Math.round(sourceWidth)));
+  const height = Math.max(0, Math.min(frame.height - y, Math.round(sourceHeight)));
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(1, width * scale);
+  canvas.height = Math.max(1, height * scale);
+  const context = canvas.getContext('2d', { willReadFrequently: true });
+  if (!context || width === 0 || height === 0) return { canvas, hasTextPixels: false };
+
+  context.imageSmoothingEnabled = false;
+  context.drawImage(frame, x, y, width, height, 0, 0, canvas.width, canvas.height);
+  if (!threshold) return { canvas, hasTextPixels: true };
+
+  const image = context.getImageData(0, 0, canvas.width, canvas.height);
+  let textPixels = 0;
+  for (let index = 0; index < image.data.length; index += 4) {
+    const red = image.data[index];
+    const green = image.data[index + 1];
+    const blue = image.data[index + 2];
+    const brightness = (red + green + blue) / 3;
+    const neutral = Math.max(red, green, blue) - Math.min(red, green, blue) < 65;
+    const coloredQuantity = green > red * 1.2 || red > green * 1.2;
+    const isText = (neutral && brightness > 145)
+      || (includeColoredText && coloredQuantity && Math.max(red, green, blue) > 120);
+    const value = isText ? 0 : 255;
+    if (isText) textPixels += 1;
+    image.data[index] = value;
+    image.data[index + 1] = value;
+    image.data[index + 2] = value;
+    image.data[index + 3] = 255;
+  }
+  context.putImageData(image, 0, 0);
+  return { canvas, hasTextPixels: textPixels > scale * scale * 4 };
+};
+
+export const parseTooltipTitleQuantity = (text: string): number | null => {
+  const normalized = text.replace(/\s/g, '');
+  const bracketMatch = normalized.match(/[\[(][Xx]?([\d,]+)(?:\]|\))/);
+  const xMatch = normalized.match(/[Xx]([\d,]+)/);
+  const rawQuantity = bracketMatch?.[1] ?? xMatch?.[1];
+  if (!rawQuantity) return null;
+  const quantity = Number(rawQuantity.replace(/,/g, ''));
+  return Number.isSafeInteger(quantity) ? quantity : null;
+};
+
+export const parseTooltipQuantity = (text: string, fallback: number): number => {
+  const totalMatch = text.match(/전체\s*보유\s*수량[ \t]*[:：]?[ \t]*([\d, ]+)/);
+  const rawQuantity = totalMatch?.[1] ?? String(fallback);
+  const quantity = Number(rawQuantity.replace(/[^\d]/g, ''));
+  return Number.isSafeInteger(quantity) ? Math.min(quantity, MAX_OWNED_QUANTITY) : fallback;
+};
+
+export const parseHoningFateShardQuantity = (text: string): number | null => {
+  const ownedAmount = text.match(/소지\s*금액[ \t]*(\d{1,3}(?:[,.]\d{3})+)/)?.[1];
+  const amountLines = text.split(/\r?\n/).filter((line) => /\d{1,3}(?:[,.]\d{3})+/.test(line));
+  const firstGroupedOnLastLine = amountLines.at(-1)?.match(/\d{1,3}(?:[,.]\d{3})+/)?.[0];
+  const rawQuantity = ownedAmount ?? firstGroupedOnLastLine;
+  if (!rawQuantity) return null;
+  const quantity = Number(rawQuantity.replace(/[^\d]/g, ''));
+  return Number.isSafeInteger(quantity) ? Math.min(quantity, MAX_OWNED_QUANTITY) : null;
+};
+
+export const parseTopBarFateShardQuantity = (text: string): number | null => {
+  const groupedNumbers = Array.from(text.matchAll(/\d{1,3}(?:,\d{3})+/g));
+  const rawQuantity = groupedNumbers.at(-1)?.[0];
+  if (!rawQuantity) return null;
+  const quantity = Number(rawQuantity.replace(/,/g, ''));
+  return Number.isSafeInteger(quantity) ? Math.min(quantity, MAX_OWNED_QUANTITY) : null;
+};
+
+export interface HoningOwnedQuantity {
+  quantity: number;
+  needsTooltip: boolean;
+}
+
+export const parseHoningOwnedQuantity = (text: string): HoningOwnedQuantity | null => {
+  const divided = text.match(/([\d, ]+)\s*[/|]\s*[\d, ]+/);
+  const separated = text.trim().match(/^([\d,]{2,})\s+[\d,]+/);
+  const rawOwned = divided?.[1] ?? separated?.[1];
+  if (!rawOwned) return null;
+  const quantity = Number(rawOwned.replace(/[^\d]/g, ''));
+  if (!Number.isSafeInteger(quantity)) return null;
+  return { quantity, needsTooltip: quantity === 9999 };
+};
+
+export const createHoningObservation = (
+  material: MaterialType,
+  reading: HoningOwnedQuantity,
+  confidence = 0.9,
+): MaterialObservation => ({
+  material,
+  quantity: reading.quantity,
+  confidence,
+  x: 0,
+  y: 0,
+  slotSize: 0,
+  needsReview: reading.needsTooltip || confidence < 0.8,
+  needsTooltip: reading.needsTooltip,
+  source: 'honing',
+});
+
+interface HoningRecognition {
+  observations: MaterialObservation[];
+  detected: boolean;
+  cappedMaterials: MaterialType[];
+  rowY: number;
+  leftmostSlotX: number;
+  slotSize: number;
+  region: { x: number; y: number; width: number; height: number };
+}
+
+const recognizeHoningMaterials = async (
+  frame: HTMLCanvasElement,
+  cv: OpenCv,
+  source: OpenCvMat,
+  icons: MaterialIconMap,
+  materials: MaterialType[],
+  metrics: RecognitionMetrics,
+): Promise<HoningRecognition> => {
+  const candidateStarted = performance.now();
+  // Both compact and full-screen samples place the honing material row in this
+  // central-lower band. Icon matches plus a `owned / required` line are still
+  // required, so this band alone never declares a honing window.
+  const region = {
+    x: Math.round(frame.width * 0.15),
+    y: Math.round(frame.height * 0.48),
+    width: Math.round(frame.width * 0.7),
+    height: Math.round(frame.height * 0.36),
+  };
+  const sourceRoi = source.roi(new cv.Rect(region.x, region.y, region.width, region.height));
+  metrics.honingCandidateMs += performance.now() - candidateStarted;
+  const observations: MaterialObservation[] = [];
+  const cappedMaterials: MaterialType[] = [];
+  const numericWorker = await getNumericOcrWorker();
+  const slotPositions = new Set<string>();
+  let detected = false;
+  let rowY = frame.height;
+  let leftmostSlotX = frame.width;
+  let largestSlot = 0;
+
+  try {
+    for (const material of materials) {
+      const iconUrl = icons[material];
+      if (!iconUrl) continue;
+      const template = await loadTemplateCanvas(iconUrl);
+      const matchTiming = { coarseMs: 0, refineMs: 0 };
+      const matches = findTemplateMatches(cv, sourceRoi, template, TEMPLATE_SIZES, matchTiming)
+        .sort((left, right) => right.score - left.score);
+      metrics.slotDetectionMs += matchTiming.coarseMs;
+      metrics.iconClassificationMs += matchTiming.refineMs;
+      if (matches.length > 0) detected = true;
+
+      for (const relativeMatch of matches.slice(0, 1)) {
+        const match = {
+          ...relativeMatch,
+          x: relativeMatch.x + region.x,
+          y: relativeMatch.y + region.y,
+        };
+        const quantityCrop = {
+          x: match.x - match.slotSize * 0.45,
+          y: match.y + match.slotSize * (match.slotSize < 50 ? 0.95 : 1.1),
+          width: match.slotSize * 1.9,
+          height: match.slotSize * 0.58,
+          scale: 5,
+        };
+        const quantityRegion = createOcrRegion(
+          frame,
+          quantityCrop.x,
+          quantityCrop.y,
+          quantityCrop.width,
+          quantityCrop.height,
+          quantityCrop.scale,
+          false,
+        );
+        if (!quantityRegion.hasTextPixels) continue;
+        const ocrStarted = performance.now();
+        await numericWorker.setParameters({ tessedit_char_whitelist: '0123456789,/Xx[] ' });
+        const { data } = await numericWorker.recognize(quantityRegion.canvas);
+        metrics.slotOcrMs += performance.now() - ocrStarted;
+        let reading = parseHoningOwnedQuantity(data.text);
+        if (!reading && match.slotSize < 50) {
+          const compactRetry = createOcrRegion(
+            frame,
+            match.x - match.slotSize * 0.63,
+            match.y + match.slotSize * 0.82,
+            match.slotSize * 2.37,
+            match.slotSize * 0.79,
+            4,
+            false,
+          );
+          const retryStarted = performance.now();
+          await numericWorker.setParameters({ tessedit_char_whitelist: '0123456789,/' });
+          const { data: retryData } = await numericWorker.recognize(compactRetry.canvas);
+          metrics.slotOcrMs += performance.now() - retryStarted;
+          reading = parseHoningOwnedQuantity(retryData.text);
+        }
+        if (!reading) continue;
+
+        const observation = createHoningObservation(
+          material,
+          reading,
+          Math.min(match.score, Math.max(0, data.confidence / 100)),
+        );
+        observations.push({ ...observation, x: match.x, y: match.y, slotSize: match.slotSize });
+        if (reading.needsTooltip) cappedMaterials.push(material);
+        rowY = Math.min(rowY, match.y);
+        leftmostSlotX = Math.min(leftmostSlotX, match.x);
+        largestSlot = Math.max(largestSlot, match.slotSize);
+        slotPositions.add(`${Math.round(match.x / 8)}:${Math.round(match.y / 8)}`);
+        break;
+      }
+    }
+  } finally {
+    sourceRoi.delete();
+  }
+
+  metrics.slotCount = slotPositions.size;
+  return {
+    observations,
+    detected: detected && observations.length > 0,
+    cappedMaterials,
+    rowY,
+    leftmostSlotX,
+    slotSize: largestSlot,
+    region,
+  };
+};
+
+const recognizeTooltipQuantity = async (
+  frame: HTMLCanvasElement,
+  match: Match,
+): Promise<{ quantity: number; confidence: number; needsReview: boolean } | null> => {
+  const title = createOcrRegion(
+    frame,
+    match.x - match.slotSize * 0.3,
+    match.y - match.slotSize * 1.2,
+    match.slotSize * 6.8,
+    match.slotSize * 0.9,
+    4,
+    true,
+  );
+  if (!title.hasTextPixels) return null;
+
+  const numericWorker = await getNumericOcrWorker();
+  await numericWorker.setParameters({ tessedit_char_whitelist: '0123456789,Xx[] ' });
+  const { data: titleData } = await numericWorker.recognize(title.canvas);
+  const titleQuantity = parseTooltipTitleQuantity(titleData.text);
+  if (titleQuantity === null) return null;
+
+  const tooltip = createOcrRegion(
+    frame,
+    match.x - match.slotSize * 0.3,
+    match.y + match.slotSize * 1.4,
+    match.slotSize * 6.8,
+    match.slotSize * 3.4,
+    2,
+    false,
+  );
+  const tooltipWorker = await getTooltipOcrWorker();
+  const { data: tooltipData } = await tooltipWorker.recognize(tooltip.canvas);
+  const quantity = parseTooltipQuantity(tooltipData.text, titleQuantity);
+  const capped = quantity > MAX_OWNED_QUANTITY;
+  const confidence = Math.max(0, Math.min(1, titleData.confidence / 100));
+
+  return {
+    quantity: capped ? MAX_OWNED_QUANTITY : quantity,
+    confidence,
+    needsReview: capped || titleData.confidence < 70,
+  };
+};
+
+const recognizeFateShard = async (
+  frame: HTMLCanvasElement,
+  honing?: HoningRecognition,
+): Promise<MaterialObservation | null> => {
+  const topBar = createOcrRegion(
+    frame,
+    frame.width * 0.47,
+    0,
+    frame.width * 0.07,
+    Math.max(36, frame.height * 0.045),
+    3,
+    true,
+  );
+  const numericWorker = await getNumericOcrWorker();
+  await numericWorker.setParameters({ tessedit_char_whitelist: '0123456789,' });
+  const { data: topBarData } = await numericWorker.recognize(topBar.canvas);
+  const topBarQuantity = parseTopBarFateShardQuantity(topBarData.text);
+  if (topBarQuantity !== null) {
+    return {
+      material: '운명의 파편',
+      quantity: topBarQuantity,
+      confidence: Math.max(0, Math.min(1, topBarData.confidence / 100)),
+      x: 0,
+      y: 0,
+      slotSize: 0,
+      needsReview: topBarData.confidence < 70,
+      source: 'fate-shard',
+    };
+  }
+
+  const hasHoningRow = honing?.detected && honing.slotSize > 0;
+  if (!hasHoningRow || !honing) return null;
+  // The first value below the leftmost material slot is fate shards. Limiting
+  // this crop prevents the following silver and gold values from being used.
+  const honingCosts = createOcrRegion(
+    frame,
+    honing.leftmostSlotX - honing.slotSize * 1.3,
+    honing.rowY + honing.slotSize * 1.75,
+    honing.slotSize * 2.7,
+    honing.slotSize * 1.8,
+    4,
+    false,
+  );
+  const tooltipWorker = await getTooltipOcrWorker();
+  const { data: honingData } = await tooltipWorker.recognize(honingCosts.canvas);
+  const honingQuantity = parseHoningFateShardQuantity(honingData.text);
+  if (honingQuantity === null) return null;
+
+  return {
+    material: '운명의 파편',
+    quantity: honingQuantity,
+    confidence: Math.max(0, Math.min(1, honingData.confidence / 100)),
+    x: 0,
+    y: 0,
+    slotSize: 0,
+    needsReview: honingData.confidence < 70,
+    source: 'fate-shard',
+  };
+};
+
+const validateFrame = (frame: HTMLCanvasElement): void => {
+  if (frame.width < 800 || frame.height < 450) {
+    throw new Error(`공유 화면 해상도가 너무 낮습니다. 감지된 화면: ${frame.width}×${frame.height}`);
+  }
+};
+
+export const recognizeMaterialFrame = async (
+  frame: HTMLCanvasElement,
+  icons: MaterialIconMap,
+  targetMaterials: MaterialType[],
+): Promise<RecognitionFrame> => {
+  validateFrame(frame);
+  const totalStarted = performance.now();
+  const observations: MaterialObservation[] = [];
+  const materialTargets = targetMaterials.filter((material) => material !== '운명의 파편');
+  const metrics: RecognitionMetrics = {
+    honingCandidateMs: 0,
+    slotDetectionMs: 0,
+    iconClassificationMs: 0,
+    slotOcrMs: 0,
+    fateShardOcrMs: 0,
+    tooltipOcrMs: 0,
+    slotCount: 0,
+    targetCount: materialTargets.length,
+    totalMs: 0,
+  };
+
+  let honing: HoningRecognition | undefined;
+  let cv: OpenCv | undefined;
+  let sourceRgba: OpenCvMat | undefined;
+  let sourceRgb: OpenCvMat | undefined;
+
+  try {
+    if (materialTargets.length > 0) {
+      cv = await getOpenCv();
+      sourceRgba = cv.imread(frame);
+      sourceRgb = new cv.Mat();
+      cv.cvtColor(sourceRgba, sourceRgb, cv.COLOR_RGBA2RGB);
+      honing = await recognizeHoningMaterials(frame, cv, sourceRgb, icons, materialTargets, metrics);
+      observations.push(...honing.observations);
+    }
+
+    if (targetMaterials.includes('운명의 파편')) {
+      const fateStarted = performance.now();
+      const fateShard = await recognizeFateShard(frame, honing);
+      metrics.fateShardOcrMs += performance.now() - fateStarted;
+      if (fateShard) observations.push(fateShard);
+    }
+
+    const tooltipMaterials = honing?.detected ? honing.cappedMaterials : materialTargets;
+    if (tooltipMaterials.length > 0 && cv && sourceRgb) {
+      for (const material of tooltipMaterials) {
+        const iconUrl = icons[material];
+        if (!iconUrl) continue;
+        const template = await loadTemplateCanvas(iconUrl);
+        const matches = findTemplateMatches(cv, sourceRgb, template)
+          .sort((left, right) => right.slotSize - left.slotSize || right.score - left.score);
+
+        for (const match of matches) {
+          const tooltipStarted = performance.now();
+          const quantity = await recognizeTooltipQuantity(frame, match);
+          metrics.tooltipOcrMs += performance.now() - tooltipStarted;
+          if (!quantity) continue;
+          observations.push({
+            material,
+            quantity: quantity.quantity,
+            confidence: Math.min(match.score, quantity.confidence),
+            x: match.x,
+            y: match.y,
+            slotSize: match.slotSize,
+            needsReview: quantity.needsReview || match.score < 0.8,
+            needsTooltip: false,
+            source: 'tooltip',
+          });
+          break;
+        }
+      }
+    }
+  } finally {
+    sourceRgba?.delete();
+    sourceRgb?.delete();
+  }
+
+  metrics.totalMs = performance.now() - totalStarted;
+  return { observations, frameWidth: frame.width, frameHeight: frame.height, metrics };
+};
+
+export const disposeMaterialRecognizer = async (): Promise<void> => {
+  const workerPromises = [numericOcrWorkerPromise, tooltipOcrWorkerPromise];
+  numericOcrWorkerPromise = null;
+  tooltipOcrWorkerPromise = null;
+  await Promise.all(workerPromises.map(async (workerPromise) => {
+    if (!workerPromise) return;
+    const worker = await workerPromise;
+    await worker.terminate();
+  }));
+};

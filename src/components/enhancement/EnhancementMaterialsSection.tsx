@@ -2,6 +2,7 @@ import React from 'react';
 import GlassCard from '../GlassCard';
 import StateFeedback from '../StateFeedback';
 import { formatGold, MARKET_SEARCH } from './enhancementModel';
+import MaterialScreenCapture from './material-recognition/MaterialScreenCapture';
 import type { EnhancementPageModel } from './useEnhancementPage';
 
 const EnhancementMaterialsSection: React.FC<{ model: EnhancementPageModel }> = ({ model }) => {
@@ -41,6 +42,13 @@ const EnhancementMaterialsSection: React.FC<{ model: EnhancementPageModel }> = (
             </button>
             {showOwnedSection && (
               <div className="mt-3 space-y-3 overflow-hidden">
+                <MaterialScreenCapture
+                  icons={icons}
+                  targetMaterials={Array.from(shortfallData.keys())}
+                  onApply={(recognized) => {
+                    setOwnedMaterials((previous) => ({ ...previous, ...recognized }));
+                  }}
+                />
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-2">
                   {Array.from(shortfallData.keys()).map((type) => (
                     <div key={type} className="flex items-center gap-2">
