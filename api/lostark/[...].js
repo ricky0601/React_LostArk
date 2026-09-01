@@ -7,6 +7,7 @@ const ALLOWED_GET_PATHS = [
   /^news\/events$/,
   /^gamecontents\/calendar$/,
   /^markets\/options$/,
+  /^auctions\/options$/,
 ];
 const ALLOWED_POST_PATHS = new Set(['markets/items', 'auctions/items']);
 

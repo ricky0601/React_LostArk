@@ -91,11 +91,11 @@ export const EFFECT_GRADE_COLORS: Record<string, { bg: string; text: string }> =
   최상: { bg: 'bg-red-500/60', text: 'text-red-100' },
 };
 
-/** 품질(0~100) 텍스트 색상 클래스: 100 노랑, 90~99 보라, 70~89 하늘, 30~69 연두, 10~29 연한노랑, 0~9 빨강 */
+/** 품질(0~100) 텍스트 색상 클래스: 100 주황, 90~99 보라, 70~89 하늘, 30~69 연두, 10~29 연한노랑, 0~9 빨강 */
 export function qualityTextColor(q: number): string {
-  if (q >= 100) return 'text-yellow-400';
-  if (q >= 90) return 'text-purple-400';
-  if (q >= 70) return 'text-sky-400';
+  if (q >= 100) return 'text-[#fe9600]';
+  if (q >= 90) return 'text-[#ce43fc]';
+  if (q >= 70) return 'text-[#00b5ff]';
   if (q >= 30) return 'text-lime-400';
   if (q >= 10) return 'text-yellow-200';
   return 'text-red-500';
@@ -103,9 +103,9 @@ export function qualityTextColor(q: number): string {
 
 /** 품질(0~100) 게이지 바 배경 색상 클래스 */
 export function qualityBgColor(q: number): string {
-  if (q >= 100) return 'bg-yellow-400';
-  if (q >= 90) return 'bg-purple-500';
-  if (q >= 70) return 'bg-sky-400';
+  if (q >= 100) return 'bg-[#fe9600]';
+  if (q >= 90) return 'bg-[#ce43fc]';
+  if (q >= 70) return 'bg-[#00b5ff]';
   if (q >= 30) return 'bg-lime-400';
   if (q >= 10) return 'bg-yellow-200';
   return 'bg-red-500';
