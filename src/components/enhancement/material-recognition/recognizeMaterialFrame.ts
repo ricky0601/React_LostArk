@@ -254,10 +254,12 @@ const findTemplateMatches = (
             if (maxVal >= MATCH_THRESHOLD) {
               const x = left + maxLoc.x - cropX;
               const y = top + maxLoc.y - cropY;
-              const duplicate = matches.some((match) => (
+              const duplicateIndex = matches.findIndex((match) => (
                 Math.hypot(match.x - x, match.y - y) < Math.min(match.slotSize, slotSize) * 0.55
               ));
-              if (!duplicate) matches.push({ x, y, slotSize, score: maxVal });
+              const candidate = { x, y, slotSize, score: maxVal };
+              if (duplicateIndex < 0) matches.push(candidate);
+              else if (maxVal > matches[duplicateIndex].score) matches[duplicateIndex] = candidate;
             }
           } finally {
             sourceRoi.delete();
@@ -388,19 +390,89 @@ export const parseTopBarFateShardQuantity = (text: string): number | null => {
   return Number.isSafeInteger(quantity) ? Math.min(quantity, MAX_OWNED_QUANTITY) : null;
 };
 
+export const parseNarrowFateShardQuantity = (text: string): number | null => {
+  const rawQuantity = text.match(/\d{1,3}(?:[,.]\d{3})+|\d{4,9}/)?.[0];
+  if (!rawQuantity) return null;
+  const quantity = Number(rawQuantity.replace(/[^\d]/g, ''));
+  return Number.isSafeInteger(quantity) ? Math.min(quantity, MAX_OWNED_QUANTITY) : null;
+};
+
 export interface HoningOwnedQuantity {
   quantity: number;
   needsTooltip: boolean;
 }
 
-export const parseHoningOwnedQuantity = (text: string): HoningOwnedQuantity | null => {
-  const divided = text.match(/([\d, ]+)\s*[/|]\s*[\d, ]+/);
-  const separated = text.trim().match(/^([\d,]{2,})\s+[\d,]+/);
+interface HoningQuantityParts extends HoningOwnedQuantity {
+  ownedDigits: string;
+  requiredDigits: string | null;
+}
+
+const parseHoningQuantityParts = (text: string): HoningQuantityParts | null => {
+  const divided = text.match(/([\d, ]+)\s*[/|]\s*([\d, ]+)/);
+  const separated = text.trim().match(/^([\d,]{2,})\s+([\d,]+)/);
   const rawOwned = divided?.[1] ?? separated?.[1];
   if (!rawOwned) return null;
-  const quantity = Number(rawOwned.replace(/[^\d]/g, ''));
-  if (!Number.isSafeInteger(quantity)) return null;
-  return { quantity, needsTooltip: quantity === 9999 };
+  const ownedDigits = rawOwned.replace(/[^\d]/g, '');
+  const requiredDigits = (divided?.[2] ?? separated?.[2])?.replace(/[^\d]/g, '') ?? null;
+  const quantity = Number(ownedDigits);
+  if (!ownedDigits || !Number.isSafeInteger(quantity)) return null;
+  return { quantity, needsTooltip: quantity === 9999, ownedDigits, requiredDigits };
+};
+
+export const parseHoningOwnedQuantity = (text: string): HoningOwnedQuantity | null => {
+  const reading = parseHoningQuantityParts(text);
+  return reading && { quantity: reading.quantity, needsTooltip: reading.needsTooltip };
+};
+
+interface HoningOcrAttempt {
+  text: string;
+  confidence: number;
+}
+
+interface SelectedHoningReading {
+  reading: HoningOwnedQuantity;
+  confidence: number;
+}
+
+export const selectHoningOcrReading = (
+  attempts: HoningOcrAttempt[],
+): SelectedHoningReading | null => {
+  const parsed = attempts.flatMap((attempt) => {
+    const reading = parseHoningQuantityParts(attempt.text);
+    return reading ? [{ ...attempt, reading }] : [];
+  });
+  if (parsed.length === 0) return null;
+
+  for (let left = 0; left < parsed.length; left += 1) {
+    for (let right = left + 1; right < parsed.length; right += 1) {
+      const first = parsed[left].reading;
+      const second = parsed[right].reading;
+      const sameRequired = first.requiredDigits !== null
+        && first.requiredDigits === second.requiredDigits;
+      const firstRepeated = /^(.)\1+$/.test(first.ownedDigits);
+      const secondRepeated = /^(.)\1+$/.test(second.ownedDigits);
+      const sameDigit = first.ownedDigits[0] === second.ownedDigits[0];
+      const lengthGap = Math.abs(first.ownedDigits.length - second.ownedDigits.length);
+      // Narrow repeated glyphs can be dropped by one crop and duplicated by another.
+      if (sameRequired && firstRepeated && secondRepeated && sameDigit && lengthGap === 2) {
+        const length = Math.min(first.ownedDigits.length, second.ownedDigits.length) + 1;
+        const quantity = Number(first.ownedDigits[0].repeat(length));
+        return {
+          reading: { quantity, needsTooltip: quantity === 9999 },
+          confidence: Math.min(0.79, Math.max(parsed[left].confidence, parsed[right].confidence) / 100),
+        };
+      }
+    }
+  }
+
+  const best = parsed.sort((left, right) => right.confidence - left.confidence)[0];
+  return {
+    reading: {
+      quantity: best.reading.quantity,
+      needsTooltip: best.reading.needsTooltip,
+    },
+    confidence: Math.max(0, Math.min(1, best.confidence / 100)),
+  };
 };
 
 export const createHoningObservation = (
@@ -470,56 +542,73 @@ const recognizeHoningMaterials = async (
       metrics.iconClassificationMs += matchTiming.refineMs;
       if (matches.length > 0) detected = true;
 
-      for (const relativeMatch of matches.slice(0, 1)) {
+      for (const relativeMatch of matches.slice(0, 3)) {
         const match = {
           ...relativeMatch,
           x: relativeMatch.x + region.x,
           y: relativeMatch.y + region.y,
         };
-        const quantityCrop = {
-          x: match.x - match.slotSize * 0.45,
-          y: match.y + match.slotSize * (match.slotSize < 50 ? 0.95 : 1.1),
-          width: match.slotSize * 1.9,
-          height: match.slotSize * 0.58,
-          scale: 5,
-        };
-        const quantityRegion = createOcrRegion(
-          frame,
-          quantityCrop.x,
-          quantityCrop.y,
-          quantityCrop.width,
-          quantityCrop.height,
-          quantityCrop.scale,
-          false,
-        );
-        if (!quantityRegion.hasTextPixels) continue;
-        const ocrStarted = performance.now();
+        const quantityCrops = [
+          {
+            x: match.x - match.slotSize * 0.45,
+            y: match.y + match.slotSize * (match.slotSize < 50 ? 0.95 : 1.1),
+            width: match.slotSize * 1.9,
+            height: match.slotSize * 0.58,
+            scale: 5,
+            threshold: false,
+          },
+          {
+            x: match.x - match.slotSize * 0.6,
+            y: match.y + match.slotSize * 1.1,
+            width: match.slotSize * 2.2,
+            height: match.slotSize * 0.8,
+            scale: 5,
+            threshold: false,
+          },
+          {
+            x: match.x - match.slotSize * 0.6,
+            y: match.y + match.slotSize * 1.1,
+            width: match.slotSize * 2.2,
+            height: match.slotSize * 0.8,
+            scale: 5,
+            threshold: true,
+          },
+          {
+            x: match.x - match.slotSize * 0.4,
+            y: match.y + match.slotSize * 1.04,
+            width: match.slotSize * 1.8,
+            height: match.slotSize * 0.9,
+            scale: 5,
+            threshold: false,
+          },
+        ];
+        const attempts: HoningOcrAttempt[] = [];
         await numericWorker.setParameters({ tessedit_char_whitelist: '0123456789,/Xx[] ' });
-        const { data } = await numericWorker.recognize(quantityRegion.canvas);
-        metrics.slotOcrMs += performance.now() - ocrStarted;
-        let reading = parseHoningOwnedQuantity(data.text);
-        if (!reading && match.slotSize < 50) {
-          const compactRetry = createOcrRegion(
+        for (const crop of quantityCrops) {
+          const quantityRegion = createOcrRegion(
             frame,
-            match.x - match.slotSize * 0.63,
-            match.y + match.slotSize * 0.82,
-            match.slotSize * 2.37,
-            match.slotSize * 0.79,
-            4,
-            false,
+            crop.x,
+            crop.y,
+            crop.width,
+            crop.height,
+            crop.scale,
+            crop.threshold,
+            crop.threshold,
           );
-          const retryStarted = performance.now();
-          await numericWorker.setParameters({ tessedit_char_whitelist: '0123456789,/' });
-          const { data: retryData } = await numericWorker.recognize(compactRetry.canvas);
-          metrics.slotOcrMs += performance.now() - retryStarted;
-          reading = parseHoningOwnedQuantity(retryData.text);
+          if (!quantityRegion.hasTextPixels) continue;
+          const ocrStarted = performance.now();
+          const { data } = await numericWorker.recognize(quantityRegion.canvas);
+          metrics.slotOcrMs += performance.now() - ocrStarted;
+          attempts.push({ text: data.text, confidence: data.confidence });
         }
-        if (!reading) continue;
+        const selected = selectHoningOcrReading(attempts);
+        if (!selected) continue;
+        const { reading } = selected;
 
         const observation = createHoningObservation(
           material,
           reading,
-          Math.min(match.score, Math.max(0, data.confidence / 100)),
+          Math.min(match.score, selected.confidence),
         );
         observations.push({ ...observation, x: match.x, y: match.y, slotSize: match.slotSize });
         if (reading.needsTooltip) cappedMaterials.push(material);
@@ -634,17 +723,33 @@ const recognizeFateShard = async (
   );
   const tooltipWorker = await getTooltipOcrWorker();
   const { data: honingData } = await tooltipWorker.recognize(honingCosts.canvas);
-  const honingQuantity = parseHoningFateShardQuantity(honingData.text);
+  let honingQuantity = parseHoningFateShardQuantity(honingData.text);
+  let confidence = Math.max(0, Math.min(1, honingData.confidence / 100));
+  if (honingQuantity === null) {
+    // Advanced honing places the first owned currency farther right than the material row.
+    const advancedOwnedAmount = createOcrRegion(
+      frame,
+      honing.region.x + honing.region.width * 0.4,
+      honing.rowY + honing.slotSize * 2.35,
+      honing.region.width * 0.15,
+      honing.slotSize * 0.9,
+      4,
+      false,
+    );
+    const { data: advancedData } = await numericWorker.recognize(advancedOwnedAmount.canvas);
+    honingQuantity = parseNarrowFateShardQuantity(advancedData.text);
+    confidence = Math.max(0, Math.min(1, advancedData.confidence / 100));
+  }
   if (honingQuantity === null) return null;
 
   return {
     material: '운명의 파편',
     quantity: honingQuantity,
-    confidence: Math.max(0, Math.min(1, honingData.confidence / 100)),
+    confidence,
     x: 0,
     y: 0,
     slotSize: 0,
-    needsReview: honingData.confidence < 70,
+    needsReview: confidence < 0.7,
     source: 'fate-shard',
   };
 };
