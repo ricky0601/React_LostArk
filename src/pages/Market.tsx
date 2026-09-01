@@ -14,7 +14,11 @@ import {
   type AuctionItem,
 } from '../utils/api';
 
-type ActiveTab = 'engraving' | 'gem';
+const AccessoryMarket = React.lazy(() => import('../components/market/AccessoryMarket'));
+const LegendAvatarMarket = React.lazy(() => import('../components/market/LegendAvatarMarket'));
+const BraceletMarket = React.lazy(() => import('../components/market/BraceletMarket'));
+
+type ActiveTab = 'engraving' | 'gem' | 'accessory' | 'avatar' | 'bracelet';
 
 const GEM_KINDS: GemKind[] = ['겁화', '작열'];
 const GEM_TARGETS = Array.from({ length: 10 }, (_, index) => 10 - index).flatMap((level) =>
@@ -24,6 +28,9 @@ const GEM_TARGETS = Array.from({ length: 10 }, (_, index) => 10 - index).flatMap
 const TABS: Array<{ key: ActiveTab; label: string }> = [
   { key: 'engraving', label: '유물 각인서' },
   { key: 'gem', label: '보석' },
+  { key: 'accessory', label: '장신구' },
+  { key: 'avatar', label: '전설 아바타' },
+  { key: 'bracelet', label: '팔찌' },
 ];
 
 const MARKET_REQUEST_CONCURRENCY = 3;
@@ -62,7 +69,8 @@ const runSettledWithConcurrency = async <T, R>(
 
 let cachedEngravingState: RankState<EngravingRankItem> | null = null;
 let cachedGemState: RankState<GemRankItem> | null = null;
-let pendingRankings: Promise<[RankState<EngravingRankItem>, RankState<GemRankItem>]> | null = null;
+let pendingEngraving: Promise<RankState<EngravingRankItem>> | null = null;
+let pendingGem: Promise<RankState<GemRankItem>> | null = null;
 
 const initialRankState = <T,>(): RankState<T> => ({
   status: 'loading',
@@ -74,8 +82,8 @@ const initialRankState = <T,>(): RankState<T> => ({
 const getLowestAuctionItem = (items: AuctionItem[] | undefined): AuctionItem | null => {
   if (!items) return null;
   return items
-    .filter((item) => item.AuctionInfo.BuyPrice > 0)
-    .sort((a, b) => a.AuctionInfo.BuyPrice - b.AuctionInfo.BuyPrice)[0] ?? null;
+    .filter((item) => item.AuctionInfo.BuyPrice != null && item.AuctionInfo.BuyPrice > 0)
+    .sort((a, b) => (a.AuctionInfo.BuyPrice ?? Number.MAX_SAFE_INTEGER) - (b.AuctionInfo.BuyPrice ?? Number.MAX_SAFE_INTEGER))[0] ?? null;
 };
 
 const rankEngravingsByPrice = (items: Omit<EngravingRankItem, 'rank'>[]): EngravingRankItem[] =>
@@ -117,65 +125,39 @@ const fetchRelicEngravingItems = async () => {
   return Array.from(uniqueItems.values());
 };
 
-const fetchRankingStates = async (): Promise<[RankState<EngravingRankItem>, RankState<GemRankItem>]> => {
-  const engravingPromise = fetchRelicEngravingItems();
+const fetchEngravingState = async (): Promise<RankState<EngravingRankItem>> => {
+  try {
+    const items = await fetchRelicEngravingItems();
+    const engravingItems = items
+      .filter((item) => item.CurrentMinPrice != null && item.CurrentMinPrice > 0 && item.Name.includes('각인서'))
+      .map((item) => ({
+        name: item.Name.replace(/^유물\s*/, '').replace(/\s*각인서$/, ''),
+        itemName: item.Name,
+        icon: item.Icon,
+        price: item.CurrentMinPrice!,
+        yDayAvgPrice: item.YDayAvgPrice ?? 0,
+      }));
+    return { status: engravingItems.length > 0 ? 'success' : 'error', items: rankEngravingsByPrice(engravingItems), fetchedAt: new Date(), failedCount: 0 };
+  } catch {
+    return { status: 'error', items: [], fetchedAt: new Date(), failedCount: 1 };
+  }
+};
 
-  const gemPromise = runSettledWithConcurrency(GEM_TARGETS, MARKET_REQUEST_CONCURRENCY, async ({ level, kind }) => {
-    const response = await fetchAuctionItems({
-      CategoryCode: 210000,
-      ItemName: `${level}레벨 ${kind}의 보석`,
-      ItemTier: 4,
-      PageSize: 1,
-    });
+const fetchGemState = async (): Promise<RankState<GemRankItem>> => {
+  const settled = await runSettledWithConcurrency(GEM_TARGETS, MARKET_REQUEST_CONCURRENCY, async ({ level, kind }) => {
+    const response = await fetchAuctionItems({ CategoryCode: 210000, ItemName: `${level}레벨 ${kind}의 보석`, ItemTier: 4, PageSize: 1 });
     const item = getLowestAuctionItem(response.Items);
-    if (!item) return null;
-    return {
-      level,
-      kind,
-      name: item.Name,
-      icon: item.Icon,
-      price: item.AuctionInfo.BuyPrice,
-    };
+    if (!item?.AuctionInfo.BuyPrice) return null;
+    return { level, kind, name: item.Name, icon: item.Icon, price: item.AuctionInfo.BuyPrice };
   });
-
-  const [engravingSettled, gemSettled] = await Promise.allSettled([engravingPromise, gemPromise]);
-  const fetchedAt = new Date();
-
-  const engravingItems = engravingSettled.status === 'fulfilled'
-    ? engravingSettled.value
-        .filter((item) => item.CurrentMinPrice > 0 && item.Name.includes('각인서'))
-        .map((item) => ({
-          name: item.Name.replace(/^유물\s*/, '').replace(/\s*각인서$/, ''),
-          itemName: item.Name,
-          icon: item.Icon,
-          price: item.CurrentMinPrice,
-          yDayAvgPrice: item.YDayAvgPrice,
-        }))
-    : [];
-
-  const gemItems = gemSettled.status === 'fulfilled'
-    ? gemSettled.value.flatMap((result) =>
-        result.status === 'fulfilled' && result.value ? [result.value] : [],
-      )
-    : [];
-  const gemFailedCount = gemSettled.status === 'fulfilled'
-    ? gemSettled.value.filter((result) => result.status === 'rejected').length
-    : GEM_TARGETS.length;
-
-  return [
-    {
-      status: engravingItems.length > 0 ? 'success' : 'error',
-      items: rankEngravingsByPrice(engravingItems),
-      fetchedAt,
-      failedCount: engravingSettled.status === 'rejected' ? 1 : 0,
-    },
-    {
-      status: gemItems.length > 0 || gemFailedCount < GEM_TARGETS.length ? 'success' : 'error',
-      items: rankGemsByPrice(gemItems),
-      fetchedAt,
-      failedCount: gemFailedCount,
-    },
-  ];
+  const items = settled.flatMap((result) => result.status === 'fulfilled' && result.value ? [result.value] : []);
+  const failedCount = settled.filter((result) => result.status === 'rejected').length;
+  return {
+    status: items.length > 0 || failedCount < GEM_TARGETS.length ? 'success' : 'error',
+    items: rankGemsByPrice(items),
+    fetchedAt: new Date(),
+    failedCount,
+  };
 };
 
 const Market: React.FC = () => {
@@ -184,43 +166,39 @@ const Market: React.FC = () => {
   const [engravingState, setEngravingState] = useState<RankState<EngravingRankItem>>(initialRankState);
   const [gemState, setGemState] = useState<RankState<GemRankItem>>(initialRankState);
 
-  const loadRankings = useCallback(async (force = false): Promise<void> => {
-    const requestId = requestIdRef.current + 1;
-    requestIdRef.current = requestId;
-
-    if (force) {
-      cachedEngravingState = null;
-      cachedGemState = null;
-      pendingRankings = null;
-    }
-
-    if (cachedEngravingState && cachedGemState) {
-      setEngravingState(cachedEngravingState);
-      setGemState(cachedGemState);
+  const loadRanking = useCallback(async (tab: 'engraving' | 'gem', force = false): Promise<void> => {
+    const requestId = ++requestIdRef.current;
+    if (tab === 'engraving') {
+      if (force) cachedEngravingState = null;
+      if (cachedEngravingState) {
+        setEngravingState(cachedEngravingState);
+        return;
+      }
+      setEngravingState((current) => ({ ...current, status: 'loading', failedCount: 0 }));
+      if (!pendingEngraving) pendingEngraving = fetchEngravingState().finally(() => { pendingEngraving = null; });
+      const nextState = await pendingEngraving;
+      cachedEngravingState = nextState;
+      if (requestIdRef.current !== requestId) return;
+      setEngravingState(nextState);
       return;
     }
 
-    setEngravingState((current) => ({ ...current, status: 'loading', failedCount: 0 }));
-    setGemState((current) => ({ ...current, status: 'loading', failedCount: 0 }));
-
-    if (!pendingRankings) {
-      pendingRankings = fetchRankingStates().finally(() => {
-        pendingRankings = null;
-      });
+    if (force) cachedGemState = null;
+    if (cachedGemState) {
+      setGemState(cachedGemState);
+      return;
     }
-
-    const [nextEngravingState, nextGemState] = await pendingRankings;
+    setGemState((current) => ({ ...current, status: 'loading', failedCount: 0 }));
+    if (!pendingGem) pendingGem = fetchGemState().finally(() => { pendingGem = null; });
+    const nextState = await pendingGem;
+    cachedGemState = nextState;
     if (requestIdRef.current !== requestId) return;
-
-    cachedEngravingState = nextEngravingState;
-    cachedGemState = nextGemState;
-    setEngravingState(nextEngravingState);
-    setGemState(nextGemState);
+    setGemState(nextState);
   }, []);
 
   useEffect(() => {
-    void loadRankings();
-  }, [loadRankings]);
+    if (activeTab === 'engraving' || activeTab === 'gem') void loadRanking(activeTab);
+  }, [activeTab, loadRanking]);
 
   return (
     <div className="min-h-screen bg-gray-50 transition-colors duration-300 dark:bg-la-dark">
@@ -232,21 +210,23 @@ const Market: React.FC = () => {
               <span className="inline-flex rounded-full border border-la-gold/20 bg-la-gold/10 px-3 py-1 text-xs font-bold text-la-gold-dark dark:text-la-gold">
                 Market Rank
               </span>
-              <h1 className="mt-4 text-3xl font-black tracking-tight text-gray-950 dark:text-white sm:text-4xl">시세 랭킹</h1>
+              <h1 className="mt-4 text-3xl font-black tracking-tight text-gray-950 dark:text-white sm:text-4xl">시세</h1>
             </div>
-            <button
-              type="button"
-              onClick={() => void loadRankings(true)}
-              className="btn-gold w-full sm:w-auto"
-              disabled={engravingState.status === 'loading' || gemState.status === 'loading'}
-            >
-              새로고침
-            </button>
+            {(activeTab === 'engraving' || activeTab === 'gem') && (
+              <button
+                type="button"
+                onClick={() => void loadRanking(activeTab, true)}
+                className="btn-gold w-full sm:w-auto"
+                disabled={activeTab === 'engraving' ? engravingState.status === 'loading' : gemState.status === 'loading'}
+              >
+                새로고침
+              </button>
+            )}
           </div>
         </GlassCard>
 
         <GlassCard className="p-2">
-          <div className="grid grid-cols-2 gap-2" role="tablist" aria-label="시세 랭킹 종류">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5" role="tablist" aria-label="시세 종류">
             {TABS.map((tab) => (
               <button
                 key={tab.key}
@@ -266,11 +246,13 @@ const Market: React.FC = () => {
           </div>
         </GlassCard>
 
-        {activeTab === 'engraving' ? (
-          <EngravingRanking state={engravingState} onRetry={() => void loadRankings(true)} />
-        ) : (
-          <GemRanking state={gemState} onRetry={() => void loadRankings(true)} />
-        )}
+        {activeTab === 'engraving' && <EngravingRanking state={engravingState} onRetry={() => void loadRanking('engraving', true)} />}
+        {activeTab === 'gem' && <GemRanking state={gemState} onRetry={() => void loadRanking('gem', true)} />}
+        <React.Suspense fallback={<GlassCard className="p-6 text-center text-sm text-gray-500 dark:text-gray-400">탭을 불러오는 중입니다.</GlassCard>}>
+          {activeTab === 'accessory' && <AccessoryMarket />}
+          {activeTab === 'avatar' && <LegendAvatarMarket />}
+          {activeTab === 'bracelet' && <BraceletMarket />}
+        </React.Suspense>
       </main>
     </div>
   );
