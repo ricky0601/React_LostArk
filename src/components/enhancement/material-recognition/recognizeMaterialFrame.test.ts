@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   createHoningObservation,
   fetchMaterialIcon,
+  getTemplateCropRatios,
   materialIconRequestUrl,
   parseHoningFateShardQuantity,
   parseHoningOwnedQuantity,
@@ -37,6 +38,33 @@ describe('materialIconRequestUrl', () => {
 
   it('does not rewrite other icon origins', () => {
     expect(materialIconRequestUrl('https://example.com/icon.png')).toBe('https://example.com/icon.png');
+  });
+});
+
+describe('getTemplateCropRatios', () => {
+  it('matches compact icons by their opaque artwork instead of transparent padding', () => {
+    const rgba = new Uint8Array(8 * 8 * 4);
+    for (let y = 2; y <= 5; y += 1) {
+      for (let x = 3; x <= 4; x += 1) rgba[(y * 8 + x) * 4 + 3] = 255;
+    }
+
+    expect(getTemplateCropRatios(rgba, 8, 8)).toEqual({
+      x: 3 / 8,
+      y: 2 / 8,
+      width: 2 / 8,
+      height: 4 / 8,
+    });
+  });
+
+  it('keeps the standard inner crop for full-size icons', () => {
+    const rgba = new Uint8Array(8 * 8 * 4).fill(255);
+
+    expect(getTemplateCropRatios(rgba, 8, 8)).toEqual({
+      x: 0.05,
+      y: 0.2,
+      width: 0.68,
+      height: 0.68,
+    });
   });
 });
 

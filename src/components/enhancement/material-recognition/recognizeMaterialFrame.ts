@@ -106,6 +106,55 @@ interface TemplateMatchTiming {
   refineMs: number;
 }
 
+interface TemplateCropRatios {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+const DEFAULT_TEMPLATE_CROP: TemplateCropRatios = {
+  x: 0.05,
+  y: 0.2,
+  width: 0.68,
+  height: 0.68,
+};
+
+export const getTemplateCropRatios = (
+  rgba: ArrayLike<number>,
+  width: number,
+  height: number,
+): TemplateCropRatios => {
+  let minX = width;
+  let minY = height;
+  let maxX = -1;
+  let maxY = -1;
+
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      if (rgba[(y * width + x) * 4 + 3] <= 16) continue;
+      minX = Math.min(minX, x);
+      minY = Math.min(minY, y);
+      maxX = Math.max(maxX, x);
+      maxY = Math.max(maxY, y);
+    }
+  }
+
+  if (maxX < minX || maxY < minY) return DEFAULT_TEMPLATE_CROP;
+  const opaqueWidth = maxX - minX + 1;
+  const opaqueHeight = maxY - minY + 1;
+  if (opaqueWidth / width >= 0.75 && opaqueHeight / height >= 0.75) {
+    return DEFAULT_TEMPLATE_CROP;
+  }
+
+  return {
+    x: minX / width,
+    y: minY / height,
+    width: opaqueWidth / width,
+    height: opaqueHeight / height,
+  };
+};
+
 const findTemplateMatches = (
   cv: OpenCv,
   source: OpenCvMat,
@@ -117,6 +166,11 @@ const findTemplateMatches = (
   const templateRgb = new cv.Mat();
   const coarseSource = new cv.Mat();
   const mask = new cv.Mat();
+  const cropRatios = getTemplateCropRatios(
+    templateSource.data,
+    templateSource.cols,
+    templateSource.rows,
+  );
   cv.cvtColor(templateSource, templateRgb, cv.COLOR_RGBA2RGB);
   cv.resize(
     source,
@@ -133,15 +187,15 @@ const findTemplateMatches = (
       const resized = new cv.Mat();
       const coarseTemplate = new cv.Mat();
       const coarseResult = new cv.Mat();
-      const cropX = Math.round(slotSize * 0.05);
-      const cropY = Math.round(slotSize * 0.2);
-      const cropWidth = Math.round(slotSize * 0.68);
-      const cropHeight = Math.round(slotSize * 0.68);
+      const cropX = Math.round(slotSize * cropRatios.x);
+      const cropY = Math.round(slotSize * cropRatios.y);
+      const cropWidth = Math.max(1, Math.round(slotSize * cropRatios.width));
+      const cropHeight = Math.max(1, Math.round(slotSize * cropRatios.height));
       const coarseSlotSize = Math.max(10, Math.round(slotSize * COARSE_SCALE));
-      const coarseCropX = Math.round(coarseSlotSize * 0.05);
-      const coarseCropY = Math.round(coarseSlotSize * 0.2);
-      const coarseCropWidth = Math.round(coarseSlotSize * 0.68);
-      const coarseCropHeight = Math.round(coarseSlotSize * 0.68);
+      const coarseCropX = Math.round(coarseSlotSize * cropRatios.x);
+      const coarseCropY = Math.round(coarseSlotSize * cropRatios.y);
+      const coarseCropWidth = Math.max(1, Math.round(coarseSlotSize * cropRatios.width));
+      const coarseCropHeight = Math.max(1, Math.round(coarseSlotSize * cropRatios.height));
       let templateCrop: OpenCvMat | null = null;
       let coarseTemplateCrop: OpenCvMat | null = null;
 
