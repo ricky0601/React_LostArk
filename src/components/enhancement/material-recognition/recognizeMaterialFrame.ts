@@ -69,11 +69,15 @@ export const materialIconRequestUrl = (url: string): string => {
   return `/api/material-icon${parsed.pathname}${parsed.search}`;
 };
 
+export const fetchMaterialIcon = (url: string): Promise<Response> => (
+  fetch(materialIconRequestUrl(url), { credentials: 'same-origin' })
+);
+
 const loadTemplateCanvas = async (url: string): Promise<HTMLCanvasElement> => {
   const cached = templateCanvasCache.get(url);
   if (cached) return cached;
 
-  const response = await fetch(materialIconRequestUrl(url), { credentials: 'omit' });
+  const response = await fetchMaterialIcon(url);
   if (!response.ok) throw new Error('재료 아이콘을 불러오지 못했습니다.');
   const bitmap = await createImageBitmap(await response.blob());
   const canvas = document.createElement('canvas');

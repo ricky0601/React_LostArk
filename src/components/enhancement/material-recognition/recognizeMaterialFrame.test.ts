@@ -1,6 +1,7 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   createHoningObservation,
+  fetchMaterialIcon,
   materialIconRequestUrl,
   parseHoningFateShardQuantity,
   parseHoningOwnedQuantity,
@@ -10,10 +11,28 @@ import {
 } from './recognizeMaterialFrame';
 
 describe('materialIconRequestUrl', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
   it('loads Lost Ark CDN icons through the same-origin proxy', () => {
     expect(materialIconRequestUrl(
       'https://cdn-lostark.game.onstove.com/efui_iconatlas/use/use_6_104.png?cache=1',
     )).toBe('/api/material-icon/efui_iconatlas/use/use_6_104.png?cache=1');
+  });
+
+  it('includes same-origin credentials for protected preview deployments', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({});
+    vi.stubGlobal('fetch', fetchMock);
+
+    await fetchMaterialIcon(
+      'https://cdn-lostark.game.onstove.com/efui_iconatlas/use/use_6_104.png?cache=1',
+    );
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/material-icon/efui_iconatlas/use/use_6_104.png?cache=1',
+      { credentials: 'same-origin' },
+    );
   });
 
   it('does not rewrite other icon origins', () => {
