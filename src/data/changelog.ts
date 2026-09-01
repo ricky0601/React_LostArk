@@ -32,6 +32,15 @@ export const CHANGELOG_TAG_LABEL: Readonly<Record<ChangelogTag, string>> = {
 
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
+    id: 'release-007',
+    date: '2026-09-01',
+    title: '시세 검색 확장과 화면 인식 재료 입력',
+    items: [
+      { tag: 'added', text: '시세 페이지에서 장신구, 전설 아바타, 팔찌 매물을 조건별로 검색할 수 있습니다.' },
+      { tag: 'added', text: '재련 견적에서 게임 화면을 인식해 보유 재료 수량을 입력할 수 있습니다.' },
+    ],
+  },
+  {
     id: 'release-006',
     date: '2026-08-24',
     title: '완갑 데이터 100% 추가 완료',
