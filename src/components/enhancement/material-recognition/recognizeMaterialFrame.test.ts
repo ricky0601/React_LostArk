@@ -2,12 +2,16 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   createHoningObservation,
   fetchMaterialIcon,
+  getTemplateCropCandidates,
+  getTemplateCropRatios,
   materialIconRequestUrl,
   parseHoningFateShardQuantity,
   parseHoningOwnedQuantity,
+  parseNarrowFateShardQuantity,
   parseTooltipQuantity,
   parseTooltipTitleQuantity,
   parseTopBarFateShardQuantity,
+  selectHoningOcrReading,
 } from './recognizeMaterialFrame';
 
 describe('materialIconRequestUrl', () => {
@@ -40,6 +44,39 @@ describe('materialIconRequestUrl', () => {
   });
 });
 
+describe('getTemplateCropRatios', () => {
+  it('matches compact icons by their opaque artwork instead of transparent padding', () => {
+    const rgba = new Uint8Array(8 * 8 * 4);
+    for (let y = 2; y <= 5; y += 1) {
+      for (let x = 3; x <= 4; x += 1) rgba[(y * 8 + x) * 4 + 3] = 255;
+    }
+
+    const opaqueCrop = {
+      x: 3 / 8,
+      y: 2 / 8,
+      width: 2 / 8,
+      height: 4 / 8,
+    };
+
+    expect(getTemplateCropRatios(rgba, 8, 8)).toEqual(opaqueCrop);
+    expect(getTemplateCropCandidates(rgba, 8, 8)).toEqual([
+      opaqueCrop,
+      { x: 0.05, y: 0.2, width: 0.68, height: 0.68 },
+    ]);
+  });
+
+  it('keeps the standard inner crop for full-size icons', () => {
+    const rgba = new Uint8Array(8 * 8 * 4).fill(255);
+
+    expect(getTemplateCropRatios(rgba, 8, 8)).toEqual({
+      x: 0.05,
+      y: 0.2,
+      width: 0.68,
+      height: 0.68,
+    });
+  });
+});
+
 describe('parseTooltipTitleQuantity', () => {
   it.each([
     ['[X 7440)', 7440],
@@ -59,6 +96,26 @@ describe('honing material quantity parsing', () => {
     ['9999 / 4260', { quantity: 9999, needsTooltip: true }],
   ])('reads only the owned value from %s', (text, expected) => {
     expect(parseHoningOwnedQuantity(text)).toEqual(expected);
+  });
+
+  it('reconciles a dropped and duplicated repeated digit from OCR crops', () => {
+    expect(selectHoningOcrReading([
+      { text: '11 / 6', confidence: 61 },
+      { text: '1111 / 6', confidence: 39 },
+    ])).toEqual({
+      reading: { quantity: 111, needsTooltip: false },
+      confidence: 0.61,
+    });
+  });
+
+  it('selects the highest-confidence valid crop reading', () => {
+    expect(selectHoningOcrReading([
+      { text: '277', confidence: 80 },
+      { text: '26 / 7', confidence: 72 },
+    ])).toEqual({
+      reading: { quantity: 26, needsTooltip: false },
+      confidence: 0.72,
+    });
   });
 
   it('processes every visible weapon, armor, and armlet material without a fixed slot count', () => {
@@ -95,6 +152,10 @@ describe('fate shard quantity parsing', () => {
 
   it('reads the last grouped quantity from the top-bar crop', () => {
     expect(parseTopBarFateShardQuantity('121,365 1,226,295')).toBe(1_226_295);
+  });
+
+  it('reads an ungrouped amount from a crop limited to the fate-shard column', () => {
+    expect(parseNarrowFateShardQuantity('91897')).toBe(91_897);
   });
 
   it('does not use capped material counts from the honing window', () => {
