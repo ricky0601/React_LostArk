@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   createHoningObservation,
   fetchMaterialIcon,
+  getTemplateCropCandidates,
   getTemplateCropRatios,
   materialIconRequestUrl,
   parseHoningFateShardQuantity,
@@ -48,12 +49,18 @@ describe('getTemplateCropRatios', () => {
       for (let x = 3; x <= 4; x += 1) rgba[(y * 8 + x) * 4 + 3] = 255;
     }
 
-    expect(getTemplateCropRatios(rgba, 8, 8)).toEqual({
+    const opaqueCrop = {
       x: 3 / 8,
       y: 2 / 8,
       width: 2 / 8,
       height: 4 / 8,
-    });
+    };
+
+    expect(getTemplateCropRatios(rgba, 8, 8)).toEqual(opaqueCrop);
+    expect(getTemplateCropCandidates(rgba, 8, 8)).toEqual([
+      opaqueCrop,
+      { x: 0.05, y: 0.2, width: 0.68, height: 0.68 },
+    ]);
   });
 
   it('keeps the standard inner crop for full-size icons', () => {

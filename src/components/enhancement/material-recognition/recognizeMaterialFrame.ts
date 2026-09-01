@@ -155,6 +155,17 @@ export const getTemplateCropRatios = (
   };
 };
 
+export const getTemplateCropCandidates = (
+  rgba: ArrayLike<number>,
+  width: number,
+  height: number,
+): TemplateCropRatios[] => {
+  const detectedCrop = getTemplateCropRatios(rgba, width, height);
+  return detectedCrop === DEFAULT_TEMPLATE_CROP
+    ? [detectedCrop]
+    : [detectedCrop, DEFAULT_TEMPLATE_CROP];
+};
+
 const findTemplateMatches = (
   cv: OpenCv,
   source: OpenCvMat,
@@ -166,7 +177,7 @@ const findTemplateMatches = (
   const templateRgb = new cv.Mat();
   const coarseSource = new cv.Mat();
   const mask = new cv.Mat();
-  const cropRatios = getTemplateCropRatios(
+  const cropCandidates = getTemplateCropCandidates(
     templateSource.data,
     templateSource.cols,
     templateSource.rows,
@@ -182,7 +193,8 @@ const findTemplateMatches = (
   );
   const matches: Match[] = [];
 
-  try {
+  const findMatchesForCrop = (cropRatios: TemplateCropRatios): boolean => {
+    const previousMatchCount = matches.length;
     for (const slotSize of templateSizes) {
       const resized = new cv.Mat();
       const coarseTemplate = new cv.Mat();
@@ -272,6 +284,13 @@ const findTemplateMatches = (
         coarseTemplate.delete();
         coarseResult.delete();
       }
+    }
+    return matches.length > previousMatchCount;
+  };
+
+  try {
+    for (const cropRatios of cropCandidates) {
+      if (findMatchesForCrop(cropRatios)) break;
     }
   } finally {
     templateSource.delete();
