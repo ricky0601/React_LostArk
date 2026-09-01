@@ -107,6 +107,22 @@ nodeDescribe('Lost Ark API proxy', () => {
     });
   });
 
+  nodeTest('allows auction options used to resolve official search codes', async () => {
+    let capturedUrl;
+    const handler = createHandler({
+      fetchImpl: async (url) => {
+        capturedUrl = url;
+        return createUpstreamResponse({ body: '{"Categories":[]}' });
+      },
+    });
+    const res = createResponse();
+
+    await handler(createRequest({ query: { path: ['auctions', 'options'] } }), res);
+
+    assert.equal(capturedUrl.toString(), 'https://developer-lostark.game.onstove.com/auctions/options');
+    assert.equal(res.statusCode, 200);
+  });
+
   nodeTest('allows the character avatars endpoint used by the spec simulator', async () => {
     let capturedUrl;
     const handler = createHandler({

@@ -13,8 +13,9 @@ describe('Vite migration configuration', () => {
       isPreview: false,
     });
     const proxy = config.server?.proxy?.['/api/lostark'];
+    const iconProxy = config.server?.proxy?.['/api/material-icon'];
 
-    if (!proxy || typeof proxy === 'string') {
+    if (!proxy || typeof proxy === 'string' || !iconProxy || typeof iconProxy === 'string') {
       throw new TypeError('Expected the Lost Ark proxy configuration');
     }
 
@@ -22,6 +23,10 @@ describe('Vite migration configuration', () => {
     expect(proxy.changeOrigin).toBe(true);
     expect(proxy.rewrite?.('/api/lostark/news/events')).toBe('/news/events');
     expect(proxy.headers?.accept).toBe('application/json');
+    expect(iconProxy.target).toBe('https://cdn-lostark.game.onstove.com');
+    expect(iconProxy.changeOrigin).toBe(true);
+    expect(iconProxy.rewrite?.('/api/material-icon/efui_iconatlas/icon.png'))
+      .toBe('/efui_iconatlas/icon.png');
 
     // loadEnv is consumed only while creating the dev server config. Nothing is defined in client code.
     expect(config.define).toBeUndefined();

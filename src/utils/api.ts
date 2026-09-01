@@ -72,11 +72,14 @@ export const fetchCalendar = (): Promise<CalendarItem[]> =>
 export interface MarketCategory {
   Code: number;
   CodeName: string;
-  Subs?: MarketCategory[];
+  Subs?: MarketCategory[] | null;
 }
 
 export interface MarketOptionsResponse {
   Categories: MarketCategory[];
+  ItemGrades: string[];
+  ItemTiers: number[];
+  Classes: string[];
 }
 
 export const fetchMarketOptions = (): Promise<MarketOptionsResponse> =>
@@ -89,9 +92,9 @@ export interface MarketItem {
   Icon: string;
   BundleCount: number;
   TradeRemainCount: number | null;
-  YDayAvgPrice: number;
-  RecentPrice: number;
-  CurrentMinPrice: number;
+  YDayAvgPrice: number | null;
+  RecentPrice: number | null;
+  CurrentMinPrice: number | null;
 }
 
 export interface MarketSearchResponse {
@@ -118,13 +121,49 @@ export const fetchMarketItems = (
     }),
   });
 
+export interface AuctionOptionValue {
+  DisplayValue: string;
+  Value: number;
+  IsPercentage: boolean;
+}
+
+export interface AuctionEtcSubOption {
+  Value: number;
+  Text: string;
+  Class: string;
+  Categorys: number[] | null;
+  Tiers: number[] | null;
+  EtcValues: AuctionOptionValue[] | null;
+}
+
+export interface AuctionEtcOption {
+  Value: number;
+  Text: string;
+  Tiers: number[] | null;
+  EtcSubs: AuctionEtcSubOption[] | null;
+}
+
+export interface AuctionOptionsResponse {
+  MaxItemLevel: number;
+  ItemGradeQualities: number[];
+  EtcOptions: AuctionEtcOption[];
+  Categories: MarketCategory[];
+  ItemGrades: string[];
+  ItemTiers: number[];
+  Classes: string[];
+}
+
+export const fetchAuctionOptions = (): Promise<AuctionOptionsResponse> =>
+  apiFetch<AuctionOptionsResponse>('/auctions/options');
+
 export interface AuctionItemOption {
   Type: string;
   OptionName: string;
   OptionNameTripod: string;
   Value: number;
   IsPenalty: boolean;
-  ClassName: string;
+  ClassName: string | null;
+  IsValuePercentage?: boolean;
 }
 
 export interface AuctionItem {
@@ -136,7 +175,7 @@ export interface AuctionItem {
   GradeQuality: number | null;
   AuctionInfo: {
     StartPrice: number;
-    BuyPrice: number;
+    BuyPrice: number | null;
     BidPrice: number;
     EndDate: string;
     BidCount: number;

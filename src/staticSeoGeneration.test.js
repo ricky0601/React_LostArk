@@ -37,6 +37,12 @@ afterAll(() => {
   rmSync(fixtureRoot, { recursive: true, force: true });
 });
 
+test('keeps credentials enabled for the protected deployment manifest request', () => {
+  const indexHtml = readFileSync(join(projectRoot, 'index.html'), 'utf8');
+
+  expect(indexHtml).toContain('<link rel="manifest" href="/manifest.json" crossorigin="use-credentials" />');
+});
+
 test('uses a 1200 by 630 PNG for static social metadata', () => {
   const indexHtml = readFileSync(join(projectRoot, 'index.html'), 'utf8');
   const png = readFileSync(join(projectRoot, 'public', 'og-banner.png'));
@@ -154,10 +160,13 @@ test('generates a noindex static 404 document with the home canonical', () => {
 });
 
 test('keeps API, known routes, missing routes, and static assets distinct in Vercel routing', () => {
-  const { outputDirectory, rewrites } = require(join(projectRoot, 'vercel.json'));
-  const apiRewrite = rewrites[0];
+  const { outputDirectory, headers, rewrites } = require(join(projectRoot, 'vercel.json'));
+  const apiRewrite = rewrites.find((rewrite) => rewrite.source === '/api/lostark/:path*');
+  const materialIconSource = '/api/material-icon/:path(.*\\.png)';
+  const materialIconRewrite = rewrites.find((rewrite) => rewrite.source === materialIconSource);
+  const materialIconHeaders = headers.find((rule) => rule.source === materialIconSource);
   const fallbackRewrite = rewrites[rewrites.length - 1];
-  const pageRewrites = rewrites.slice(1, -1);
+  const pageRewrites = rewrites.filter((rewrite) => rewrite.destination.endsWith('/index.html'));
   const indexablePageRoutes = routeSeoEntries
     .filter((route) => route.path !== '/' && route.robots === 'index, follow')
     .map((route) => route.path)
@@ -167,6 +176,20 @@ test('keeps API, known routes, missing routes, and static assets distinct in Ver
   expect(apiRewrite).toEqual({
     source: '/api/lostark/:path*',
     destination: '/api/lostark/[...]',
+  });
+  expect(materialIconRewrite).toEqual({
+    source: materialIconSource,
+    destination: 'https://cdn-lostark.game.onstove.com/:path',
+  });
+  expect(materialIconHeaders).toEqual({
+    source: materialIconSource,
+    headers: [
+      { key: 'X-Content-Type-Options', value: 'nosniff' },
+      {
+        key: 'Cache-Control',
+        value: 'public, max-age=86400, s-maxage=604800, stale-while-revalidate=86400',
+      },
+    ],
   });
   expect(pageRewrites.map((rewrite) => rewrite.source).sort()).toEqual(indexablePageRoutes);
   for (const rewrite of pageRewrites) {

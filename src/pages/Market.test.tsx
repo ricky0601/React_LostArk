@@ -1,16 +1,25 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import Market, { EngravingRanking, GemRanking } from './Market';
-import { fetchAuctionItems, fetchMarketItems } from '../utils/api';
+import {
+  fetchAuctionItems,
+  fetchAuctionOptions,
+  fetchMarketItems,
+  fetchMarketOptions,
+} from '../utils/api';
 
 vi.mock('../components/NavBar', () => ({ default: () => <div>NavBar</div> }));
 
 vi.mock('../utils/api', () => ({
   fetchAuctionItems: vi.fn(),
+  fetchAuctionOptions: vi.fn(),
   fetchMarketItems: vi.fn(),
+  fetchMarketOptions: vi.fn(),
 }));
 
 const mockedFetchAuctionItems = vi.mocked(fetchAuctionItems);
+const mockedFetchAuctionOptions = vi.mocked(fetchAuctionOptions);
 const mockedFetchMarketItems = vi.mocked(fetchMarketItems);
+const mockedFetchMarketOptions = vi.mocked(fetchMarketOptions);
 
 describe('Market ranking states', () => {
   beforeEach(() => {
@@ -110,5 +119,28 @@ describe('Market ranking states', () => {
 
     await waitFor(() => expect(mockedFetchMarketItems).toHaveBeenCalledTimes(2));
     expect(await screen.findAllByText('유물 원한 각인서')).toHaveLength(2);
+  });
+
+  it('loads search options only after its market tab becomes active', async () => {
+    mockedFetchAuctionOptions.mockResolvedValue({
+      MaxItemLevel: 1700,
+      ItemGradeQualities: [],
+      EtcOptions: [],
+      Categories: [],
+      ItemGrades: ['고대'],
+      ItemTiers: [4],
+      Classes: [],
+    });
+
+    render(<Market />);
+
+    expect(mockedFetchAuctionOptions).not.toHaveBeenCalled();
+    expect(mockedFetchMarketOptions).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('tab', { name: '장신구' }));
+
+    await waitFor(() => expect(mockedFetchAuctionOptions).toHaveBeenCalledTimes(1));
+    expect(mockedFetchMarketOptions).not.toHaveBeenCalled();
+    expect(mockedFetchAuctionItems).not.toHaveBeenCalled();
   });
 });

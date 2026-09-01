@@ -45,7 +45,7 @@ export const useEnhancementMarket = () => {
           const itemsPerUnit = config.itemsPerUnit ?? 1;
           return {
             type,
-            price: item.CurrentMinPrice / item.BundleCount / itemsPerUnit,
+            price: (item.CurrentMinPrice ?? 0) / item.BundleCount / itemsPerUnit,
             icon: item.Icon,
           };
         }),
