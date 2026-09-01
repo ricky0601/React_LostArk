@@ -36,6 +36,11 @@ const options = {
 };
 
 describe('BraceletMarket', () => {
+  beforeEach(() => {
+    mockedFetchAuctionItems.mockReset();
+    mockedGetCachedAuctionOptions.mockReset();
+  });
+
   it('searches tier 4 with the default dual ranges and assigned effect count', async () => {
     mockedGetCachedAuctionOptions.mockResolvedValue(options);
     mockedFetchAuctionItems.mockResolvedValue({ PageNo: 1, PageSize: 10, TotalCount: 0, Items: [] });
@@ -58,5 +63,19 @@ describe('BraceletMarket', () => {
         { FirstOption: 4, SecondOption: 2, MinValue: 3, MaxValue: 3 },
       ],
     }));
+  });
+
+  it('locks search filters while a request is loading', async () => {
+    mockedGetCachedAuctionOptions.mockResolvedValue(options);
+    mockedFetchAuctionItems.mockImplementation(() => new Promise(() => {}));
+
+    render(<BraceletMarket />);
+
+    await screen.findByRole('combobox', { name: '팔찌 등급' });
+    fireEvent.click(screen.getByRole('button', { name: '팔찌 검색' }));
+
+    expect(screen.getByRole('combobox', { name: '팔찌 등급' })).toBeDisabled();
+    screen.getAllByRole('slider').forEach((slider) => expect(slider).toBeDisabled());
+    expect(screen.getByRole('button', { name: '팔찌 검색' })).toBeDisabled();
   });
 });

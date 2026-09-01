@@ -58,14 +58,17 @@ const createDefaultOptionInputs = (
   tier?: number,
 ): OptionInput[] => {
   const categoryCode = findCategoryCode(options.Categories, part, '장신구');
-  if (categoryCode == null) return [EMPTY_OPTION, EMPTY_OPTION];
+  if (categoryCode == null) return [EMPTY_OPTION, EMPTY_OPTION, EMPTY_OPTION];
   const availableOptions = getPartHoningEffects(getAuctionOptionsForCategory(options, categoryCode, tier), part);
-  return DEFAULT_OPTION_NAMES[part].map((optionName) => {
-    const option = availableOptions.find((candidate) => candidate.Text === optionName);
-    return option
-      ? { firstOption: option.firstOption, secondOption: option.Value, minValue: '', maxValue: '' }
-      : EMPTY_OPTION;
-  });
+  return [
+    ...DEFAULT_OPTION_NAMES[part].map((optionName) => {
+      const option = availableOptions.find((candidate) => candidate.Text === optionName);
+      return option
+        ? { firstOption: option.firstOption, secondOption: option.Value, minValue: '', maxValue: '' }
+        : EMPTY_OPTION;
+    }),
+    EMPTY_OPTION,
+  ];
 };
 
 const AccessoryMarket: React.FC = () => {
@@ -77,7 +80,7 @@ const AccessoryMarket: React.FC = () => {
   const [quality, setQuality] = useState('');
   const [tradeCount, setTradeCount] = useState('');
   const [sortCondition, setSortCondition] = useState<'ASC' | 'DESC'>('ASC');
-  const [optionInputs, setOptionInputs] = useState<OptionInput[]>([EMPTY_OPTION, EMPTY_OPTION]);
+  const [optionInputs, setOptionInputs] = useState<OptionInput[]>([EMPTY_OPTION, EMPTY_OPTION, EMPTY_OPTION]);
   const [state, setState] = useState<SearchState>('idle');
   const [items, setItems] = useState<AuctionItem[]>([]);
   const [error, setError] = useState('');
@@ -85,7 +88,6 @@ const AccessoryMarket: React.FC = () => {
   const [pageSize, setPageSize] = useState(10);
   const [totalCount, setTotalCount] = useState(0);
   const [lastFilters, setLastFilters] = useState<AccessorySearchFilters | null>(null);
-  const [selectedHoningOptionNames, setSelectedHoningOptionNames] = useState<string[]>([]);
 
   useEffect(() => {
     let active = true;
@@ -117,11 +119,10 @@ const AccessoryMarket: React.FC = () => {
   const handlePartChange = (nextPart: AccessoryPart): void => {
     if (nextPart === part) return;
     setPart(nextPart);
-    setOptionInputs(options ? createDefaultOptionInputs(options, nextPart, ACCESSORY_TIER) : [EMPTY_OPTION, EMPTY_OPTION]);
+    setOptionInputs(options ? createDefaultOptionInputs(options, nextPart, ACCESSORY_TIER) : [EMPTY_OPTION, EMPTY_OPTION, EMPTY_OPTION]);
     setState('idle');
     setItems([]);
     setLastFilters(null);
-    setSelectedHoningOptionNames([]);
     setPageNo(1);
     setTotalCount(0);
   };
@@ -169,7 +170,6 @@ const AccessoryMarket: React.FC = () => {
       pageNo: 1,
     };
     setLastFilters(filters);
-    setSelectedHoningOptionNames(selectedResolvedOptions.map(({ resolved }) => resolved.Text));
     void runSearch(filters, 1);
   };
 
@@ -188,6 +188,7 @@ const AccessoryMarket: React.FC = () => {
               type="button"
               role="tab"
               aria-selected={part === item}
+              disabled={state === 'loading'}
               onClick={() => handlePartChange(item)}
               className={`rounded-xl px-3 py-2.5 text-sm font-black transition-colors ${
                 part === item
@@ -201,21 +202,21 @@ const AccessoryMarket: React.FC = () => {
         </div>
         <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <label className="text-sm font-bold text-gray-700 dark:text-gray-300">등급
-            <select aria-label="장신구 등급" value={grade} onChange={(event) => setGrade(event.target.value)} className="input-field mt-1 w-full">
+            <select aria-label="장신구 등급" value={grade} onChange={(event) => setGrade(event.target.value)} className="input-field mt-1 w-full" disabled={state === 'loading'}>
               {ACCESSORY_GRADES.filter((itemGrade) => options.ItemGrades.includes(itemGrade)).map((itemGrade) => <option key={itemGrade}>{itemGrade}</option>)}
             </select>
           </label>
           <label className="text-sm font-bold text-gray-700 dark:text-gray-300">최소 품질
-            <input aria-label="최소 품질" type="number" min="0" max="100" value={quality} onChange={(event) => setQuality(event.target.value)} className="input-field mt-1 w-full" placeholder="0~100" />
+            <input aria-label="최소 품질" type="number" min="0" max="100" value={quality} onChange={(event) => setQuality(event.target.value)} className="input-field mt-1 w-full" placeholder="0~100" disabled={state === 'loading'} />
           </label>
           <label className="text-sm font-bold text-gray-700 dark:text-gray-300">거래 가능 횟수
-            <select aria-label="거래 가능 횟수" value={tradeCount} onChange={(event) => setTradeCount(event.target.value)} className="input-field mt-1 w-full">
+            <select aria-label="거래 가능 횟수" value={tradeCount} onChange={(event) => setTradeCount(event.target.value)} className="input-field mt-1 w-full" disabled={state === 'loading'}>
               <option value="">전체</option>
               {[0, 1, 2].map((count) => <option key={count} value={count}>{count}회</option>)}
             </select>
           </label>
           <label className="text-sm font-bold text-gray-700 dark:text-gray-300">즉구가 정렬
-            <select aria-label="장신구 즉구가 정렬" value={sortCondition} onChange={(event) => setSortCondition(event.target.value as 'ASC' | 'DESC')} className="input-field mt-1 w-full">
+            <select aria-label="장신구 즉구가 정렬" value={sortCondition} onChange={(event) => setSortCondition(event.target.value as 'ASC' | 'DESC')} className="input-field mt-1 w-full" disabled={state === 'loading'}>
               <option value="ASC">낮은 순</option>
               <option value="DESC">높은 순</option>
             </select>
@@ -241,17 +242,34 @@ const AccessoryMarket: React.FC = () => {
                     });
                   }}
                   className="input-field w-full"
+                  disabled={state === 'loading'}
                   style={selected ? { color: getHoningEffectRoleColor(selected.Text) } : undefined}
                 >
                   <option value="">옵션 선택 안 함</option>
-                  {availableOptions.map((option) => <option key={`${option.firstOption}-${option.Value}`} value={`${option.firstOption}:${option.Value}`} style={{ color: getHoningEffectRoleColor(option.Text) }}>{option.Text}</option>)}
+                  {availableOptions.map((option) => {
+                    const selectedByOtherInput = optionInputs.some((otherInput, otherIndex) =>
+                      otherIndex !== index
+                      && otherInput.firstOption === option.firstOption
+                      && otherInput.secondOption === option.Value,
+                    );
+                    return (
+                      <option
+                        key={`${option.firstOption}-${option.Value}`}
+                        value={`${option.firstOption}:${option.Value}`}
+                        disabled={selectedByOtherInput}
+                        style={{ color: selectedByOtherInput ? 'rgb(156, 163, 175)' : getHoningEffectRoleColor(option.Text) }}
+                      >
+                        {option.Text}
+                      </option>
+                    );
+                  })}
                 </select>
                 <select
                   aria-label={`장신구 옵션 ${index + 1} 등급`}
                   value={input.minValue}
                   onChange={(event) => updateOption(index, { minValue: event.target.value, maxValue: event.target.value })}
                   className="input-field w-full"
-                  disabled={!selected || (selected.EtcValues ?? []).length === 0}
+                  disabled={state === 'loading' || !selected || (selected.EtcValues ?? []).length === 0}
                   style={input.minValue ? { color: HONING_TIER_COLORS[(selected?.EtcValues ?? []).findIndex((value) => String(value.Value) === input.minValue)] } : undefined}
                 >
                   <option value="">등급 선택</option>
@@ -264,7 +282,7 @@ const AccessoryMarket: React.FC = () => {
         <button type="button" onClick={handleSearch} className="btn-gold mt-5 w-full sm:w-auto" disabled={state === 'loading'}>장신구 검색</button>
       </GlassCard>
 
-      <AuctionResults kind="장신구" state={state} items={items} error={error} pageNo={pageNo} totalCount={totalCount} pageSize={pageSize} sortCondition={lastFilters?.sortCondition ?? sortCondition} selectedHoningOptionNames={selectedHoningOptionNames} onPageChange={(nextPage) => lastFilters && void runSearch(lastFilters, nextPage)} />
+      <AuctionResults kind="장신구" state={state} items={items} error={error} pageNo={pageNo} totalCount={totalCount} pageSize={pageSize} sortCondition={lastFilters?.sortCondition ?? sortCondition} onPageChange={(nextPage) => lastFilters && void runSearch(lastFilters, nextPage)} />
     </section>
   );
 };

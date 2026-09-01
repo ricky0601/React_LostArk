@@ -118,18 +118,18 @@ const BraceletMarket: React.FC = () => {
         <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">치명·특화·신속 중 서로 다른 두 특성을 선택하세요.</p>
         <div className="mt-4 grid gap-4 sm:grid-cols-3">
           <label className="text-sm font-bold text-gray-700 dark:text-gray-300">등급
-            <select aria-label="팔찌 등급" value={grade} onChange={(event) => setGrade(event.target.value)} className="input-field mt-1 w-full">
+            <select aria-label="팔찌 등급" value={grade} onChange={(event) => setGrade(event.target.value)} className="input-field mt-1 w-full" disabled={state === 'loading'}>
               {BRACELET_GRADES.filter((itemGrade) => options.ItemGrades.includes(itemGrade)).map((itemGrade) => <option key={itemGrade}>{itemGrade}</option>)}
             </select>
           </label>
           <label className="text-sm font-bold text-gray-700 dark:text-gray-300">옵션 부여 개수
-            <select aria-label="팔찌 옵션 부여 개수" value={assignedEffectCount} onChange={(event) => setAssignedEffectCount(event.target.value)} className="input-field mt-1 w-full">
+            <select aria-label="팔찌 옵션 부여 개수" value={assignedEffectCount} onChange={(event) => setAssignedEffectCount(event.target.value)} className="input-field mt-1 w-full" disabled={state === 'loading'}>
               <option value="">전체</option>
               {[2, 3].map((count) => <option key={count} value={count}>{count}개</option>)}
             </select>
           </label>
           <label className="text-sm font-bold text-gray-700 dark:text-gray-300">즉구가 정렬
-            <select aria-label="팔찌 즉구가 정렬" value={sortCondition} onChange={(event) => setSortCondition(event.target.value as 'ASC' | 'DESC')} className="input-field mt-1 w-full">
+            <select aria-label="팔찌 즉구가 정렬" value={sortCondition} onChange={(event) => setSortCondition(event.target.value as 'ASC' | 'DESC')} className="input-field mt-1 w-full" disabled={state === 'loading'}>
               <option value="ASC">낮은 순</option>
               <option value="DESC">높은 순</option>
             </select>
@@ -138,7 +138,7 @@ const BraceletMarket: React.FC = () => {
         <div className="mt-5 space-y-3">
           {stats.map((stat, index) => (
             <div key={index} className="grid gap-3 rounded-xl border border-gray-200 bg-white/60 p-3 sm:grid-cols-[minmax(0,0.7fr)_minmax(0,2fr)] dark:border-white/10 dark:bg-white/[0.03]">
-              <select aria-label={`전투 특성 ${index + 1}`} value={stat.name} onChange={(event) => updateStat(index, { name: event.target.value })} className="input-field w-full self-center">
+              <select aria-label={`전투 특성 ${index + 1}`} value={stat.name} onChange={(event) => updateStat(index, { name: event.target.value })} className="input-field w-full self-center" disabled={state === 'loading'}>
                 {STATS.map((statOption) => <option key={statOption.value} value={statOption.value}>{statOption.label}</option>)}
               </select>
               <DualRangeSlider
@@ -147,6 +147,7 @@ const BraceletMarket: React.FC = () => {
                 max={BRACELET_STAT_MAX}
                 minValue={Number(stat.minValue)}
                 maxValue={Number(stat.maxValue)}
+                disabled={state === 'loading'}
                 onChange={(minValue, maxValue) => updateStat(index, { minValue: String(minValue), maxValue: String(maxValue) })}
               />
             </div>

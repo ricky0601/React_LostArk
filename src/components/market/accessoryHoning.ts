@@ -11,6 +11,12 @@ export const HONING_EFFECT_VALUES: Readonly<Record<string, readonly number[]>> =
   '치명타 피해': [400, 240, 110],
   '아군 공격력 강화 효과': [500, 300, 135],
   '아군 피해량 강화 효과': [750, 450, 200],
+  '파티원 회복 효과': [350, 210, 95],
+  '파티원 보호막 효과': [350, 210, 95],
+  '최대 생명력': [6500, 3250, 1300],
+  '최대 마나': [30, 15, 6],
+  '상태이상 공격 지속시간': [100, 50, 20],
+  '전투 중 생명력 회복량': [50, 25, 10],
 };
 
 const DEALER_EFFECTS = new Set([
@@ -41,10 +47,12 @@ export const getHoningEffectRoleColor = (optionName?: string): string | undefine
 
 export const normalizeHoningOptionName = (optionName: string, isPercentage?: boolean): string => {
   const trimmedName = optionName.trim();
-  return isPercentage && ['공격력', '무기 공격력'].includes(trimmedName)
-    ? `${trimmedName} %`
-    : trimmedName;
+  if (!['공격력', '무기 공격력'].includes(trimmedName)) return trimmedName;
+  return `${trimmedName} ${isPercentage ? '%' : '+'}`;
 };
+
+export const formatHoningOptionName = (optionName: string, isPercentage?: boolean): string =>
+  normalizeHoningOptionName(optionName, isPercentage).replace(/ ([%+])$/, '$1');
 
 const getHoningTierIndex = (optionName: string, value: number, isPercentage?: boolean): number => {
   const comparableValue = isPercentage ? Math.round(value * 100) : value;

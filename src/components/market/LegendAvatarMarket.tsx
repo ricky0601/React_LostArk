@@ -92,7 +92,7 @@ const LegendAvatarMarket: React.FC = () => {
         <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">선택한 직업의 최저가 아바타를 조회합니다.</p>
         <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end">
           <label className="flex-1 text-sm font-bold text-gray-700 dark:text-gray-300">직업
-            <select aria-label="전설 아바타 직업" value={characterClass} onChange={(event) => setCharacterClass(event.target.value)} className="input-field mt-1 w-full">
+            <select aria-label="전설 아바타 직업" value={characterClass} onChange={(event) => setCharacterClass(event.target.value)} className="input-field mt-1 w-full" disabled={state === 'loading'}>
               {options.Classes.map((className) => <option key={className}>{className}</option>)}
             </select>
           </label>

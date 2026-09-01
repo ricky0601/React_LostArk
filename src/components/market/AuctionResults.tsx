@@ -3,7 +3,7 @@ import type { AuctionItem } from '../../utils/api';
 import { qualityTextColor } from '../../utils/equipmentColors';
 import GlassCard from '../GlassCard';
 import StateFeedback from '../StateFeedback';
-import { getHoningTierColor, getHoningTierLabel, normalizeHoningOptionName } from './accessoryHoning';
+import { formatHoningOptionName, getHoningTierColor, getHoningTierLabel } from './accessoryHoning';
 import { formatGold } from './marketFormat';
 
 export type SearchState = 'idle' | 'loading' | 'success' | 'error';
@@ -17,7 +17,6 @@ interface AuctionResultsProps {
   readonly totalCount: number;
   readonly pageSize: number;
   readonly sortCondition: 'ASC' | 'DESC';
-  readonly selectedHoningOptionNames?: readonly string[];
   readonly onPageChange: (pageNo: number) => void;
 }
 
@@ -36,7 +35,6 @@ export const formatRemainingTime = (endDate: string, now = new Date()): string =
 const visibleOptions = (
   item: AuctionItem,
   kind: AuctionResultsProps['kind'],
-  selectedHoningOptionNames?: readonly string[],
 ) => {
   if (kind === '팔찌') {
     return item.Options
@@ -44,10 +42,7 @@ const visibleOptions = (
       .sort((a, b) => Number(a.Type === 'BRACELET_RANDOM_SLOT') - Number(b.Type === 'BRACELET_RANDOM_SLOT'));
   }
 
-  const honingEffects = item.Options.filter((option) =>
-    option.Type === 'ACCESSORY_UPGRADE'
-    && (!selectedHoningOptionNames || selectedHoningOptionNames.includes(normalizeHoningOptionName(option.OptionName, option.IsValuePercentage))),
-  );
+  const honingEffects = item.Options.filter((option) => option.Type === 'ACCESSORY_UPGRADE');
   const primaryStat = item.Options.find((option) => option.Type === 'STAT' && ['힘', '민첩', '지능'].includes(option.OptionName));
   const vitality = item.Options.find((option) => option.Type === 'STAT' && option.OptionName === '체력');
   return [
@@ -91,7 +86,6 @@ const AuctionResults: React.FC<AuctionResultsProps> = ({
   totalCount,
   pageSize,
   sortCondition,
-  selectedHoningOptionNames,
   onPageChange,
 }) => {
   if (state === 'idle') {
@@ -120,7 +114,7 @@ const AuctionResults: React.FC<AuctionResultsProps> = ({
 
       <div className="space-y-3">
         {items.map((item, index) => {
-          const options = visibleOptions(item, kind, selectedHoningOptionNames);
+          const options = visibleOptions(item, kind);
           return (
             <GlassCard key={`${item.Name}-${item.AuctionInfo.EndDate}-${index}`} className="p-4">
               <div className="flex gap-3">
@@ -161,7 +155,7 @@ const AuctionResults: React.FC<AuctionResultsProps> = ({
                           {option.Type === 'BRACELET_RANDOM_SLOT'
                             ? `부여 효과 ${option.Value.toLocaleString()}개`
                             : honingTierLabel && honingTierColor
-                              ? <>{option.OptionName.trim()} <span style={{ color: honingTierColor }}>{honingTierLabel}</span></>
+                              ? <>{formatHoningOptionName(option.OptionName, option.IsValuePercentage)} <span style={{ color: honingTierColor }}>{honingTierLabel}</span></>
                               : `${option.OptionName}${option.OptionNameTripod ? ` ${option.OptionNameTripod}` : ''} ${option.Value.toLocaleString()}${option.IsValuePercentage ? '%' : ''}`}
                         </span>
                       );

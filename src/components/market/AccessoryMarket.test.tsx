@@ -32,6 +32,7 @@ const options = {
     EtcSubs: [
       { Value: 42, Text: '적에게 주는 피해 증가', Class: '', Categorys: [200010], Tiers: null, EtcValues: [optionValue('2.00%', 200), optionValue('1.20%', 120), optionValue('0.55%', 55)] },
       { Value: 41, Text: '추가 피해', Class: '', Categorys: [200010], Tiers: null, EtcValues: [optionValue('2.60%', 260), optionValue('1.60%', 160), optionValue('0.70%', 70)] },
+      { Value: 53, Text: '공격력 +', Class: '', Categorys: [200010], Tiers: null, EtcValues: [optionValue('390', 390), optionValue('195', 195), optionValue('80', 80)] },
     ],
   }],
 };
@@ -65,7 +66,12 @@ const auctionItem = {
 };
 
 describe('AccessoryMarket', () => {
-  it('searches exact tier 4 honing grades and shows only the two selected effects', async () => {
+  beforeEach(() => {
+    mockedFetchAuctionItems.mockReset();
+    mockedGetCachedAuctionOptions.mockReset();
+  });
+
+  it('searches exact tier 4 honing grades with an optional third effect', async () => {
     mockedGetCachedAuctionOptions.mockResolvedValue(options);
     mockedFetchAuctionItems.mockResolvedValue({ PageNo: 1, PageSize: 10, TotalCount: 1, Items: [auctionItem] });
 
@@ -73,8 +79,21 @@ describe('AccessoryMarket', () => {
 
     expect(await screen.findByRole('combobox', { name: '장신구 등급' })).toHaveValue('고대');
     expect(screen.queryByText('티어')).not.toBeInTheDocument();
+    expect(within(screen.getByRole('combobox', { name: '장신구 옵션 2' })).getByRole('option', { name: '적에게 주는 피해 증가' })).toBeDisabled();
+    expect(within(screen.getByRole('combobox', { name: '장신구 옵션 1' })).getByRole('option', { name: '추가 피해' })).toBeDisabled();
+    const thirdOption = screen.getByRole('combobox', { name: '장신구 옵션 3' });
+    expect(thirdOption).toHaveValue('');
+    const firstSelectionInThird = within(thirdOption).getByRole('option', { name: '적에게 주는 피해 증가' });
+    const secondSelectionInThird = within(thirdOption).getByRole('option', { name: '추가 피해' });
+    expect(firstSelectionInThird).toBeDisabled();
+    expect(firstSelectionInThird).toHaveStyle({ color: 'rgb(156, 163, 175)' });
+    expect(secondSelectionInThird).toBeDisabled();
+    expect(secondSelectionInThird).toHaveStyle({ color: 'rgb(156, 163, 175)' });
+    expect(within(thirdOption).getByRole('option', { name: '공격력 +' })).toBeEnabled();
     fireEvent.change(screen.getByRole('combobox', { name: '장신구 옵션 1 등급' }), { target: { value: '200' } });
     fireEvent.change(screen.getByRole('combobox', { name: '장신구 옵션 2 등급' }), { target: { value: '260' } });
+    fireEvent.change(thirdOption, { target: { value: '7:53' } });
+    fireEvent.change(screen.getByRole('combobox', { name: '장신구 옵션 3 등급' }), { target: { value: '390' } });
     fireEvent.click(screen.getByRole('button', { name: '장신구 검색' }));
 
     await waitFor(() => expect(mockedFetchAuctionItems).toHaveBeenCalledTimes(1));
@@ -85,10 +104,25 @@ describe('AccessoryMarket', () => {
       EtcOptions: [
         { FirstOption: 7, SecondOption: 42, MinValue: 200, MaxValue: 200 },
         { FirstOption: 7, SecondOption: 41, MinValue: 260, MaxValue: 260 },
+        { FirstOption: 7, SecondOption: 53, MinValue: 390, MaxValue: 390 },
       ],
     }));
     const results = await screen.findByRole('region', { name: '장신구 검색 결과' });
-    expect(within(results).queryByText(/전투 중 생명력 회복량/)).not.toBeInTheDocument();
+    expect(results).toHaveTextContent('전투 중 생명력 회복량 하');
     expect(within(results).getByText('힘\/민\/지 16,000')).toBeInTheDocument();
+  });
+
+  it('locks search filters while a request is loading', async () => {
+    mockedGetCachedAuctionOptions.mockResolvedValue(options);
+    mockedFetchAuctionItems.mockImplementation(() => new Promise(() => {}));
+
+    render(<AccessoryMarket />);
+
+    await screen.findByRole('combobox', { name: '장신구 등급' });
+    fireEvent.click(screen.getByRole('button', { name: '장신구 검색' }));
+
+    expect(screen.getByRole('tab', { name: '반지' })).toBeDisabled();
+    expect(screen.getByRole('combobox', { name: '장신구 등급' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: '장신구 검색' })).toBeDisabled();
   });
 });

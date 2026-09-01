@@ -17,6 +17,11 @@ const parts = [
 ];
 
 describe('LegendAvatarMarket', () => {
+  beforeEach(() => {
+    mockedFetchMarketItems.mockReset();
+    mockedGetCachedMarketOptions.mockReset();
+  });
+
   it('loads the four legendary avatar parts only after search is pressed', async () => {
     mockedGetCachedMarketOptions.mockResolvedValue({
       Categories: [{ Code: 30000, CodeName: '아바타', Subs: parts }],
@@ -50,5 +55,23 @@ describe('LegendAvatarMarket', () => {
     await waitFor(() => expect(mockedFetchMarketItems).toHaveBeenCalledTimes(4));
     expect(mockedFetchMarketItems.mock.calls.map((call) => call[1])).toEqual([30001, 30002, 30003, 30004]);
     expect(await screen.findByText('아바타 30004')).toBeInTheDocument();
+  });
+
+  it('locks the class selector while a search is loading', async () => {
+    mockedGetCachedMarketOptions.mockResolvedValue({
+      Categories: [{ Code: 30000, CodeName: '아바타', Subs: parts }],
+      ItemGrades: ['전설'],
+      ItemTiers: [],
+      Classes: ['버서커', '바드'],
+    });
+    mockedFetchMarketItems.mockImplementation(() => new Promise(() => {}));
+
+    render(<LegendAvatarMarket />);
+
+    await screen.findByRole('combobox', { name: '전설 아바타 직업' });
+    fireEvent.click(screen.getByRole('button', { name: '아바타 검색' }));
+
+    expect(screen.getByRole('combobox', { name: '전설 아바타 직업' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: '아바타 검색' })).toBeDisabled();
   });
 });

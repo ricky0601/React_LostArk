@@ -34,6 +34,7 @@ const item: AuctionItem = {
     { Type: 'STAT', OptionName: '힘', OptionNameTripod: '', Value: 16241, IsPenalty: false, ClassName: null },
     { Type: 'ACCESSORY_UPGRADE', OptionName: '전투 중 생명력 회복량', OptionNameTripod: '', Value: 10, IsPenalty: false, ClassName: null, IsValuePercentage: false },
     { Type: 'ACCESSORY_UPGRADE', OptionName: '공격력 ', OptionNameTripod: '', Value: 1.55, IsPenalty: false, ClassName: null, IsValuePercentage: true },
+    { Type: 'ACCESSORY_UPGRADE', OptionName: '무기 공격력', OptionNameTripod: '', Value: 480, IsPenalty: false, ClassName: null, IsValuePercentage: false },
     {
       Type: 'ACCESSORY_UPGRADE',
       OptionName: '추가 피해',
@@ -70,7 +71,6 @@ describe('AuctionResults', () => {
         pageSize={10}
         totalCount={1}
         sortCondition="ASC"
-        selectedHoningOptionNames={['공격력 %', '추가 피해']}
         onPageChange={vi.fn()}
       />,
     );
@@ -82,12 +82,13 @@ describe('AuctionResults', () => {
     const honingTiers = within(results).getAllByText('상');
     expect(honingTiers).toHaveLength(2);
     honingTiers.forEach((honingTier) => expect(honingTier).toHaveStyle({ color: 'rgb(251, 160, 38)' }));
-    expect(honingTiers[0].parentElement).toHaveTextContent('공격력 상');
+    expect(honingTiers[0].parentElement).toHaveTextContent('공격력% 상');
     expect(honingTiers[1].parentElement).toHaveTextContent('추가 피해 상');
     expect(honingTiers[1].parentElement).not.toHaveStyle({ color: 'rgb(251, 160, 38)' });
-    expect(within(results).queryByText(/전투 중 생명력 회복량|1.55%|2.6%|깨달음|^힘 |^민첩 |^지능 /)).not.toBeInTheDocument();
+    expect(within(results).getByText('중')).toHaveStyle({ color: 'rgb(117, 4, 251)' });
+    expect(within(results).queryByText(/1.55%|2.6%|깨달음|^힘 |^민첩 |^지능 /)).not.toBeInTheDocument();
     const optionTexts = Array.from(honingTiers[0].parentElement?.parentElement?.children ?? []).map((element) => element.textContent);
-    expect(optionTexts).toEqual(['공격력 상', '추가 피해 상', '힘/민/지 16,241', '체력 3,470']);
+    expect(optionTexts).toEqual(['전투 중 생명력 회복량 하', '공격력% 상', '무기 공격력+ 중', '추가 피해 상', '힘/민/지 16,241', '체력 3,470']);
     expect(within(results).getByText('2회')).toBeInTheDocument();
     expect(within(results).getAllByText('만료')).toHaveLength(2);
     expect(within(results).getByText('1,500G')).toBeInTheDocument();

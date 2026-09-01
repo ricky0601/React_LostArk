@@ -6,6 +6,7 @@ type DualRangeSliderProps = {
   readonly max: number;
   readonly minValue: number;
   readonly maxValue: number;
+  readonly disabled?: boolean;
   readonly onChange: (minValue: number, maxValue: number) => void;
 };
 
@@ -15,6 +16,7 @@ const DualRangeSlider: React.FC<DualRangeSliderProps> = ({
   max,
   minValue,
   maxValue,
+  disabled = false,
   onChange,
 }) => {
   const range = Math.max(max - min, 1);
@@ -42,6 +44,7 @@ const DualRangeSlider: React.FC<DualRangeSliderProps> = ({
           max={max}
           step="1"
           value={minValue}
+          disabled={disabled}
           onChange={(event) => onChange(Math.min(Number(event.target.value), maxValue), maxValue)}
           className="dual-range-input"
         />
@@ -52,6 +55,7 @@ const DualRangeSlider: React.FC<DualRangeSliderProps> = ({
           max={max}
           step="1"
           value={maxValue}
+          disabled={disabled}
           onChange={(event) => onChange(minValue, Math.max(Number(event.target.value), minValue))}
           className="dual-range-input"
         />
