@@ -65,7 +65,7 @@ const MaterialScreenCapture: React.FC<MaterialScreenCaptureProps> = ({
               {status === 'requesting' ? 'Lost Ark 창을 선택해 주세요' : 'Lost Ark 화면을 인식하고 있습니다'}
             </p>
             <p className="mt-1 text-[11px] text-gray-500 dark:text-gray-400">
-              강화창 재료를 먼저 읽으며, 툴팁 확인 필요 항목은 아이콘에 마우스를 올려 주세요.
+              강화창 재료를 먼저 읽으며, 툴팁 확인 필요 항목은 강화창을 유지한 채 아이콘에 마우스를 올려 주세요.
               {scanCount > 0 && ` ${results.length}종 감지 · ${scanCount}회 분석`}
             </p>
           </div>
@@ -248,7 +248,7 @@ const MaterialScreenCapture: React.FC<MaterialScreenCaptureProps> = ({
           <li>강화창에 보이는 재료 종류와 <strong className="font-semibold">보유 수량</strong>을 자동으로 읽습니다.</li>
           <li>
             수량이 <strong className="font-semibold text-orange-500">9999</strong>로 표시된 재료는 실제 보유량이 잘린 값입니다.
-            해당 재료 아이콘에 마우스를 올리고 툴팁이 보이도록 잠시 기다려 주세요.
+            강화창을 닫지 말고 해당 재료 아이콘에 마우스를 올려 툴팁이 보이도록 잠시 기다려 주세요.
           </li>
           {includesFateShard && (
             <li>운명의 파편은 게임 상단 바를 먼저 확인하고, 인식되지 않으면 강화창의 소지 금액 첫 번째 값을 읽습니다.</li>
