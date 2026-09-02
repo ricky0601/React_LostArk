@@ -120,6 +120,11 @@ const DEFAULT_TEMPLATE_CROP: TemplateCropRatios = {
   height: 0.68,
 };
 
+const CENTER_TEMPLATE_CROPS: TemplateCropRatios[] = [
+  { x: 0.2, y: 0.15, width: 0.6, height: 0.7 },
+  { x: 0.25, y: 0.25, width: 0.5, height: 0.5 },
+];
+
 export const getTemplateCropRatios = (
   rgba: ArrayLike<number>,
   width: number,
@@ -162,7 +167,7 @@ export const getTemplateCropCandidates = (
 ): TemplateCropRatios[] => {
   const detectedCrop = getTemplateCropRatios(rgba, width, height);
   return detectedCrop === DEFAULT_TEMPLATE_CROP
-    ? [detectedCrop]
+    ? [detectedCrop, ...CENTER_TEMPLATE_CROPS]
     : [detectedCrop, DEFAULT_TEMPLATE_CROP];
 };
 
@@ -318,6 +323,7 @@ const createOcrRegion = (
   scale: number,
   threshold: boolean,
   includeColoredText = false,
+  smooth = false,
 ): OcrRegion => {
   const x = Math.max(0, Math.round(sourceX));
   const y = Math.max(0, Math.round(sourceY));
@@ -329,7 +335,7 @@ const createOcrRegion = (
   const context = canvas.getContext('2d', { willReadFrequently: true });
   if (!context || width === 0 || height === 0) return { canvas, hasTextPixels: false };
 
-  context.imageSmoothingEnabled = false;
+  context.imageSmoothingEnabled = smooth;
   context.drawImage(frame, x, y, width, height, 0, 0, canvas.width, canvas.height);
   if (!threshold) return { canvas, hasTextPixels: true };
 
@@ -365,11 +371,26 @@ export const parseTooltipTitleQuantity = (text: string): number | null => {
   return Number.isSafeInteger(quantity) ? quantity : null;
 };
 
-export const parseTooltipQuantity = (text: string, fallback: number): number => {
-  const totalMatch = text.match(/전체\s*보유\s*수량[ \t]*[:：]?[ \t]*([\d, ]+)/);
-  const rawQuantity = totalMatch?.[1] ?? String(fallback);
-  const quantity = Number(rawQuantity.replace(/[^\d]/g, ''));
-  return Number.isSafeInteger(quantity) ? Math.min(quantity, MAX_OWNED_QUANTITY) : fallback;
+export const parseTooltipQuantity = (text: string, fallback: number | null): number | null => {
+  const totalMatch = text.match(
+    /전체\s*보유\s*수량[ \t]*[:：]?[ \t]*(\d{1,3}(?:[,.]\d{3})+|\d+)/,
+  );
+  if (totalMatch) {
+    const quantity = Number(totalMatch[1].replace(/[^\d]/g, ''));
+    return Number.isSafeInteger(quantity) ? Math.min(quantity, MAX_OWNED_QUANTITY) : fallback;
+  }
+
+  const ownedQuantities = Array.from(text.matchAll(
+    /(?:거래\s*가능|캐릭터\s*귀속|원정대\s*귀속)\s*보유\s*수량[ \t]*[:：]?[ \t]*(\d{1,3}(?:[,.]\d{3})+|\d+)/g,
+  )).map((match) => Number(match[1].replace(/[^\d]/g, '')));
+  if (ownedQuantities.length > 0 && ownedQuantities.every(Number.isSafeInteger)) {
+    return Math.min(
+      ownedQuantities.reduce((sum, quantity) => sum + quantity, 0),
+      MAX_OWNED_QUANTITY,
+    );
+  }
+
+  return fallback;
 };
 
 export const parseHoningFateShardQuantity = (text: string): number | null => {
@@ -648,33 +669,42 @@ const recognizeTooltipQuantity = async (
     4,
     true,
   );
-  if (!title.hasTextPixels) return null;
 
   const numericWorker = await getNumericOcrWorker();
   await numericWorker.setParameters({ tessedit_char_whitelist: '0123456789,Xx[] ' });
-  const { data: titleData } = await numericWorker.recognize(title.canvas);
+  const titleData = title.hasTextPixels
+    ? (await numericWorker.recognize(title.canvas)).data
+    : { text: '', confidence: 0 };
   const titleQuantity = parseTooltipTitleQuantity(titleData.text);
-  if (titleQuantity === null) return null;
 
+  const screenScale = frame.height / 1080;
+  // Transparent artwork can match the tooltip icon at a smaller template scale.
+  // Compensate so both 64px and 80px matches resolve to the same tooltip body.
+  const compactMatchOffset = Math.max(0, 80 * screenScale - match.slotSize);
   const tooltip = createOcrRegion(
     frame,
-    match.x - match.slotSize * 0.3,
-    match.y + match.slotSize * 1.4,
-    match.slotSize * 6.8,
-    match.slotSize * 3.4,
-    2,
+    match.x - compactMatchOffset * 0.625 - screenScale,
+    match.y + match.slotSize * 1.025 + compactMatchOffset * 0.46,
+    Math.max(match.slotSize * 4, 320 * screenScale),
+    100 * screenScale + compactMatchOffset * 0.3125,
+    4,
     false,
+    false,
+    true,
   );
   const tooltipWorker = await getTooltipOcrWorker();
   const { data: tooltipData } = await tooltipWorker.recognize(tooltip.canvas);
-  const quantity = parseTooltipQuantity(tooltipData.text, titleQuantity);
+  const bodyQuantity = parseTooltipQuantity(tooltipData.text, null);
+  const quantity = bodyQuantity ?? titleQuantity;
+  if (quantity === null) return null;
   const capped = quantity > MAX_OWNED_QUANTITY;
-  const confidence = Math.max(0, Math.min(1, titleData.confidence / 100));
+  const ocrConfidence = bodyQuantity === null ? titleData.confidence : tooltipData.confidence;
+  const confidence = Math.max(0, Math.min(1, ocrConfidence / 100));
 
   return {
     quantity: capped ? MAX_OWNED_QUANTITY : quantity,
     confidence,
-    needsReview: capped || titleData.confidence < 70,
+    needsReview: capped || ocrConfidence < 70,
   };
 };
 
@@ -710,35 +740,36 @@ const recognizeFateShard = async (
 
   const hasHoningRow = honing?.detected && honing.slotSize > 0;
   if (!hasHoningRow || !honing) return null;
-  // The first value below the leftmost material slot is fate shards. Limiting
-  // this crop prevents the following silver and gold values from being used.
-  const honingCosts = createOcrRegion(
+  // Normal and advanced honing both place the owned fate-shard amount in the
+  // first currency column. A narrow numeric crop avoids silver in the next column.
+  const ownedAmount = createOcrRegion(
     frame,
-    honing.leftmostSlotX - honing.slotSize * 1.3,
-    honing.rowY + honing.slotSize * 1.75,
-    honing.slotSize * 2.7,
-    honing.slotSize * 1.8,
+    honing.region.x + honing.region.width * 0.4,
+    honing.rowY + honing.slotSize * 2.35,
+    honing.region.width * 0.1,
+    honing.slotSize * 0.9,
     4,
     false,
   );
-  const tooltipWorker = await getTooltipOcrWorker();
-  const { data: honingData } = await tooltipWorker.recognize(honingCosts.canvas);
-  let honingQuantity = parseHoningFateShardQuantity(honingData.text);
-  let confidence = Math.max(0, Math.min(1, honingData.confidence / 100));
+  const { data: ownedData } = await numericWorker.recognize(ownedAmount.canvas);
+  let honingQuantity = parseNarrowFateShardQuantity(ownedData.text);
+  let confidence = Math.max(0, Math.min(1, ownedData.confidence / 100));
   if (honingQuantity === null) {
-    // Advanced honing places the first owned currency farther right than the material row.
-    const advancedOwnedAmount = createOcrRegion(
+    // Keep the labelled multi-column OCR as a fallback for layouts where the
+    // currency column cannot be isolated reliably.
+    const honingCosts = createOcrRegion(
       frame,
-      honing.region.x + honing.region.width * 0.4,
-      honing.rowY + honing.slotSize * 2.35,
-      honing.region.width * 0.15,
-      honing.slotSize * 0.9,
+      honing.leftmostSlotX - honing.slotSize * 1.3,
+      honing.rowY + honing.slotSize * 1.75,
+      honing.slotSize * 2.7,
+      honing.slotSize * 1.8,
       4,
       false,
     );
-    const { data: advancedData } = await numericWorker.recognize(advancedOwnedAmount.canvas);
-    honingQuantity = parseNarrowFateShardQuantity(advancedData.text);
-    confidence = Math.max(0, Math.min(1, advancedData.confidence / 100));
+    const tooltipWorker = await getTooltipOcrWorker();
+    const { data: honingData } = await tooltipWorker.recognize(honingCosts.canvas);
+    honingQuantity = parseHoningFateShardQuantity(honingData.text);
+    confidence = Math.max(0, Math.min(1, honingData.confidence / 100));
   }
   if (honingQuantity === null) return null;
 
