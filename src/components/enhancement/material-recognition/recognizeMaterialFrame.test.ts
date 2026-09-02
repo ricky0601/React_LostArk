@@ -74,6 +74,11 @@ describe('getTemplateCropRatios', () => {
       width: 0.68,
       height: 0.68,
     });
+    expect(getTemplateCropCandidates(rgba, 8, 8)).toEqual([
+      { x: 0.05, y: 0.2, width: 0.68, height: 0.68 },
+      { x: 0.2, y: 0.15, width: 0.6, height: 0.7 },
+      { x: 0.25, y: 0.25, width: 0.5, height: 0.5 },
+    ]);
   });
 });
 
@@ -168,8 +173,27 @@ describe('parseTooltipQuantity', () => {
     expect(parseTooltipQuantity('겹침 수량: 100개\n전체 보유 수량: 950,870개', 100)).toBe(950_870);
   });
 
-  it('uses the title quantity when the tooltip has no total', () => {
+  it('adds the separated tradeable and bound quantities from a honing tooltip', () => {
+    expect(parseTooltipQuantity(
+      '거래 가능 보유 수량: 4,331개\n캐릭터 귀속 보유 수량: 82,027개\n원정대 귀속 보유 수량: 0개',
+      null,
+    )).toBe(86_358);
+    expect(parseTooltipQuantity(
+      '거래 가능 보유 수량: 8,306개\n캐릭터 귀속 보유 수량: 92,890개',
+      null,
+    )).toBe(101_196);
+    expect(parseTooltipQuantity(
+      '거래 가능 보유 수량: 81,362개  J.\n캐릭터 귀속 보유 수량: 139,095  1\n원정대 귀속 보유 수량: 0개',
+      null,
+    )).toBe(220_457);
+  });
+
+  it('uses the title quantity when the tooltip has no owned quantity', () => {
     expect(parseTooltipQuantity('거래 불가\n분해불가', 7440)).toBe(7440);
+  });
+
+  it('returns null when neither the body nor title has a quantity', () => {
+    expect(parseTooltipQuantity('거래 불가\n분해불가', null)).toBeNull();
   });
 
   it('caps an abnormally large quantity', () => {
