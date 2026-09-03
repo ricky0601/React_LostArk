@@ -1,0 +1,64 @@
+import { safeLocalStorage } from '../../utils/safeStorage';
+import type { ExpeditionViewMode } from './expeditionModel';
+
+export interface ExpeditionPreferences {
+  readonly viewMode: ExpeditionViewMode;
+  readonly selectedCharacters: readonly string[];
+  readonly knownCharacters: readonly string[];
+  readonly collapsedServers: readonly string[];
+  readonly isRosterExpanded: boolean;
+}
+
+const STORAGE_PREFIX = 'loaExpeditionDashboard:v1:';
+const VIEW_MODES: readonly ExpeditionViewMode[] = ['card', 'grid', 'table'];
+
+const storageKey = (nickname: string): string => `${STORAGE_PREFIX}${nickname.trim().toLocaleLowerCase()}`;
+
+export const loadExpeditionPreferences = (
+  nickname: string,
+  characterNames: readonly string[],
+): ExpeditionPreferences => {
+  const defaults: ExpeditionPreferences = {
+    viewMode: 'card',
+    selectedCharacters: characterNames,
+    knownCharacters: characterNames,
+    collapsedServers: [],
+    isRosterExpanded: true,
+  };
+  const raw = safeLocalStorage.getItem(storageKey(nickname));
+  if (!raw) return defaults;
+
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object') return defaults;
+    const value = parsed as Partial<ExpeditionPreferences>;
+    const savedNames = Array.isArray(value.selectedCharacters)
+      ? value.selectedCharacters.filter((name): name is string => typeof name === 'string')
+      : characterNames;
+    const knownNames = Array.isArray(value.knownCharacters)
+      ? value.knownCharacters.filter((name): name is string => typeof name === 'string')
+      : savedNames;
+    const currentNameSet = new Set(characterNames);
+    const savedCurrentNames = savedNames.filter((name) => currentNameSet.has(name));
+    const newlyFoundNames = characterNames.filter((name) => !knownNames.includes(name));
+    return {
+      viewMode: VIEW_MODES.includes(value.viewMode as ExpeditionViewMode)
+        ? value.viewMode as ExpeditionViewMode
+        : defaults.viewMode,
+      selectedCharacters: [...savedCurrentNames, ...newlyFoundNames],
+      knownCharacters: characterNames,
+      collapsedServers: Array.isArray(value.collapsedServers)
+        ? value.collapsedServers.filter((server): server is string => typeof server === 'string')
+        : [],
+      isRosterExpanded: typeof value.isRosterExpanded === 'boolean'
+        ? value.isRosterExpanded
+        : defaults.isRosterExpanded,
+    };
+  } catch {
+    return defaults;
+  }
+};
+
+export const saveExpeditionPreferences = (nickname: string, preferences: ExpeditionPreferences): void => {
+  safeLocalStorage.setItem(storageKey(nickname), JSON.stringify(preferences));
+};
