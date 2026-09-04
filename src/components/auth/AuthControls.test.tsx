@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import userEvent from '@testing-library/user-event';
 import type { User } from '@supabase/supabase-js';
 
@@ -30,7 +31,7 @@ beforeEach(() => {
 });
 
 test('anonymous users can start Discord login', async () => {
-  render(<AuthControls />);
+  render(<MemoryRouter><AuthControls /></MemoryRouter>);
 
   await userEvent.click(screen.getByRole('button', { name: 'Discord 로그인' }));
 
@@ -50,10 +51,11 @@ test('authenticated users see their profile and can log out', async () => {
   } as User;
   vi.mocked(useAuth).mockReturnValue(authValue({ status: 'authenticated', user }));
 
-  const { container } = render(<AuthControls />);
+  const { container } = render(<MemoryRouter><AuthControls /></MemoryRouter>);
 
   expect(screen.getByText('Lokki 사용자')).toBeInTheDocument();
   expect(container.querySelector('img')).toHaveAttribute('src', 'https://example.com/avatar.png');
+  expect(screen.getByRole('link', { name: '계정 설정' })).toHaveAttribute('href', '/account');
   await userEvent.click(screen.getByRole('button', { name: '로그아웃' }));
   expect(signOut).toHaveBeenCalledOnce();
 });
@@ -61,7 +63,7 @@ test('authenticated users see their profile and can log out', async () => {
 test('login errors are recoverable and dismissible', async () => {
   vi.mocked(useAuth).mockReturnValue(authValue({ errorMessage: '로그인 오류', errorScope: 'action' }));
 
-  render(<AuthControls variant="mobile" />);
+  render(<MemoryRouter><AuthControls variant="mobile" /></MemoryRouter>);
 
   expect(screen.getByRole('alert')).toHaveTextContent('로그인 오류');
   await userEvent.click(screen.getByRole('button', { name: '닫기' }));
@@ -72,7 +74,7 @@ test('login errors are recoverable and dismissible', async () => {
 test('can suppress a callback error already shown by the page', () => {
   vi.mocked(useAuth).mockReturnValue(authValue({ errorMessage: '로그인 오류' }));
 
-  render(<AuthControls showError={false} />);
+  render(<MemoryRouter><AuthControls showError={false} /></MemoryRouter>);
 
   expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Discord 로그인' })).toBeEnabled();
@@ -83,7 +85,7 @@ test('callback-scoped errors are not shown in the header', () => {
     authValue({ errorMessage: 'Discord 로그인이 취소되었거나 완료되지 않았습니다.', errorScope: 'callback' }),
   );
 
-  render(<AuthControls />);
+  render(<MemoryRouter><AuthControls /></MemoryRouter>);
 
   expect(screen.queryByRole('alert')).not.toBeInTheDocument();
 });
@@ -91,7 +93,7 @@ test('callback-scoped errors are not shown in the header', () => {
 test('does not render authentication UI when Supabase is not configured', () => {
   vi.mocked(useAuth).mockReturnValue(authValue({ status: 'unavailable' }));
 
-  const { container } = render(<AuthControls />);
+  const { container } = render(<MemoryRouter><AuthControls /></MemoryRouter>);
 
   expect(container).toBeEmptyDOMElement();
 });
