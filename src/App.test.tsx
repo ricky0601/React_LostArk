@@ -30,6 +30,7 @@ vi.mock('./pages/Spending', () => ({ default: () => <div>Spending Page</div> }))
 vi.mock('./pages/Changelog', () => ({ default: () => <div>Changelog Page</div> }));
 vi.mock('./pages/Policy', () => ({ default: () => <div>Policy Page</div> }));
 vi.mock('./pages/AuthCallback', () => ({ default: () => <div>Auth Callback Page</div> }));
+vi.mock('./pages/AccountSettings', () => ({ default: () => <div>Account Settings Page</div> }));
 vi.mock('./pages/NotFound', () => ({ default: () => <div>Not Found Page</div> }));
 
 import App from './App';
@@ -86,6 +87,17 @@ test('matches the OAuth callback route', async () => {
   expect(await screen.findByText('Auth Callback Page')).toBeInTheDocument();
   expect(screen.queryByText('Not Found Page')).not.toBeInTheDocument();
   expect(document.title).toBe('Discord 로그인 - 로아끼욧');
+  expect(document.querySelector('meta[name="robots"]')).toHaveAttribute('content', 'noindex, follow');
+});
+
+test('matches the account settings route', async () => {
+  mockPathname = '/account';
+
+  render(<App />);
+
+  expect(await screen.findByText('Account Settings Page')).toBeInTheDocument();
+  expect(screen.queryByText('Not Found Page')).not.toBeInTheDocument();
+  expect(document.title).toBe('계정 설정 - 로아끼욧');
   expect(document.querySelector('meta[name="robots"]')).toHaveAttribute('content', 'noindex, follow');
 });
 

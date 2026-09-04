@@ -78,15 +78,20 @@ test('generates route HTML with metadata matching routeSeo.json', () => {
       }),
     ]));
     const page = structuredData['@graph'].find((entry) => entry['@id'] === `${canonical}#webpage`);
-    expect(page).toMatchObject({
-      '@type': route.schemaType === 'WebApplication' ? 'WebApplication' : 'WebPage',
-      url: canonical,
-      name: route.name || route.title.replace(/\s[-|]\s로아끼욧$/, ''),
-      description: route.description,
-      inLanguage: 'ko-KR',
-    });
+    // noindex 라우트는 색인 대상이 아니므로 페이지/브레드크럼 스키마를 포함하지 않는다.
+    if (route.robots === 'index, follow') {
+      expect(page).toMatchObject({
+        '@type': route.schemaType === 'WebApplication' ? 'WebApplication' : 'WebPage',
+        url: canonical,
+        name: route.name || route.title.replace(/\s[-|]\s로아끼욧$/, ''),
+        description: route.description,
+        inLanguage: 'ko-KR',
+      });
+    } else {
+      expect(page).toBeUndefined();
+    }
 
-    if (route.path !== '/') {
+    if (route.path !== '/' && route.robots === 'index, follow') {
       expect(structuredData['@graph']).toEqual(expect.arrayContaining([
         expect.objectContaining({ '@type': 'BreadcrumbList', '@id': `${canonical}#breadcrumb` }),
       ]));
@@ -169,8 +174,8 @@ test('keeps API, known routes, missing routes, and static assets distinct in Ver
   const fallbackRewrite = rewrites[rewrites.length - 1];
   const pageRewrites = rewrites.filter((rewrite) =>
     rewrite.source !== '/auth/callback' && rewrite.destination.endsWith('/index.html'));
-  const indexablePageRoutes = routeSeoEntries
-    .filter((route) => route.path !== '/' && route.robots === 'index, follow')
+  const configuredPageRoutes = routeSeoEntries
+    .filter((route) => route.path !== '/')
     .map((route) => route.path)
     .sort();
 
@@ -194,7 +199,7 @@ test('keeps API, known routes, missing routes, and static assets distinct in Ver
     ],
   });
   expect(authCallbackRewrite).toEqual({ source: '/auth/callback', destination: '/index.html' });
-  expect(pageRewrites.map((rewrite) => rewrite.source).sort()).toEqual(indexablePageRoutes);
+  expect(pageRewrites.map((rewrite) => rewrite.source).sort()).toEqual(configuredPageRoutes);
   for (const rewrite of pageRewrites) {
     expect(rewrite.destination).toBe(`${rewrite.source}/index.html`);
   }

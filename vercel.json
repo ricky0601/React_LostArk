@@ -26,6 +26,7 @@
     { "source": "/changelog", "destination": "/changelog/index.html" },
     { "source": "/policy", "destination": "/policy/index.html" },
     { "source": "/auth/callback", "destination": "/index.html" },
+    { "source": "/account", "destination": "/account/index.html" },
     { "source": "/:path*", "destination": "/404.html" }
   ]
 }

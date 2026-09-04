@@ -20,6 +20,7 @@ const Market = React.lazy(() => import(/* webpackChunkName: "route-market" */ '.
 const Changelog = React.lazy(() => import(/* webpackChunkName: "route-changelog" */ './pages/Changelog'));
 const Policy = React.lazy(() => import(/* webpackChunkName: "route-policy" */ './pages/Policy'));
 const AuthCallback = React.lazy(() => import(/* webpackChunkName: "route-auth-callback" */ './pages/AuthCallback'));
+const AccountSettings = React.lazy(() => import(/* webpackChunkName: "route-account" */ './pages/AccountSettings'));
 const NotFound = React.lazy(() => import(/* webpackChunkName: "route-not-found" */ './pages/NotFound'));
 
 const ChunkErrorBanner: React.FC = () => {
@@ -75,6 +76,7 @@ const AppContent: React.FC = () => {
               <Route path={ROUTES.changelog} element={<Changelog />} />
               <Route path={ROUTES.policy} element={<Policy />} />
               <Route path="/auth/callback" element={<AuthCallback />} />
+              <Route path={ROUTES.account} element={<AccountSettings />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </React.Suspense>
