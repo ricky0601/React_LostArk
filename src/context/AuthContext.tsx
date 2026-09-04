@@ -10,6 +10,7 @@ interface AuthContextValue {
   readonly user: User | null;
   readonly isBusy: boolean;
   readonly errorMessage: string | null;
+  readonly errorScope: 'callback' | 'action' | null;
   signInWithDiscord(): Promise<void>;
   signOut(): Promise<void>;
   clearError(): void;
@@ -21,6 +22,7 @@ const unavailableValue: AuthContextValue = {
   user: null,
   isBusy: false,
   errorMessage: null,
+  errorScope: null,
   signInWithDiscord: async () => undefined,
   signOut: async () => undefined,
   clearError: () => undefined,
@@ -46,6 +48,12 @@ export const AuthProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
   const [session, setSession] = useState<Session | null>(null);
   const [isBusy, setIsBusy] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [errorScope, setErrorScope] = useState<'callback' | 'action' | null>(null);
+
+  const clearError = useCallback(() => {
+    setErrorMessage(null);
+    setErrorScope(null);
+  }, []);
 
   useEffect(() => {
     if (!client) return;
@@ -70,6 +78,7 @@ export const AuthProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
       if (callbackError) {
         if (!active) return;
         setErrorMessage('Discord 로그인이 취소되었거나 완료되지 않았습니다. 다시 시도해 주세요.');
+        setErrorScope('callback');
         applySession(null);
         return;
       }
@@ -82,6 +91,7 @@ export const AuthProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
         if (!active || !result) return;
         if (result.error) {
           setErrorMessage('로그인 상태를 확인하지 못했습니다. 잠시 후 다시 시도해 주세요.');
+          setErrorScope(isCallbackRoute ? 'callback' : 'action');
           applySession(null);
           return;
         }
@@ -89,6 +99,7 @@ export const AuthProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
       } catch {
         if (!active) return;
         setErrorMessage('로그인 서버에 연결하지 못했습니다. 공개 기능은 계속 이용할 수 있습니다.');
+        setErrorScope(isCallbackRoute ? 'callback' : 'action');
         applySession(null);
       }
     };
@@ -103,7 +114,7 @@ export const AuthProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
   const signInWithDiscord = useCallback(async () => {
     if (!client) return;
     setIsBusy(true);
-    setErrorMessage(null);
+    clearError();
     try {
       const { error } = await client.auth.signInWithOAuth({
         provider: 'discord',
@@ -111,32 +122,36 @@ export const AuthProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
       });
       if (error) {
         setErrorMessage('Discord 로그인을 시작하지 못했습니다. 잠시 후 다시 시도해 주세요.');
+        setErrorScope('action');
       }
     } catch {
       setErrorMessage('로그인 서버에 연결하지 못했습니다. 잠시 후 다시 시도해 주세요.');
+      setErrorScope('action');
     } finally {
       setIsBusy(false);
     }
-  }, [client]);
+  }, [clearError, client]);
 
   const signOut = useCallback(async () => {
     if (!client) return;
     setIsBusy(true);
-    setErrorMessage(null);
+    clearError();
     try {
       const { error } = await client.auth.signOut();
       if (error) {
         setErrorMessage('로그아웃하지 못했습니다. 잠시 후 다시 시도해 주세요.');
+        setErrorScope('action');
       } else {
         setSession(null);
         setStatus('anonymous');
       }
     } catch {
       setErrorMessage('로그인 서버에 연결하지 못했습니다. 잠시 후 다시 시도해 주세요.');
+      setErrorScope('action');
     } finally {
       setIsBusy(false);
     }
-  }, [client]);
+  }, [clearError, client]);
 
   const value = useMemo<AuthContextValue>(() => ({
     status,
@@ -144,10 +159,11 @@ export const AuthProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
     user: session?.user ?? null,
     isBusy,
     errorMessage,
+    errorScope,
     signInWithDiscord,
     signOut,
-    clearError: () => setErrorMessage(null),
-  }), [errorMessage, isBusy, session, signInWithDiscord, signOut, status]);
+    clearError,
+  }), [clearError, errorMessage, errorScope, isBusy, session, signInWithDiscord, signOut, status]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
