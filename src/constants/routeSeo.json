@@ -94,5 +94,13 @@
     "robots": "index, follow",
     "lastmod": "2026-08-25",
     "priority": "0.3"
+  },
+  {
+    "path": "/account",
+    "title": "계정 설정 - 로아끼욧",
+    "description": "로아끼욧 계정의 프로필, 저장되는 데이터 범위 확인과 계정 삭제를 관리합니다.",
+    "robots": "noindex, follow",
+    "lastmod": "2026-09-04",
+    "priority": "0.2"
   }
 ]

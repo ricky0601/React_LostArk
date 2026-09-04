@@ -1,15 +1,21 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import NavBar from '../components/NavBar';
 import { useAuth } from '../context/AuthContext';
+import { syncLokkiProfile } from '../lib/lokkiAccount';
+import { getSupabaseBrowserClient } from '../lib/supabase';
 
 const AuthCallback: React.FC = () => {
   const navigate = useNavigate();
-  const { status, errorMessage, isBusy, signInWithDiscord } = useAuth();
+  const { status, user, errorMessage, isBusy, signInWithDiscord } = useAuth();
+  const client = useMemo(() => getSupabaseBrowserClient(), []);
 
   useEffect(() => {
-    if (status === 'authenticated') navigate('/', { replace: true });
-  }, [navigate, status]);
+    if (status !== 'authenticated') return;
+    // 로그인마다 Discord 프로필 변경을 반영한다. 실패해도 로그인 흐름을 막지 않는다.
+    if (client && user) void syncLokkiProfile(client, user);
+    navigate('/', { replace: true });
+  }, [client, navigate, status, user]);
 
   const isLoading = status === 'loading' || status === 'authenticated';
 
