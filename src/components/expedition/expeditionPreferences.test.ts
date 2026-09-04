@@ -52,6 +52,19 @@ describe('expedition dashboard preferences', () => {
     expect(loadExpeditionPreferences('대표캐릭', ['캐릭A']).isRosterExpanded).toBe(true);
   });
 
+  it('clamps a legacy over-limit selection to the maximum', () => {
+    const selectedCharacters = Array.from({ length: 14 }, (_, index) => `캐릭${index + 1}`);
+    saveExpeditionPreferences('대표캐릭', {
+      viewMode: 'card',
+      selectedCharacters,
+      knownCharacters: selectedCharacters,
+      collapsedServers: [],
+      isRosterExpanded: true,
+    });
+
+    expect(loadExpeditionPreferences('대표캐릭', selectedCharacters).selectedCharacters).toHaveLength(12);
+  });
+
   it('falls back safely when stored data is malformed', () => {
     window.localStorage.setItem('loaExpeditionDashboard:v1:대표캐릭', '{invalid');
     expect(loadExpeditionPreferences('대표캐릭', ['캐릭A'])).toMatchObject({

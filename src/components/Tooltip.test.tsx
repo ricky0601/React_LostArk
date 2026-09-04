@@ -56,6 +56,13 @@ describe('Tooltip', () => {
     expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
   });
 
+  it('renders a non-focusable display trigger without button semantics', () => {
+    render(<Tooltip label="무기 정보" content="상세" focusable={false}><span>+25</span></Tooltip>);
+
+    expect(screen.queryByRole('button')).not.toBeInTheDocument();
+    expect(document.querySelector('[tabindex]')).toBeNull();
+  });
+
   it('supports focus, Enter, Space, and blur keyboard paths', () => {
     render(<Tooltip label="각인 정보" content="원한 Lv.3"><span>원한</span></Tooltip>);
     const trigger = screen.getByLabelText('각인 정보');

@@ -46,7 +46,7 @@ const EquipmentStrip: React.FC<{ readonly row: ExpeditionCharacterState; readonl
       const tip = equipmentTooltip(cell);
       return (
       <div key={cell.label} className="rounded-lg bg-gray-100/80 px-1.5 py-2 text-center dark:bg-white/5">
-        <Tooltip label={tip.label} content={tip.content} className="w-full">
+        <Tooltip label={tip.label} content={tip.content} focusable={false} className="w-full">
           <div className="w-full">
             <div className="flex items-center justify-center gap-1">
               {cell.icon && <img src={cell.icon} alt="" loading="lazy" className="h-5 w-5 rounded object-cover" />}
@@ -176,7 +176,7 @@ const TableView: React.FC<Omit<Props, 'viewMode'>> = ({ rows, onToggleExpanded, 
                     const tip = equipmentTooltip(cell);
                     return (
                     <td key={cell.label} className={`px-2 py-3 text-center ${statusClass(row.equipment.status)}`}>
-                      <Tooltip label={tip.label} content={tip.content} className="w-full">
+                      <Tooltip label={tip.label} content={tip.content} focusable={false} className="w-full">
                         <span className="block w-full">{row.equipment.status === 'success' ? <><span className="inline-flex items-center justify-center gap-1">{cell.icon && <img src={cell.icon} alt="" loading="lazy" className="h-6 w-6 rounded object-cover" />}<strong>{cell.normalLevel === null ? '-' : `+${cell.normalLevel}`}</strong></span><span className="block text-[10px] text-gray-500 dark:text-gray-400">{cell.label === '완갑' ? `${cell.grade ?? '-'} / ${cell.quality ?? '-'}` : `${cell.advancedLevel ?? '-'} / ${cell.quality ?? '-'}`}</span></> : row.equipment.status === 'error' ? '조회 실패' : '…'}</span>
                       </Tooltip>
                     </td>

@@ -5,6 +5,8 @@ interface Props {
   readonly children: React.ReactNode;
   readonly content: React.ReactNode;
   readonly label?: string;
+  /** false면 키보드 탭 순서에서 제외하고 hover/터치로만 표시한다(읽기 전용 셀용). 기본값 true. */
+  readonly focusable?: boolean;
   readonly className?: string;
 }
 
@@ -18,9 +20,9 @@ const VIEWPORT_MARGIN = 8;
 const TRIGGER_GAP = 8;
 const TOOLTIP_OPEN_EVENT = 'app-tooltip-open';
 
-const Tooltip: React.FC<Props> = ({ children, content, label, className = '' }) => {
+const Tooltip: React.FC<Props> = ({ children, content, label, focusable = true, className = '' }) => {
   const id = useId();
-  const triggerRef = useRef<HTMLSpanElement>(null);
+  const triggerRef = useRef<HTMLDivElement>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
   const [position, setPosition] = useState<Position>({ left: 0, top: 0, above: false });
@@ -91,14 +93,30 @@ const Tooltip: React.FC<Props> = ({ children, content, label, className = '' }) 
 
   return (
     <>
-      <span
+      <div
         ref={triggerRef}
-        // role 없는 span은 naming prohibited라 aria-label이 무시되거나 자식 텍스트를 통째로 덮는다.
-        role="button"
-        tabIndex={0}
-        aria-label={label}
-        aria-expanded={open}
-        aria-describedby={open ? id : undefined}
+        {...(focusable
+          ? {
+            // role 없는 요소는 naming prohibited라 aria-label이 무시되거나 자식 텍스트를 통째로 덮는다.
+            role: 'button' as const,
+            tabIndex: 0,
+            'aria-label': label,
+            'aria-expanded': open,
+            'aria-describedby': open ? id : undefined,
+            onFocus: showTooltip,
+            onBlur: (): void => setOpen(false),
+            onKeyDown: (event: React.KeyboardEvent): void => {
+              if (event.key === 'Escape') {
+                setOpen(false);
+                triggerRef.current?.blur();
+              } else if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                if (open) setOpen(false);
+                else showTooltip();
+              }
+            },
+          }
+          : {})}
         className={`inline-flex rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-la-gold/40 ${className}`}
         onMouseEnter={showTooltip}
         onMouseLeave={() => {
@@ -108,27 +126,15 @@ const Tooltip: React.FC<Props> = ({ children, content, label, className = '' }) 
           // Mouse clicks must not pin a hover tooltip by focusing its trigger.
           event.preventDefault();
         }}
-        onFocus={showTooltip}
-        onBlur={() => setOpen(false)}
         onPointerDown={(event) => {
           if (event.pointerType !== 'mouse') {
             if (open) setOpen(false);
             else showTooltip();
           }
         }}
-        onKeyDown={(event) => {
-          if (event.key === 'Escape') {
-            setOpen(false);
-            triggerRef.current?.blur();
-          } else if (event.key === 'Enter' || event.key === ' ') {
-            event.preventDefault();
-            if (open) setOpen(false);
-            else showTooltip();
-          }
-        }}
       >
         {children}
-      </span>
+      </div>
       {open && typeof document !== 'undefined' && createPortal(
         <div
           ref={tooltipRef}

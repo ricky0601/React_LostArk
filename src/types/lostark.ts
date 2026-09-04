@@ -168,7 +168,8 @@ export interface ArkPassiveEffect {
 /** GET /armories/characters/{name}/arkpassive 응답 — 직업 깨달음 포함 */
 export interface ArkPassiveData {
   IsArkPassive: boolean;
-  Title: string | null;
+  /** 깨달음 2티어 노드명. 구 응답에는 없을 수 있다. */
+  Title?: string | null;
   Points: ArkPassivePoint[] | null;
   Effects: ArkPassiveDataEffect[] | null;
 }

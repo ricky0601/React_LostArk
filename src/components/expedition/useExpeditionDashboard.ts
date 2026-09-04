@@ -103,6 +103,8 @@ export const useExpeditionDashboard = (
   }, []);
   const loadingKeysRef = useRef(new Map<string, symbol>());
   const selectedNamesRef = useRef(new Set(preferences.selectedCharacters));
+  const prevSelectedRef = useRef(new Set<string>());
+  // 새로 선택된 이름만 로드하기 위한 이전 선택 집합. 마운트(controller 재설정) 시 비운다.
 
   const updateRows = useCallback((updater: (current: Rows) => Rows): void => {
     setRows((current) => {
@@ -121,6 +123,7 @@ export const useExpeditionDashboard = (
     controllerRef.current = new AbortController();
     limiterRef.current = new RequestLimiter(REQUEST_CONCURRENCY);
     loadingKeysRef.current.clear();
+    prevSelectedRef.current = new Set();
     return () => controllerRef.current?.abort();
   }, []);
 
@@ -188,11 +191,54 @@ export const useExpeditionDashboard = (
     void loadEndpoint(name, 'engravings', (signal) => fetchEngravings(name, { signal }), force);
   }, [loadEndpoint]);
 
+  // siblings가 마운트 이후에 바뀌어도(닉네임은 같고 목록만 갱신) 행이 누락되지 않게 병합한다.
+  // 현재는 Expedition이 로딩 게이트 + key 리마운트로 커버하지만, 이 effect가 암묵 계약을 명시적으로 만든다.
+  useEffect(() => {
+    const current = rowsRef.current;
+    const added = siblings.filter((sibling) => current[sibling.CharacterName] === undefined);
+    const stale = siblings.filter((sibling) => {
+      const row = current[sibling.CharacterName];
+      return row !== undefined && (
+        row.sibling.ServerName !== sibling.ServerName
+        || row.sibling.CharacterLevel !== sibling.CharacterLevel
+        || row.sibling.CharacterClassName !== sibling.CharacterClassName
+        || row.sibling.ItemAvgLevel !== sibling.ItemAvgLevel
+        || row.sibling.ItemMaxLevel !== sibling.ItemMaxLevel
+      );
+    });
+    if (added.length === 0 && stale.length === 0) return;
+    const next: Rows = { ...current };
+    added.forEach((sibling) => { next[sibling.CharacterName] = createCharacterState(sibling); });
+    stale.forEach((sibling) => {
+      const row = next[sibling.CharacterName];
+      if (row) next[sibling.CharacterName] = { ...row, sibling };
+    });
+    rowsRef.current = next;
+    setRows(next);
+    added.forEach((sibling) => {
+      if (selectedNamesRef.current.has(sibling.CharacterName)) loadSummary(sibling.CharacterName);
+    });
+  }, [siblings, loadSummary]);
+
   const selectedNames = useMemo(() => new Set(preferences.selectedCharacters), [preferences.selectedCharacters]);
 
+  const isRowErrored = useCallback((name: string): boolean => {
+    const row = rowsRef.current[name];
+    return row !== undefined && [
+      row.profile, row.equipment, row.arkPassive, row.arkGrid, row.gems,
+    ].some((state) => state.status === 'error');
+  }, []);
+
+  // 새로 선택된 이름만 로드한다. 에러 행을 해제 후 다시 선택하면 force로 재시도한다.
+  // rows 변경으로는 재발사하지 않는다(에러 갱신이 rows를 바꿔 무한 재시도 루프가 되기 때문).
   useEffect(() => {
-    preferences.selectedCharacters.forEach((name) => loadSummary(name));
-  }, [loadSummary, preferences.selectedCharacters]);
+    const previous = prevSelectedRef.current;
+    const current = new Set(preferences.selectedCharacters);
+    current.forEach((name) => {
+      if (!previous.has(name)) loadSummary(name, isRowErrored(name));
+    });
+    prevSelectedRef.current = current;
+  }, [loadSummary, isRowErrored, preferences.selectedCharacters]);
 
   const updatePreferences = useCallback((
     updater: (current: ExpeditionPreferences) => ExpeditionPreferences,
@@ -203,6 +249,8 @@ export const useExpeditionDashboard = (
   }), []);
 
   const toggleCharacter = useCallback((name: string): void => {
+    // 상한 초과 시 추가를 무시한다. toggleServer의 남은 슬롯 방식과 대칭된다.
+    if (!selectedNamesRef.current.has(name) && selectedNamesRef.current.size >= MAX_SELECTION_LIMIT) return;
     updatePreferences((current) => {
       const selected = new Set(current.selectedCharacters);
       if (selected.has(name)) selected.delete(name);

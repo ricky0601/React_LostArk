@@ -257,7 +257,7 @@ describe('Expedition route state affordances', () => {
     expect(screen.getByText(/전투력 조회 실패/)).toBeInTheDocument();
   });
 
-  it('excludes deselected failures and retries them only through the retry action', async () => {
+  it('excludes deselected failures and retries them on reselect or through the retry action', async () => {
     mockedFetchSiblings.mockResolvedValue([
       { ServerName: '루페온', CharacterName: '부캐1', CharacterLevel: 70, CharacterClassName: '바드', ItemAvgLevel: '1,600.00', ItemMaxLevel: '1,600.00' },
     ]);
@@ -271,9 +271,9 @@ describe('Expedition route state affordances', () => {
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
 
     await userEvent.click(characterCheckbox);
-    await waitFor(() => expect(mockedFetchProfile).toHaveBeenCalledTimes(1));
-    await userEvent.click(screen.getByRole('button', { name: '다시 시도' }));
     await waitFor(() => expect(mockedFetchProfile).toHaveBeenCalledTimes(2));
+    await userEvent.click(screen.getByRole('button', { name: '다시 시도' }));
+    await waitFor(() => expect(mockedFetchProfile).toHaveBeenCalledTimes(3));
   });
 
   it('aborts the previous expedition request when a new nickname is searched', async () => {

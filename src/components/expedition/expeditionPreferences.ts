@@ -52,7 +52,7 @@ export const loadExpeditionPreferences = (
       viewMode: VIEW_MODES.includes(value.viewMode as ExpeditionViewMode)
         ? value.viewMode as ExpeditionViewMode
         : defaults.viewMode,
-      selectedCharacters: [...savedCurrentNames, ...newlyFoundNames],
+      selectedCharacters: [...savedCurrentNames, ...newlyFoundNames].slice(0, MAX_SELECTION_LIMIT),
       knownCharacters: characterNames,
       collapsedServers: Array.isArray(value.collapsedServers)
         ? value.collapsedServers.filter((server): server is string => typeof server === 'string')
