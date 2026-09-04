@@ -1,7 +1,5 @@
 import type { MaterialType } from '../../../data/enhancement';
 
-export type CaptureStatus = 'idle' | 'requesting' | 'sharing' | 'review' | 'error';
-
 export type RecognitionSource = 'honing' | 'tooltip' | 'fate-shard';
 
 export interface MaterialObservation {
