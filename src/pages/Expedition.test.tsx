@@ -244,6 +244,31 @@ describe('Expedition route state affordances', () => {
     expect(summary).toHaveTextContent('일부 조회 실패');
   });
 
+  it('fails dependent endpoints instead of leaving summaries loading when profile fails', async () => {
+    mockedFetchSiblings.mockResolvedValue([
+      { ServerName: '루페온', CharacterName: '캐릭1', CharacterLevel: 70, CharacterClassName: '바드', ItemAvgLevel: '1,700.00', ItemMaxLevel: '1,700.00' },
+      { ServerName: '루페온', CharacterName: '캐릭2', CharacterLevel: 70, CharacterClassName: '바드', ItemAvgLevel: '1,690.00', ItemMaxLevel: '1,690.00' },
+    ]);
+    mockedFetchProfile.mockImplementation(async (name) => {
+      if (name === '캐릭2') throw new Error('profile unavailable');
+      return { ...profile, CharacterName: name };
+    });
+    mockedFetchArkGrid.mockImplementation(async (name) => {
+      if (name === '캐릭2') throw new Error('should not fan out after profile failure');
+      return { Slots: [{ Index: 0, Icon: '', Name: '코어', Point: 19, Grade: '고대', Tooltip: '', Gems: null }], Effects: null };
+    });
+
+    render(<Expedition />);
+
+    const summary = (await screen.findByText('아크그리드 코어')).parentElement;
+    await waitFor(() => expect(summary).toHaveTextContent('고대 1'));
+    expect(summary).toHaveTextContent('일부 조회 실패');
+    expect(summary).not.toHaveTextContent('…');
+    expect(mockedFetchEquipment).not.toHaveBeenCalledWith('캐릭2', expect.anything());
+    expect(mockedFetchArkGrid).not.toHaveBeenCalledWith('캐릭2', expect.anything());
+    expect(mockedFetchGems).not.toHaveBeenCalledWith('캐릭2', expect.anything());
+  });
+
   it('shows a profile failure in grid view instead of a loading placeholder', async () => {
     mockedFetchSiblings.mockResolvedValue([
       { ServerName: '루페온', CharacterName: '부캐1', CharacterLevel: 70, CharacterClassName: '바드', ItemAvgLevel: '1,600.00', ItemMaxLevel: '1,600.00' },

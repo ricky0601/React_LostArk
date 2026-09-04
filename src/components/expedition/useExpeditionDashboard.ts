@@ -178,6 +178,16 @@ export const useExpeditionDashboard = (
   const loadSummary = useCallback((name: string, force = false): void => {
     void loadEndpoint(name, 'profile', (signal) => fetchProfile(name, { signal }), force).then((outcome) => {
       // profile 실패(429/5xx) 시 하위 4개까지 발사하면 레이트리밋 상황에서 요청량이 5배로 증폭된다.
+      if (outcome === 'error') {
+        // 종속 요청을 발사하지 않으므로 idle로 남지 않게 명시적 종결 상태로 전이한다.
+        // abort/중복에 해당하는 skipped는 제외하고, 이미 확보한 성공 데이터는 덮지 않는다.
+        (['equipment', 'arkPassive', 'arkGrid', 'gems'] as const).forEach((key) => {
+          if (rowsRef.current[name]?.[key]?.status === 'idle') {
+            updateEndpoint(name, key, { status: 'error', data: null });
+          }
+        });
+        return;
+      }
       if (outcome !== 'success') return;
       if (getController().signal.aborted || !selectedNamesRef.current.has(name)) return;
       void loadEndpoint(name, 'equipment', (signal) => fetchEquipment(name, { signal }), force);
@@ -185,7 +195,7 @@ export const useExpeditionDashboard = (
       void loadEndpoint(name, 'arkGrid', (signal) => fetchArkGrid(name, { signal }), force);
       void loadEndpoint(name, 'gems', (signal) => fetchGems(name, { signal }), force);
     });
-  }, [getController, loadEndpoint]);
+  }, [getController, loadEndpoint, updateEndpoint]);
 
   const loadDetails = useCallback((name: string, force = false): void => {
     void loadEndpoint(name, 'engravings', (signal) => fetchEngravings(name, { signal }), force);
