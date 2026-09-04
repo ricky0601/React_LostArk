@@ -68,6 +68,15 @@ test('login errors are recoverable and dismissible', async () => {
   expect(screen.getByRole('button', { name: 'Discord 로그인' })).toBeEnabled();
 });
 
+test('can suppress a callback error already shown by the page', () => {
+  vi.mocked(useAuth).mockReturnValue(authValue({ errorMessage: '로그인 오류' }));
+
+  render(<AuthControls showError={false} />);
+
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Discord 로그인' })).toBeEnabled();
+});
+
 test('does not render authentication UI when Supabase is not configured', () => {
   vi.mocked(useAuth).mockReturnValue(authValue({ status: 'unavailable' }));
 
