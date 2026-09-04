@@ -32,6 +32,17 @@ export const CHANGELOG_TAG_LABEL: Readonly<Record<ChangelogTag, string>> = {
 
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
+    id: 'release-008',
+    date: '2026-09-04',
+    title: '원정대 스펙 대시보드 개선',
+    items: [
+      { tag: 'added', text: '원정대 전체 캐릭터를 카드·그리드·테이블 보기로 확인하고, 표시할 캐릭터를 골라 저장할 수 있습니다.' },
+      { tag: 'added', text: '캐릭터별 보석, 각인, 아크그리드, 아크패시브 상세 정보를 볼 수 있습니다.' },
+      { tag: 'improved', text: '딜러·서포터 역할에 따라 아크그리드 효과를 정렬하고 핵심 효과를 강조합니다.' },
+      { tag: 'improved', text: '최고 레벨, 아크그리드 코어 등급별 개수, 거래 가능·귀속 보석 개수를 한눈에 요약합니다.' },
+    ],
+  },
+  {
     id: 'release-007',
     date: '2026-09-01',
     title: '시세 검색 확장과 화면 인식 재료 입력',
