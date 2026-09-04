@@ -17,6 +17,7 @@ import {
 import {
   loadExpeditionPreferences,
   saveExpeditionPreferences,
+  MAX_SELECTION_LIMIT,
   type ExpeditionPreferences,
 } from './expeditionPreferences';
 
@@ -29,6 +30,8 @@ type DashboardRow = Pick<ExpeditionCharacterState, 'sibling' | 'expanded'> & {
   [K in DataKey]: EndpointState<EndpointPayload[K]>;
 };
 type Rows = Record<string, DashboardRow>;
+// 'skipped'는 중복 요청 단축·취소를 뜻하며, 후속 요청 발사 여부 판단에 쓰인다.
+type EndpointOutcome = 'success' | 'error' | 'skipped';
 
 class RequestLimiter {
   private active = 0;
@@ -138,11 +141,12 @@ export const useExpeditionDashboard = (
     key: K,
     request: (signal: AbortSignal) => Promise<EndpointPayload[K]>,
     force = false,
-  ): Promise<void> => {
+  ): Promise<EndpointOutcome> => {
     const loadingKey = `${name}:${key}`;
     const current = rowsRef.current[name]?.[key] as EndpointState<EndpointPayload[K]> | undefined;
-    if (loadingKeysRef.current.has(loadingKey) || (!force && (current?.status === 'success' || current?.status === 'error'))) {
-      return Promise.resolve();
+    if (loadingKeysRef.current.has(loadingKey)) return Promise.resolve('skipped');
+    if (!force && current && (current.status === 'success' || current.status === 'error')) {
+      return Promise.resolve(current.status);
     }
 
     const requestToken = Symbol(loadingKey);
@@ -153,12 +157,14 @@ export const useExpeditionDashboard = (
     return limiterRef.current.run(async () => {
       if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
       return request(signal);
-    }).then((data) => {
-      if (!signal.aborted) updateEndpoint(name, key, { status: 'success', data });
-    }).catch((error: unknown) => {
-      if (!isAbortError(error) && !signal.aborted) {
-        updateEndpoint(name, key, { status: 'error', data: null });
-      }
+    }).then((data): EndpointOutcome => {
+      if (signal.aborted) return 'skipped';
+      updateEndpoint(name, key, { status: 'success', data });
+      return 'success';
+    }).catch((error: unknown): EndpointOutcome => {
+      if (isAbortError(error) || signal.aborted) return 'skipped';
+      updateEndpoint(name, key, { status: 'error', data: null });
+      return 'error';
     }).finally(() => {
       if (loadingKeysRef.current.get(loadingKey) === requestToken) {
         loadingKeysRef.current.delete(loadingKey);
@@ -167,7 +173,9 @@ export const useExpeditionDashboard = (
   }, [getController, updateEndpoint]);
 
   const loadSummary = useCallback((name: string, force = false): void => {
-    void loadEndpoint(name, 'profile', (signal) => fetchProfile(name, { signal }), force).finally(() => {
+    void loadEndpoint(name, 'profile', (signal) => fetchProfile(name, { signal }), force).then((outcome) => {
+      // profile 실패(429/5xx) 시 하위 4개까지 발사하면 레이트리밋 상황에서 요청량이 5배로 증폭된다.
+      if (outcome !== 'success') return;
       if (getController().signal.aborted || !selectedNamesRef.current.has(name)) return;
       void loadEndpoint(name, 'equipment', (signal) => fetchEquipment(name, { signal }), force);
       void loadEndpoint(name, 'arkPassive', (signal) => fetchArkPassive(name, { signal }), force);
@@ -208,7 +216,14 @@ export const useExpeditionDashboard = (
     updatePreferences((current) => {
       const selected = new Set(current.selectedCharacters);
       const allSelected = serverNames.every((name) => selected.has(name));
-      serverNames.forEach((name) => allSelected ? selected.delete(name) : selected.add(name));
+      if (allSelected) {
+        serverNames.forEach((name) => selected.delete(name));
+        return { ...current, selectedCharacters: Array.from(selected) };
+      }
+      // 상한 초과 시 이미 선택된 캐릭터를 밀어내지 않고 남은 슬롯만 채운다.
+      // serverNames는 아이템 레벨 내림차순이라 잘려도 상위 캐릭터가 먼저 들어간다.
+      const availableSlots = MAX_SELECTION_LIMIT - selected.size;
+      serverNames.filter((name) => !selected.has(name)).slice(0, availableSlots).forEach((name) => selected.add(name));
       return { ...current, selectedCharacters: Array.from(selected) };
     });
   }, [siblings, updatePreferences]);

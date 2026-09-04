@@ -11,6 +11,9 @@ export interface ExpeditionPreferences {
 
 const STORAGE_PREFIX = 'loaExpeditionDashboard:v1:';
 const DEFAULT_SELECTION_LIMIT = 6;
+// 캐릭터 1명당 profile + equipment + arkPassive + arkGrid + gems = 5요청이 나간다.
+// 공유 API 키를 쓰므로 한 사용자의 전체 선택이 다른 사용자까지 429로 밀어낼 수 있다.
+export const MAX_SELECTION_LIMIT = 12;
 const VIEW_MODES: readonly ExpeditionViewMode[] = ['card', 'grid', 'table'];
 
 const storageKey = (nickname: string): string => `${STORAGE_PREFIX}${nickname.trim().toLocaleLowerCase()}`;

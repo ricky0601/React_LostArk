@@ -1,6 +1,7 @@
 import React from 'react';
 import type { SiblingCharacter } from '../../types/lostark';
 import type { ExpeditionViewMode } from './expeditionModel';
+import { MAX_SELECTION_LIMIT } from './expeditionPreferences';
 
 const VIEW_OPTIONS: readonly { mode: ExpeditionViewMode; label: string; description: string }[] = [
   { mode: 'card', label: '카드', description: '캐릭터별 요약' },
@@ -41,7 +42,7 @@ const ExpeditionDashboardControls: React.FC<Props> = ({
       <div className="flex flex-col gap-3 rounded-2xl border border-gray-200/70 bg-white/80 p-4 shadow-sm dark:border-white/10 dark:bg-white/[0.04] lg:flex-row lg:items-center lg:justify-between">
         <div>
           <h2 className="font-bold text-gray-900 dark:text-white">보기 설정</h2>
-          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">선택한 보기와 캐릭터는 이 브라우저에 저장됩니다.</p>
+          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">선택한 보기와 캐릭터는 원정대별로 이 브라우저에 저장됩니다. 서버 전체 선택은 최대 {MAX_SELECTION_LIMIT}명까지 채웁니다.</p>
         </div>
         <div
           className="grid grid-cols-3 gap-2"

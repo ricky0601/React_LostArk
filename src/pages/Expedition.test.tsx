@@ -3,7 +3,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import Expedition from './Expedition';
 import type { CharacterProfile } from '../types/lostark';
-import { fetchArkGrid, fetchArkPassive, fetchEngravings, fetchGems, fetchProfile, fetchSiblings } from '../utils/api';
+import { fetchArkGrid, fetchArkPassive, fetchEngravings, fetchEquipment, fetchGems, fetchProfile, fetchSiblings } from '../utils/api';
 
 const mockSetSearchParams = vi.fn();
 let mockCurrentSearchParams = new URLSearchParams('nickname=원정대장');
@@ -38,6 +38,7 @@ const mockedFetchGems = vi.mocked(fetchGems);
 const mockedFetchArkGrid = vi.mocked(fetchArkGrid);
 const mockedFetchEngravings = vi.mocked(fetchEngravings);
 const mockedFetchArkPassive = vi.mocked(fetchArkPassive);
+const mockedFetchEquipment = vi.mocked(fetchEquipment);
 
 const profile: CharacterProfile = {
   CharacterImage: 'https://example.com/expedition.png',
@@ -136,6 +137,21 @@ describe('Expedition route state affordances', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent('조회된 정보는 계속 표시됩니다');
     expect(screen.getAllByText('부캐1').length).toBeGreaterThan(0);
+  });
+
+  it('does not fan out to detail endpoints when the profile lookup fails', async () => {
+    mockedFetchSiblings.mockResolvedValue([
+      { ServerName: '루페온', CharacterName: '부캐1', CharacterLevel: 70, CharacterClassName: '바드', ItemAvgLevel: '1,600.00', ItemMaxLevel: '1,600.00' },
+    ]);
+    mockedFetchProfile.mockRejectedValue(new Error('profile unavailable'));
+
+    render(<Expedition />);
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('조회된 정보는 계속 표시됩니다');
+    expect(mockedFetchEquipment).not.toHaveBeenCalled();
+    expect(mockedFetchArkPassive).not.toHaveBeenCalled();
+    expect(mockedFetchArkGrid).not.toHaveBeenCalled();
+    expect(mockedFetchGems).not.toHaveBeenCalled();
   });
 
   it('sanitizes API markup and renders detail images', async () => {
@@ -387,6 +403,31 @@ describe('Expedition route state affordances', () => {
     const enlightenment = screen.getByRole('tab', { name: '깨달음' });
     expect(enlightenment).toHaveAttribute('aria-selected', 'true');
     expect(document.activeElement).toBe(enlightenment);
+  });
+
+  it('caps a server-wide selection at the request budget instead of selecting everyone', async () => {
+    mockedFetchSiblings.mockResolvedValue(Array.from({ length: 15 }, (_, index) => ({
+      ServerName: '루페온',
+      CharacterName: `캐릭${String(index + 1).padStart(2, '0')}`,
+      CharacterLevel: 70,
+      CharacterClassName: '슬레이어',
+      ItemAvgLevel: `1,7${String(15 - index).padStart(2, '0')}.00`,
+      ItemMaxLevel: '1,700.00',
+    })));
+    mockedFetchProfile.mockImplementation(async (name) => ({ ...profile, CharacterName: name }));
+
+    render(<Expedition />);
+
+    const serverCheckbox = await screen.findByRole('checkbox', { name: '루페온 서버 전체 선택' });
+    expect(screen.getByRole('checkbox', { name: '캐릭06' })).toBeChecked();
+    expect(screen.getByRole('checkbox', { name: '캐릭07' })).not.toBeChecked();
+
+    await userEvent.click(serverCheckbox);
+
+    expect(screen.getByRole('checkbox', { name: '캐릭12' })).toBeChecked();
+    expect(screen.getByRole('checkbox', { name: '캐릭13' })).not.toBeChecked();
+    expect(screen.getByText('12/15 접기')).toBeInTheDocument();
+    expect(serverCheckbox).not.toBeChecked();
   });
 
   it('shows siblings from every server and allows switching views', async () => {
