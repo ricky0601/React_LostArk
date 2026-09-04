@@ -30,7 +30,8 @@ const equipmentDetailLine = (cell: EquipmentCell): string => cell.label === '완
   : `상급 ${cell.advancedLevel ?? '-'} / 품질 ${cell.quality ?? '-'}`;
 
 const equipmentTooltip = (cell: EquipmentCell): { label: string; content: React.ReactNode } => ({
-  label: cell.name ?? `${cell.label} 장비 정보`,
+  // aria-label이 자식 텍스트를 대체하므로 화면에 보이는 강화·품질 수치까지 이름에 담는다.
+  label: `${cell.label} ${cell.name ?? '장비 정보'} ${equipmentDetailLine(cell)}`,
   content: (
     <div className="min-w-40 space-y-1">
       <strong className="block text-sm text-gray-900 dark:text-white">{cell.name ?? cell.label}</strong>

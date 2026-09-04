@@ -18,6 +18,18 @@ describe('Tooltip', () => {
     expect(screen.queryByText('첫 번째 내용')).not.toBeInTheDocument();
   });
 
+  it('exposes a button role and links the tooltip through aria-describedby', () => {
+    render(<Tooltip label="무기 찬란한 검 상급 3 / 품질 90" content="상세"><span>+25</span></Tooltip>);
+    const trigger = screen.getByRole('button', { name: '무기 찬란한 검 상급 3 / 품질 90' });
+
+    expect(trigger).not.toHaveAttribute('aria-describedby');
+    expect(trigger).toHaveAttribute('aria-expanded', 'false');
+
+    fireEvent.focus(trigger);
+    expect(trigger).toHaveAttribute('aria-expanded', 'true');
+    expect(trigger.getAttribute('aria-describedby')).toBe(screen.getByRole('tooltip').id);
+  });
+
   it('prevents mouse clicks from pinning a hover tooltip', () => {
     render(<Tooltip label="보석" content="보석 정보"><span>보석</span></Tooltip>);
     expect(fireEvent.mouseDown(screen.getByLabelText('보석'))).toBe(false);

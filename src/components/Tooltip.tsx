@@ -93,8 +93,11 @@ const Tooltip: React.FC<Props> = ({ children, content, label, className = '' }) 
     <>
       <span
         ref={triggerRef}
+        // role 없는 span은 naming prohibited라 aria-label이 무시되거나 자식 텍스트를 통째로 덮는다.
+        role="button"
         tabIndex={0}
         aria-label={label}
+        aria-expanded={open}
         aria-describedby={open ? id : undefined}
         className={`inline-flex rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-la-gold/40 ${className}`}
         onMouseEnter={showTooltip}
