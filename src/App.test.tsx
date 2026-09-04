@@ -85,6 +85,8 @@ test('matches the OAuth callback route', async () => {
 
   expect(await screen.findByText('Auth Callback Page')).toBeInTheDocument();
   expect(screen.queryByText('Not Found Page')).not.toBeInTheDocument();
+  expect(document.title).toBe('Discord 로그인 - 로아끼욧');
+  expect(document.querySelector('meta[name="robots"]')).toHaveAttribute('content', 'noindex, follow');
 });
 
 test('falls back to the not found page for unmatched routes', async () => {
