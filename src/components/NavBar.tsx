@@ -7,7 +7,11 @@ import { AuthControls } from './auth/AuthControls';
 import ChangelogBell from './ChangelogBell';
 import { getNavItemClass, MORE_NAV_LINKS, NavLinks, PRIMARY_NAV_LINKS } from './nav/NavLinks';
 
-const NavBar: React.FC = () => {
+type NavBarProps = {
+  readonly suppressAuthError?: boolean;
+};
+
+const NavBar: React.FC<NavBarProps> = ({ suppressAuthError = false }) => {
   const { pathname } = useLocation();
   const { isDarkMode, toggleDarkMode } = useTheme();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -180,7 +184,7 @@ const NavBar: React.FC = () => {
                 <span className="font-medium text-gray-500 dark:text-gray-400">현재 테마</span>
                 <span className="font-bold text-gray-900 dark:text-white">{isDarkMode ? '다크 모드' : '라이트 모드'}</span>
               </div>
-              <AuthControls variant="mobile" />
+              <AuthControls variant="mobile" showError={!suppressAuthError} />
               <button
                 type="button"
                 aria-label="모바일 메뉴 닫기"
@@ -242,7 +246,7 @@ const NavBar: React.FC = () => {
         </div>
         <div className="flex items-center gap-1">
           <div className="hidden md:block">
-            <AuthControls />
+            <AuthControls showError={!suppressAuthError} />
           </div>
           <ChangelogBell />
           <button

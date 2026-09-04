@@ -15,7 +15,7 @@ const AuthCallback: React.FC = () => {
 
   return (
     <div>
-      <NavBar />
+      <NavBar suppressAuthError />
       <main className="mx-auto flex min-h-[60vh] max-w-xl items-center px-4 py-12">
         <section className="w-full rounded-2xl border border-gray-200/70 bg-white p-6 text-center shadow-sm dark:border-white/10 dark:bg-white/5">
           <h1 className="text-xl font-bold text-gray-900 dark:text-white">Discord 로그인</h1>

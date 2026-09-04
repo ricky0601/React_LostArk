@@ -28,6 +28,15 @@ const ROUTE_SEO: readonly RouteSeoEntry[] = routeSeoEntries.map((entry) => ({
   priority: entry.priority,
 }));
 
+const AUTH_CALLBACK_SEO: RouteSeoEntry = {
+  path: '/auth/callback',
+  title: 'Discord 로그인 - 로아끼욧',
+  description: '로아끼욧 Discord 로그인 결과를 확인하고 있습니다.',
+  name: 'Discord 로그인',
+  schemaType: 'WebPage',
+  robots: 'noindex, follow',
+};
+
 const NOT_FOUND_SEO: RouteSeoEntry = {
   path: '/',
   title: '페이지를 찾을 수 없습니다 - 로아끼욧',
@@ -39,6 +48,7 @@ const NOT_FOUND_SEO: RouteSeoEntry = {
 
 function findSeoEntry(pathname: string): RouteSeoEntry {
   const normalizedPathname = normalizePathname(pathname);
+  if (normalizedPathname === AUTH_CALLBACK_SEO.path) return AUTH_CALLBACK_SEO;
   return ROUTE_SEO.find((entry) => entry.path === normalizedPathname) ?? NOT_FOUND_SEO;
 }
 
