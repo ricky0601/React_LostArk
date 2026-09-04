@@ -16,7 +16,9 @@ interface Props {
   readonly onRetry: (name: string) => void;
 }
 
-const statusClass = (status: string): string => status === 'error' ? 'text-red-500' : status === 'success' ? '' : 'animate-pulse text-gray-400';
+const statusClass = (status: string, successClass = ''): string => status === 'error'
+  ? 'text-red-500 dark:text-red-400'
+  : status === 'success' ? successClass : 'animate-pulse text-gray-400';
 const rowHasError = (row: ExpeditionCharacterState): boolean => [
   row.profile, row.equipment, row.arkPassive, row.arkGrid, row.gems, row.engravings,
 ].some((state) => state.status === 'error');
@@ -27,12 +29,12 @@ const EquipmentStrip: React.FC<{ readonly row: ExpeditionCharacterState; readonl
       <div key={cell.label} title={cell.name ?? undefined} className="rounded-lg bg-gray-100/80 px-1.5 py-2 text-center dark:bg-white/5">
         <div className="flex items-center justify-center gap-1">
           {cell.icon && <img src={cell.icon} alt="" loading="lazy" className="h-5 w-5 rounded object-cover" />}
-          <p className="text-[10px] text-gray-500">{cell.label}</p>
+          <p className="text-[10px] text-gray-500 dark:text-gray-400">{cell.label}</p>
         </div>
-        <p className={`mt-0.5 text-xs font-bold text-gray-800 dark:text-gray-200 ${statusClass(row.equipment.status)}`}>
+        <p className={`mt-0.5 text-xs font-bold ${statusClass(row.equipment.status, 'text-gray-800 dark:text-gray-200')}`}>
           {row.equipment.status === 'error' ? '실패' : row.equipment.status !== 'success' ? '…' : cell.normalLevel === null ? '-' : `+${cell.normalLevel}`}
         </p>
-        <p className="text-[10px] text-gray-500">{cell.label === '완갑' ? `${cell.grade ?? '-'} · 품질 ${cell.quality ?? '-'}` : `상급 ${cell.advancedLevel ?? '-'} · 품질 ${cell.quality ?? '-'}`}</p>
+        <p className="text-[10px] text-gray-500 dark:text-gray-400">{cell.label === '완갑' ? `${cell.grade ?? '-'} · 품질 ${cell.quality ?? '-'}` : `상급 ${cell.advancedLevel ?? '-'} · 품질 ${cell.quality ?? '-'}`}</p>
       </div>
     ))}
   </div>
@@ -67,9 +69,9 @@ const CardView: React.FC<Omit<Props, 'viewMode'>> = ({ rows, onToggleExpanded, o
               </div>
               <div className="min-w-0 flex-1">
                 <Link to={`/character?nickname=${encodeURIComponent(row.sibling.CharacterName)}`} className="font-bold text-gray-900 hover:text-la-gold-deep dark:text-white dark:hover:text-la-gold">{row.sibling.CharacterName}</Link>
-                <p className="text-xs text-gray-500">{row.sibling.CharacterClassName} · {row.sibling.ServerName}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">{row.sibling.CharacterClassName} · {row.sibling.ServerName}</p>
                 <p className="mt-1 text-sm font-bold text-la-gold-deep dark:text-la-gold">Lv. {profile?.ItemAvgLevel ?? row.sibling.ItemAvgLevel}</p>
-                <p className={`text-xs text-gray-500 ${statusClass(row.profile.status)}`}>전투력 {profile?.CombatPower ?? (row.profile.status === 'error' ? '조회 실패' : '…')}</p>
+                <p className={`text-xs ${statusClass(row.profile.status, 'text-gray-500 dark:text-gray-400')}`}>전투력 {profile?.CombatPower ?? (row.profile.status === 'error' ? '조회 실패' : '…')}</p>
               </div>
             </div>
             <div className="mt-4"><EquipmentStrip row={row} compact /></div>
@@ -96,8 +98,8 @@ const GridView: React.FC<Omit<Props, 'viewMode'>> = ({ rows, onToggleExpanded, o
             <div className="flex min-w-0 items-center gap-2">
               {profile?.CharacterImage && <FallbackImage src={profile.CharacterImage} alt={row.sibling.CharacterName} className="h-12 w-12 shrink-0 rounded-xl object-cover object-top" />}
               <div className="min-w-0"><p className="truncate font-bold text-gray-900 dark:text-white">{row.sibling.CharacterName}</p>
-                <p className="text-xs text-gray-500">{row.sibling.CharacterClassName} · {row.sibling.ServerName}</p>
-                <p className="mt-1 text-xs font-bold text-la-gold-deep dark:text-la-gold">Lv. {profile?.ItemAvgLevel ?? row.sibling.ItemAvgLevel} · 전투력 {profile?.CombatPower ?? '…'}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">{row.sibling.CharacterClassName} · {row.sibling.ServerName}</p>
+                <p className={`mt-1 text-xs font-bold ${statusClass(row.profile.status, 'text-la-gold-deep dark:text-la-gold')}`}>Lv. {profile?.ItemAvgLevel ?? row.sibling.ItemAvgLevel} · 전투력 {profile?.CombatPower ?? (row.profile.status === 'error' ? '조회 실패' : '…')}</p>
               </div>
             </div>
             <EquipmentStrip row={row} />
@@ -136,13 +138,13 @@ const TableView: React.FC<Omit<Props, 'viewMode'>> = ({ rows, onToggleExpanded, 
                     <div className="flex items-center gap-2">
                       {profile?.CharacterImage && <FallbackImage src={profile.CharacterImage} alt={row.sibling.CharacterName} className="h-9 w-9 shrink-0 rounded-lg object-cover object-top" />}
                       <div><Link to={`/character?nickname=${encodeURIComponent(row.sibling.CharacterName)}`} className="font-bold text-gray-900 hover:text-la-gold-deep dark:text-white">{row.sibling.CharacterName}</Link>
-                        <span className="block text-[10px] text-gray-500">{row.sibling.CharacterClassName} · {row.sibling.ServerName}</span>
+                        <span className="block text-[10px] text-gray-500 dark:text-gray-400">{row.sibling.CharacterClassName} · {row.sibling.ServerName}</span>
                       </div>
                     </div>
                   </td>
                   <td className="px-3 py-3 font-bold text-la-gold-deep dark:text-la-gold">{profile?.ItemAvgLevel ?? row.sibling.ItemAvgLevel}</td>
                   <td className={`px-3 py-3 ${statusClass(row.profile.status)}`}>{profile?.CombatPower ?? (row.profile.status === 'error' ? '실패' : '…')}</td>
-                  {equipmentCells(row.equipment.data).map((cell) => <td key={cell.label} title={cell.name ?? undefined} className={`px-2 py-3 text-center ${statusClass(row.equipment.status)}`}>{row.equipment.status === 'success' ? <><span className="inline-flex items-center justify-center gap-1">{cell.icon && <img src={cell.icon} alt="" loading="lazy" className="h-6 w-6 rounded object-cover" />}<strong>{cell.normalLevel === null ? '-' : `+${cell.normalLevel}`}</strong></span><span className="block text-[10px] text-gray-500">{cell.label === '완갑' ? `${cell.grade ?? '-'} / ${cell.quality ?? '-'}` : `${cell.advancedLevel ?? '-'} / ${cell.quality ?? '-'}`}</span></> : row.equipment.status === 'error' ? '실패' : '…'}</td>)}
+                  {equipmentCells(row.equipment.data).map((cell) => <td key={cell.label} title={cell.name ?? undefined} className={`px-2 py-3 text-center ${statusClass(row.equipment.status)}`}>{row.equipment.status === 'success' ? <><span className="inline-flex items-center justify-center gap-1">{cell.icon && <img src={cell.icon} alt="" loading="lazy" className="h-6 w-6 rounded object-cover" />}<strong>{cell.normalLevel === null ? '-' : `+${cell.normalLevel}`}</strong></span><span className="block text-[10px] text-gray-500 dark:text-gray-400">{cell.label === '완갑' ? `${cell.grade ?? '-'} / ${cell.quality ?? '-'}` : `${cell.advancedLevel ?? '-'} / ${cell.quality ?? '-'}`}</span></> : row.equipment.status === 'error' ? '실패' : '…'}</td>)}
                   <td className="px-3 py-3"><div className="flex gap-1"><DetailButton row={row} onClick={() => onToggleExpanded(row.sibling.CharacterName)} />{hasError && <RetryButton onClick={() => onRetry(row.sibling.CharacterName)} />}</div></td>
                 </tr>
                 {row.expanded && <tr><td colSpan={11} className="bg-gray-50/70 p-0 dark:bg-black/10"><ExpeditionCharacterDetails row={row} /></td></tr>}

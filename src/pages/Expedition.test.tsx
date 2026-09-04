@@ -211,6 +211,55 @@ describe('Expedition route state affordances', () => {
     expect(screen.getByText('빛의 기사 Lv.3')).toBeInTheDocument();
   });
 
+  it('keeps partial core totals visible when another character fails', async () => {
+    mockedFetchSiblings.mockResolvedValue([
+      { ServerName: '루페온', CharacterName: '캐릭1', CharacterLevel: 70, CharacterClassName: '바드', ItemAvgLevel: '1,700.00', ItemMaxLevel: '1,700.00' },
+      { ServerName: '루페온', CharacterName: '캐릭2', CharacterLevel: 70, CharacterClassName: '바드', ItemAvgLevel: '1,690.00', ItemMaxLevel: '1,690.00' },
+    ]);
+    mockedFetchProfile.mockImplementation(async (name) => ({ ...profile, CharacterName: name }));
+    mockedFetchArkGrid
+      .mockResolvedValueOnce({ Slots: [{ Index: 0, Icon: '', Name: '코어', Point: 19, Grade: '고대', Tooltip: '', Gems: null }], Effects: null })
+      .mockRejectedValueOnce(new Error('grid unavailable'));
+
+    render(<Expedition />);
+
+    const summary = (await screen.findByText('아크그리드 코어')).parentElement;
+    await waitFor(() => expect(summary).toHaveTextContent('고대 1'));
+    expect(summary).toHaveTextContent('일부 조회 실패');
+  });
+
+  it('shows a profile failure in grid view instead of a loading placeholder', async () => {
+    mockedFetchSiblings.mockResolvedValue([
+      { ServerName: '루페온', CharacterName: '부캐1', CharacterLevel: 70, CharacterClassName: '바드', ItemAvgLevel: '1,600.00', ItemMaxLevel: '1,600.00' },
+    ]);
+    mockedFetchProfile.mockRejectedValue(new Error('profile unavailable'));
+
+    render(<Expedition />);
+
+    await screen.findByRole('alert');
+    await userEvent.click(screen.getByRole('radio', { name: /그리드/ }));
+    expect(screen.getByText(/전투력 조회 실패/)).toBeInTheDocument();
+  });
+
+  it('excludes deselected failures and retries them only through the retry action', async () => {
+    mockedFetchSiblings.mockResolvedValue([
+      { ServerName: '루페온', CharacterName: '부캐1', CharacterLevel: 70, CharacterClassName: '바드', ItemAvgLevel: '1,600.00', ItemMaxLevel: '1,600.00' },
+    ]);
+    mockedFetchProfile.mockRejectedValue(new Error('profile unavailable'));
+
+    render(<Expedition />);
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('1개 캐릭터');
+    const characterCheckbox = screen.getByRole('checkbox', { name: '부캐1' });
+    await userEvent.click(characterCheckbox);
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+
+    await userEvent.click(characterCheckbox);
+    await waitFor(() => expect(mockedFetchProfile).toHaveBeenCalledTimes(1));
+    await userEvent.click(screen.getByRole('button', { name: '다시 시도' }));
+    await waitFor(() => expect(mockedFetchProfile).toHaveBeenCalledTimes(2));
+  });
+
   it('aborts the previous expedition request when a new nickname is searched', async () => {
     let firstSignal: AbortSignal | undefined;
     mockedFetchSiblings

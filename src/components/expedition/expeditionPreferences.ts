@@ -10,6 +10,7 @@ export interface ExpeditionPreferences {
 }
 
 const STORAGE_PREFIX = 'loaExpeditionDashboard:v1:';
+const DEFAULT_SELECTION_LIMIT = 6;
 const VIEW_MODES: readonly ExpeditionViewMode[] = ['card', 'grid', 'table'];
 
 const storageKey = (nickname: string): string => `${STORAGE_PREFIX}${nickname.trim().toLocaleLowerCase()}`;
@@ -20,7 +21,7 @@ export const loadExpeditionPreferences = (
 ): ExpeditionPreferences => {
   const defaults: ExpeditionPreferences = {
     viewMode: 'card',
-    selectedCharacters: characterNames,
+    selectedCharacters: characterNames.slice(0, DEFAULT_SELECTION_LIMIT),
     knownCharacters: characterNames,
     collapsedServers: [],
     isRosterExpanded: true,
@@ -34,13 +35,16 @@ export const loadExpeditionPreferences = (
     const value = parsed as Partial<ExpeditionPreferences>;
     const savedNames = Array.isArray(value.selectedCharacters)
       ? value.selectedCharacters.filter((name): name is string => typeof name === 'string')
-      : characterNames;
+      : defaults.selectedCharacters;
     const knownNames = Array.isArray(value.knownCharacters)
       ? value.knownCharacters.filter((name): name is string => typeof name === 'string')
       : savedNames;
     const currentNameSet = new Set(characterNames);
     const savedCurrentNames = savedNames.filter((name) => currentNameSet.has(name));
-    const newlyFoundNames = characterNames.filter((name) => !knownNames.includes(name));
+    const availableSelectionSlots = Math.max(0, DEFAULT_SELECTION_LIMIT - savedCurrentNames.length);
+    const newlyFoundNames = characterNames
+      .filter((name) => !knownNames.includes(name))
+      .slice(0, availableSelectionSlots);
     return {
       viewMode: VIEW_MODES.includes(value.viewMode as ExpeditionViewMode)
         ? value.viewMode as ExpeditionViewMode

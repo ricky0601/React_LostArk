@@ -32,6 +32,12 @@ describe('expedition dashboard model', () => {
     expect(cells.find((cell) => cell.label === '투구')?.normalLevel).toBeNull();
   });
 
+  it('reuses parsed equipment cells while the API payload is unchanged', () => {
+    const items = [equipment('무기', '+20 운명의 업화 무기', 97, 40)];
+
+    expect(equipmentCells(items)).toBe(equipmentCells(items));
+  });
+
   it('distinguishes bound gems from tradeable gems by the API name', () => {
     const gem = (Name: string) => ({ Slot: 0, Name, Icon: '', Level: 8, Grade: '고대', Tooltip: '' });
     expect(isBoundGem(gem("<FONT>8레벨 광휘의 보석 (귀속)</FONT>"))).toBe(true);

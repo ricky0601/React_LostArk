@@ -22,7 +22,13 @@ import {
 
 const REQUEST_CONCURRENCY = 3;
 type DataKey = 'profile' | 'equipment' | 'arkPassive' | 'arkGrid' | 'gems' | 'engravings';
-type Rows = Record<string, ExpeditionCharacterState>;
+type EndpointPayload = {
+  [K in DataKey]: ExpeditionCharacterState[K] extends EndpointState<infer T> ? T : never;
+};
+type DashboardRow = Pick<ExpeditionCharacterState, 'sibling' | 'expanded'> & {
+  [K in DataKey]: EndpointState<EndpointPayload[K]>;
+};
+type Rows = Record<string, DashboardRow>;
 
 class RequestLimiter {
   private active = 0;
@@ -68,7 +74,9 @@ export const useExpeditionDashboard = (
   nickname: string,
   siblings: readonly SiblingCharacter[],
 ): ExpeditionDashboardState => {
-  const characterNames = useMemo(() => siblings.map((sibling) => sibling.CharacterName), [siblings]);
+  const characterNames = useMemo(() => [...siblings]
+    .sort((left, right) => Number(right.ItemAvgLevel.replace(/,/g, '')) - Number(left.ItemAvgLevel.replace(/,/g, '')))
+    .map((sibling) => sibling.CharacterName), [siblings]);
   const [preferences, setPreferences] = useState<ExpeditionPreferences>(() =>
     loadExpeditionPreferences(nickname, characterNames));
   const [rows, setRows] = useState<Rows>(() => Object.fromEntries(
@@ -100,27 +108,27 @@ export const useExpeditionDashboard = (
     return () => controllerRef.current.abort();
   }, []);
 
-  const updateEndpoint = useCallback((
+  const updateEndpoint = useCallback(<K extends DataKey>(
     name: string,
-    key: DataKey,
-    state: EndpointState<unknown>,
+    key: K,
+    state: EndpointState<EndpointPayload[K]>,
   ): void => {
     updateRows((current) => {
       const row = current[name];
       if (!row) return current;
-      return { ...current, [name]: { ...row, [key]: state } as ExpeditionCharacterState };
+      return { ...current, [name]: { ...row, [key]: state } };
     });
   }, [updateRows]);
 
-  const loadEndpoint = useCallback((
+  const loadEndpoint = useCallback(<K extends DataKey>(
     name: string,
-    key: DataKey,
-    request: (signal: AbortSignal) => Promise<unknown>,
+    key: K,
+    request: (signal: AbortSignal) => Promise<EndpointPayload[K]>,
     force = false,
   ): Promise<void> => {
     const loadingKey = `${name}:${key}`;
-    const current = rowsRef.current[name]?.[key];
-    if (loadingKeysRef.current.has(loadingKey) || (!force && current?.status === 'success')) {
+    const current = rowsRef.current[name]?.[key] as EndpointState<EndpointPayload[K]> | undefined;
+    if (loadingKeysRef.current.has(loadingKey) || (!force && (current?.status === 'success' || current?.status === 'error'))) {
       return Promise.resolve();
     }
 
@@ -223,11 +231,11 @@ export const useExpeditionDashboard = (
     if (rowsRef.current[name]?.expanded) loadDetails(name, true);
   }, [loadDetails, loadSummary]);
 
-  const partialFailureCount = useMemo(() => Object.values(rows).filter((row) =>
-    (Object.keys(row) as Array<keyof ExpeditionCharacterState>).some((key) => {
-      const value = row[key];
-      return typeof value === 'object' && value !== null && 'status' in value && value.status === 'error';
-    })).length, [rows]);
+  const partialFailureCount = useMemo(() => Object.values(rows)
+    .filter((row) => selectedNames.has(row.sibling.CharacterName))
+    .filter((row) => [
+      row.profile, row.equipment, row.arkPassive, row.arkGrid, row.gems, row.engravings,
+    ].some((state) => state.status === 'error')).length, [rows, selectedNames]);
 
   return {
     rows,

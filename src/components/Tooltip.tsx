@@ -78,8 +78,15 @@ const Tooltip: React.FC<Props> = ({ children, content, label, className = '' }) 
       const target = event.target as Node;
       if (!triggerRef.current?.contains(target) && !tooltipRef.current?.contains(target)) setOpen(false);
     };
+    const closeOnEscape = (event: KeyboardEvent): void => {
+      if (event.key === 'Escape') setOpen(false);
+    };
     document.addEventListener('pointerdown', closeOnOutsidePointer);
-    return () => document.removeEventListener('pointerdown', closeOnOutsidePointer);
+    document.addEventListener('keydown', closeOnEscape);
+    return () => {
+      document.removeEventListener('pointerdown', closeOnOutsidePointer);
+      document.removeEventListener('keydown', closeOnEscape);
+    };
   }, [open]);
 
   return (

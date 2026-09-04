@@ -73,9 +73,14 @@ export const parseItemLevel = (level: string): number => Number(level.replace(/,
 
 export const isBoundGem = (gem: GemItem): boolean => /\(귀속\)/.test(stripHtml(gem.Name));
 
+const equipmentCellsCache = new WeakMap<readonly EquipmentItem[], EquipmentCell[]>();
+
 export const equipmentCells = (items: readonly EquipmentItem[] | null): EquipmentCell[] => {
+  const cached = items ? equipmentCellsCache.get(items) : undefined;
+  if (cached) return cached;
+
   const parsed = parseEquipmentList(items ? [...items] : []);
-  return EQUIPMENT_COLUMNS.map(([slot, label]) => {
+  const cells = EQUIPMENT_COLUMNS.map(([slot, label]) => {
     const equipment = parsed[slot];
     const isMissingArmlet = slot === 'armlet' && !items?.some((item) => item.Type === '완갑');
     const raw = isMissingArmlet ? null : equipment?.raw ?? null;
@@ -90,6 +95,8 @@ export const equipmentCells = (items: readonly EquipmentItem[] | null): Equipmen
       quality: info?.quality ?? null,
     };
   });
+  if (items) equipmentCellsCache.set(items, cells);
+  return cells;
 };
 
 export const formatKarma = (data: ArkPassiveData | null): string => {
