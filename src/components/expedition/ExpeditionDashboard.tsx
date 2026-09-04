@@ -29,7 +29,7 @@ const ExpeditionDashboard: React.FC<Props> = ({ nickname, siblings }) => {
   const highestLevel = selectedRows.length > 0 ? Math.max(...selectedRows.map((row) => parseItemLevel(row.sibling.ItemAvgLevel))) : null;
   const coreGradeCounts = useMemo(() => {
     const counts = new Map<string, number>();
-    selectedRows.forEach((row) => (row.arkGrid.data?.Slots ?? []).forEach((slot) => {
+    selectedRows.forEach((row) => (row.arkGrid.data?.Slots ?? []).filter((slot) => slot != null).forEach((slot) => {
       counts.set(slot.Grade, (counts.get(slot.Grade) ?? 0) + 1);
     }));
     return Array.from(counts.entries()).sort(([left], [right]) => {
@@ -39,7 +39,7 @@ const ExpeditionDashboard: React.FC<Props> = ({ nickname, siblings }) => {
         - (rightIndex === -1 ? CORE_GRADE_ORDER.length : rightIndex);
     });
   }, [selectedRows]);
-  const gems = useMemo(() => selectedRows.flatMap((row) => row.gems.data?.Gems ?? []), [selectedRows]);
+  const gems = useMemo(() => selectedRows.flatMap((row) => row.gems.data?.Gems ?? []).filter((gem) => gem != null), [selectedRows]);
   const boundGemCount = gems.filter(isBoundGem).length;
   const tradeableGemCount = gems.length - boundGemCount;
   const coreSummaryLoading = selectedRows.some((row) => row.arkGrid.status === 'idle' || row.arkGrid.status === 'loading');
