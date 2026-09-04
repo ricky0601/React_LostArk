@@ -40,7 +40,16 @@ class RequestLimiter {
     return new Promise<T>((resolve, reject) => {
       const start = (): void => {
         this.active += 1;
-        task().then(resolve, reject).finally(() => {
+        let taskPromise: Promise<T>;
+        try {
+          taskPromise = task();
+        } catch (error) {
+          this.active -= 1;
+          this.waiting.shift()?.();
+          reject(error);
+          return;
+        }
+        taskPromise.then(resolve, reject).finally(() => {
           this.active -= 1;
           this.waiting.shift()?.();
         });
@@ -83,8 +92,12 @@ export const useExpeditionDashboard = (
     siblings.map((sibling) => [sibling.CharacterName, createCharacterState(sibling)]),
   ));
   const rowsRef = useRef(rows);
-  const controllerRef = useRef(new AbortController());
+  const controllerRef = useRef<AbortController | null>(null);
   const limiterRef = useRef(new RequestLimiter(REQUEST_CONCURRENCY));
+  const getController = useCallback((): AbortController => {
+    if (!controllerRef.current) controllerRef.current = new AbortController();
+    return controllerRef.current;
+  }, []);
   const loadingKeysRef = useRef(new Map<string, symbol>());
   const selectedNamesRef = useRef(new Set(preferences.selectedCharacters));
 
@@ -105,7 +118,7 @@ export const useExpeditionDashboard = (
     controllerRef.current = new AbortController();
     limiterRef.current = new RequestLimiter(REQUEST_CONCURRENCY);
     loadingKeysRef.current.clear();
-    return () => controllerRef.current.abort();
+    return () => controllerRef.current?.abort();
   }, []);
 
   const updateEndpoint = useCallback(<K extends DataKey>(
@@ -135,7 +148,7 @@ export const useExpeditionDashboard = (
     const requestToken = Symbol(loadingKey);
     loadingKeysRef.current.set(loadingKey, requestToken);
     updateEndpoint(name, key, { status: 'loading', data: current?.data ?? null });
-    const signal = controllerRef.current.signal;
+    const signal = getController().signal;
 
     return limiterRef.current.run(async () => {
       if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
@@ -151,17 +164,17 @@ export const useExpeditionDashboard = (
         loadingKeysRef.current.delete(loadingKey);
       }
     });
-  }, [updateEndpoint]);
+  }, [getController, updateEndpoint]);
 
   const loadSummary = useCallback((name: string, force = false): void => {
     void loadEndpoint(name, 'profile', (signal) => fetchProfile(name, { signal }), force).finally(() => {
-      if (controllerRef.current.signal.aborted || !selectedNamesRef.current.has(name)) return;
+      if (getController().signal.aborted || !selectedNamesRef.current.has(name)) return;
       void loadEndpoint(name, 'equipment', (signal) => fetchEquipment(name, { signal }), force);
       void loadEndpoint(name, 'arkPassive', (signal) => fetchArkPassive(name, { signal }), force);
       void loadEndpoint(name, 'arkGrid', (signal) => fetchArkGrid(name, { signal }), force);
       void loadEndpoint(name, 'gems', (signal) => fetchGems(name, { signal }), force);
     });
-  }, [loadEndpoint]);
+  }, [getController, loadEndpoint]);
 
   const loadDetails = useCallback((name: string, force = false): void => {
     void loadEndpoint(name, 'engravings', (signal) => fetchEngravings(name, { signal }), force);

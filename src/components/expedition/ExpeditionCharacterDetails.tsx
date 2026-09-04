@@ -27,7 +27,7 @@ const DetailState: React.FC<{
 const Empty = () => <p className="text-xs text-gray-400">표시할 정보가 없습니다.</p>;
 const ARK_PASSIVE_GROUPS = ['진화', '깨달음', '도약'] as const;
 
-export const ExpeditionCharacterDetails: React.FC<{ readonly row: ExpeditionCharacterState }> = ({ row }) => {
+export const ExpeditionCharacterDetails: React.FC<{ readonly row: ExpeditionCharacterState; readonly id?: string }> = ({ row, id }) => {
   const passiveTabsId = React.useId();
   const [selectedPassiveGroup, setSelectedPassiveGroup] = React.useState<string>('진화');
   const gems = (row.gems.data?.Gems ?? []).filter((gem) => gem != null);
@@ -49,8 +49,31 @@ export const ExpeditionCharacterDetails: React.FC<{ readonly row: ExpeditionChar
   const combatRole = resolveCombatRole(row.sibling.CharacterClassName, row.arkPassive.data).role;
   const sortedGridEffects = sortArkGridEffects(gridEffects, combatRole);
 
+  const focusPassiveTab = (groupName: string): void => {
+    setSelectedPassiveGroup(groupName);
+    document.getElementById(`${passiveTabsId}-${groupName}-tab`)?.focus();
+  };
+  const handlePassiveTabsKeyDown = (event: React.KeyboardEvent): void => {
+    const order: readonly string[] = ARK_PASSIVE_GROUPS.filter((groupName) => availablePassiveGroups.includes(groupName));
+    const currentIndex = order.indexOf(activePassiveGroup);
+    if (event.key === 'ArrowRight' || event.key === 'ArrowLeft') {
+      event.preventDefault();
+      const next = order[(currentIndex + (event.key === 'ArrowRight' ? 1 : -1) + order.length) % order.length];
+      if (next) focusPassiveTab(next);
+    } else if (event.key === 'Home') {
+      event.preventDefault();
+      const first = order[0];
+      if (first) focusPassiveTab(first);
+    } else if (event.key === 'End') {
+      event.preventDefault();
+      const last = order[order.length - 1];
+      if (last) focusPassiveTab(last);
+    }
+  };
+
   return (
     <div
+      id={id}
       className="grid gap-3 p-4"
       style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 18rem), 1fr))' }}
       aria-label={`${row.sibling.CharacterName} 상세 정보`}
@@ -111,7 +134,8 @@ export const ExpeditionCharacterDetails: React.FC<{ readonly row: ExpeditionChar
               const grade = 'Grade' in effect && typeof effect.Grade === 'string' ? effect.Grade : '';
               const abilityStoneLevel = 'AbilityStoneLevel' in effect && typeof effect.AbilityStoneLevel === 'number' ? effect.AbilityStoneLevel : null;
               const directIcon = 'Icon' in effect && typeof effect.Icon === 'string' ? effect.Icon : undefined;
-              const icon = resolveEngravingIcon(row.engravings.data!, name, directIcon);
+              const engravingsData = row.engravings.data;
+              const icon = engravingsData ? resolveEngravingIcon(engravingsData, name, directIcon) : directIcon ?? null;
               const frame = gradeFrame(grade, 'subtle');
               return (
                 <Tooltip
@@ -229,7 +253,7 @@ export const ExpeditionCharacterDetails: React.FC<{ readonly row: ExpeditionChar
       <DetailState label="아크패시브 · 카르마" status={row.arkPassive.status}>
         {availablePassiveGroups.length === 0 ? <Empty /> : (
           <div className="space-y-3 text-xs text-gray-700 dark:text-gray-300">
-            <div role="tablist" aria-label="아크패시브 종류" className="grid grid-cols-3 gap-1 rounded-lg bg-gray-100 p-1 dark:bg-white/5">
+            <div role="tablist" aria-label="아크패시브 종류" onKeyDown={handlePassiveTabsKeyDown} className="grid grid-cols-3 gap-1 rounded-lg bg-gray-100 p-1 dark:bg-white/5">
               {ARK_PASSIVE_GROUPS.map((groupName) => {
                 const available = availablePassiveGroups.includes(groupName);
                 const active = activePassiveGroup === groupName;
@@ -241,9 +265,10 @@ export const ExpeditionCharacterDetails: React.FC<{ readonly row: ExpeditionChar
                     role="tab"
                     aria-selected={active}
                     aria-controls={`${passiveTabsId}-${groupName}-panel`}
+                    tabIndex={active ? 0 : -1}
                     disabled={!available}
                     onClick={() => setSelectedPassiveGroup(groupName)}
-                    className={`rounded-md px-2 py-1.5 font-bold transition-colors ${active ? 'bg-white text-la-gold-deep shadow-sm dark:bg-white/10 dark:text-la-gold' : 'text-gray-500 hover:text-gray-800 disabled:cursor-not-allowed disabled:opacity-35 dark:text-gray-400 dark:hover:text-gray-200'}`}
+                    className={`rounded-md px-2 py-1.5 font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-la-gold/40 ${active ? 'bg-white text-la-gold-deep shadow-sm dark:bg-white/10 dark:text-la-gold' : 'text-gray-500 hover:text-gray-800 disabled:cursor-not-allowed disabled:opacity-35 dark:text-gray-400 dark:hover:text-gray-200'}`}
                   >
                     {groupName}
                   </button>

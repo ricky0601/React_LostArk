@@ -96,7 +96,7 @@ const Tooltip: React.FC<Props> = ({ children, content, label, className = '' }) 
         tabIndex={0}
         aria-label={label}
         aria-describedby={open ? id : undefined}
-        className={`inline-flex ${className}`}
+        className={`inline-flex rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-la-gold/40 ${className}`}
         onMouseEnter={showTooltip}
         onMouseLeave={() => {
           if (document.activeElement !== triggerRef.current) setOpen(false);

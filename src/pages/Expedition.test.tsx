@@ -296,6 +296,99 @@ describe('Expedition route state affordances', () => {
     await waitFor(() => expect(mockedFetchProfile).toHaveBeenCalledTimes(4));
   });
 
+  it('persists per-server collapse across remounts', async () => {
+    mockedFetchSiblings.mockResolvedValue([
+      { ServerName: '루페온', CharacterName: '원정대장', CharacterLevel: 70, CharacterClassName: '슬레이어', ItemAvgLevel: '1,710.00', ItemMaxLevel: '1,710.00' },
+    ]);
+    mockedFetchProfile.mockResolvedValue(profile);
+
+    const first = render(<Expedition />);
+    expect(await first.findByRole('checkbox', { name: '루페온 서버 전체 선택' })).toBeInTheDocument();
+    await userEvent.click(first.getByRole('button', { name: /루페온.*접기/ }));
+    expect(first.queryByRole('checkbox', { name: '원정대장' })).not.toBeInTheDocument();
+    expect(first.getByRole('button', { name: /루페온.*펼치기/ })).toBeInTheDocument();
+    first.unmount();
+
+    render(<Expedition />);
+    expect(await screen.findByRole('button', { name: /루페온.*펼치기/ })).toBeInTheDocument();
+    expect(screen.queryByRole('checkbox', { name: '원정대장' })).not.toBeInTheDocument();
+  });
+
+  it('does not refetch engravings when collapsing and re-expanding details', async () => {
+    mockedFetchSiblings.mockResolvedValue([
+      { ServerName: '루페온', CharacterName: '원정대장', CharacterLevel: 70, CharacterClassName: '슬레이어', ItemAvgLevel: '1,710.00', ItemMaxLevel: '1,710.00' },
+    ]);
+    mockedFetchProfile.mockResolvedValue(profile);
+
+    render(<Expedition />);
+    await userEvent.click(await screen.findByRole('button', { name: '상세 보기' }));
+    await waitFor(() => expect(mockedFetchEngravings).toHaveBeenCalledTimes(1));
+    await userEvent.click(screen.getByRole('button', { name: '상세 닫기' }));
+    await userEvent.click(await screen.findByRole('button', { name: '상세 보기' }));
+    expect(await screen.findByRole('button', { name: '상세 닫기' })).toBeInTheDocument();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(mockedFetchEngravings).toHaveBeenCalledTimes(1);
+  });
+
+  it('forces an engravings refetch when retrying from expanded details', async () => {
+    mockedFetchSiblings.mockResolvedValue([
+      { ServerName: '루페온', CharacterName: '원정대장', CharacterLevel: 70, CharacterClassName: '슬레이어', ItemAvgLevel: '1,710.00', ItemMaxLevel: '1,710.00' },
+    ]);
+    mockedFetchProfile.mockResolvedValue(profile);
+    mockedFetchEngravings.mockRejectedValueOnce(new Error('engravings unavailable'));
+
+    render(<Expedition />);
+    await userEvent.click(await screen.findByRole('button', { name: '상세 보기' }));
+    await waitFor(() => expect(mockedFetchEngravings).toHaveBeenCalledTimes(1));
+    await userEvent.click(await screen.findByRole('button', { name: '다시 시도' }));
+    await waitFor(() => expect(mockedFetchEngravings).toHaveBeenCalledTimes(2));
+  });
+
+  it('moves view-mode radio selection with arrow keys and roving tabindex', async () => {
+    mockedFetchSiblings.mockResolvedValue([
+      { ServerName: '루페온', CharacterName: '원정대장', CharacterLevel: 70, CharacterClassName: '슬레이어', ItemAvgLevel: '1,710.00', ItemMaxLevel: '1,710.00' },
+    ]);
+    mockedFetchProfile.mockResolvedValue(profile);
+
+    render(<Expedition />);
+    const card = await screen.findByRole('radio', { name: /카드/ });
+    const grid = screen.getByRole('radio', { name: /그리드/ });
+    expect(card).toHaveAttribute('aria-checked', 'true');
+    expect(card).toHaveAttribute('tabindex', '0');
+    expect(grid).toHaveAttribute('tabindex', '-1');
+    card.focus();
+    fireEvent.keyDown(card, { key: 'ArrowRight' });
+    expect(grid).toHaveAttribute('aria-checked', 'true');
+    expect(document.activeElement).toBe(grid);
+    expect(grid).toHaveAttribute('tabindex', '0');
+  });
+
+  it('moves ark passive tabs with arrow keys', async () => {
+    mockedFetchArkPassive.mockResolvedValueOnce({
+      IsArkPassive: true,
+      Points: [
+        { Name: '진화', Value: 140, Tooltip: '', Description: '6랭크 25레벨' },
+        { Name: '깨달음', Value: 101, Tooltip: '', Description: '6랭크 27레벨' },
+        { Name: '도약', Value: 70, Tooltip: '', Description: '6랭크 25레벨' },
+      ],
+      Effects: [],
+    });
+    mockedFetchSiblings.mockResolvedValue([
+      { ServerName: '루페온', CharacterName: '원정대장', CharacterLevel: 70, CharacterClassName: '슬레이어', ItemAvgLevel: '1,710.00', ItemMaxLevel: '1,710.00' },
+    ]);
+    mockedFetchProfile.mockResolvedValue(profile);
+
+    render(<Expedition />);
+    await userEvent.click(await screen.findByRole('button', { name: '상세 보기' }));
+    const evolution = await screen.findByRole('tab', { name: '진화' });
+    expect(evolution).toHaveAttribute('aria-selected', 'true');
+    evolution.focus();
+    fireEvent.keyDown(evolution, { key: 'ArrowRight' });
+    const enlightenment = screen.getByRole('tab', { name: '깨달음' });
+    expect(enlightenment).toHaveAttribute('aria-selected', 'true');
+    expect(document.activeElement).toBe(enlightenment);
+  });
+
   it('shows siblings from every server and allows switching views', async () => {
     mockedFetchSiblings.mockResolvedValue([
       { ServerName: '루페온', CharacterName: '루페온캐릭', CharacterLevel: 70, CharacterClassName: '바드', ItemAvgLevel: '1,700.00', ItemMaxLevel: '1,700.00' },

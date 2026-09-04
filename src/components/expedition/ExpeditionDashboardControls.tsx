@@ -34,6 +34,7 @@ const ExpeditionDashboardControls: React.FC<Props> = ({
   onToggleRosterExpanded,
 }) => {
   const servers = Array.from(new Set(siblings.map((sibling) => sibling.ServerName)));
+  const optionButtonRefs = React.useRef<Array<HTMLButtonElement | null>>([]);
 
   return (
     <div className="space-y-4">
@@ -42,15 +43,51 @@ const ExpeditionDashboardControls: React.FC<Props> = ({
           <h2 className="font-bold text-gray-900 dark:text-white">보기 설정</h2>
           <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">선택한 보기와 캐릭터는 이 브라우저에 저장됩니다.</p>
         </div>
-        <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label="원정대 보기 방식">
-          {VIEW_OPTIONS.map((option) => (
+        <div
+          className="grid grid-cols-3 gap-2"
+          role="radiogroup"
+          aria-label="원정대 보기 방식"
+          onKeyDown={(event) => {
+            const currentIndex = Math.max(0, VIEW_OPTIONS.findIndex((option) => option.mode === viewMode));
+            const move = (delta: number): void => {
+              const next = VIEW_OPTIONS[(currentIndex + delta + VIEW_OPTIONS.length) % VIEW_OPTIONS.length];
+              if (!next) return;
+              onViewModeChange(next.mode);
+              optionButtonRefs.current[VIEW_OPTIONS.indexOf(next)]?.focus();
+            };
+            if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
+              event.preventDefault();
+              move(1);
+            } else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
+              event.preventDefault();
+              move(-1);
+            } else if (event.key === 'Home') {
+              event.preventDefault();
+              const first = VIEW_OPTIONS[0];
+              if (first) {
+                onViewModeChange(first.mode);
+                optionButtonRefs.current[0]?.focus();
+              }
+            } else if (event.key === 'End') {
+              event.preventDefault();
+              const last = VIEW_OPTIONS[VIEW_OPTIONS.length - 1];
+              if (last) {
+                onViewModeChange(last.mode);
+                optionButtonRefs.current[VIEW_OPTIONS.length - 1]?.focus();
+              }
+            }
+          }}
+        >
+          {VIEW_OPTIONS.map((option, index) => (
             <button
               key={option.mode}
+              ref={(element) => { optionButtonRefs.current[index] = element; }}
               type="button"
               role="radio"
               aria-checked={viewMode === option.mode}
+              tabIndex={viewMode === option.mode ? 0 : -1}
               onClick={() => onViewModeChange(option.mode)}
-              className={`min-h-11 rounded-xl border px-3 py-2 text-left transition-colors ${viewMode === option.mode
+              className={`min-h-11 rounded-xl border px-3 py-2 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-la-gold/40 ${viewMode === option.mode
                 ? 'border-la-gold bg-la-gold/15 text-la-gold-deep dark:text-la-gold'
                 : 'border-gray-200 text-gray-600 hover:bg-gray-50 dark:border-white/10 dark:text-gray-300 dark:hover:bg-white/5'}`}
             >
@@ -72,7 +109,7 @@ const ExpeditionDashboardControls: React.FC<Props> = ({
             aria-label={`표시할 캐릭터 ${isRosterExpanded ? '접기' : '펼치기'}`}
             aria-expanded={isRosterExpanded}
             onClick={onToggleRosterExpanded}
-            className="flex h-10 w-10 items-center justify-center rounded-lg text-lg text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 dark:hover:bg-white/10 dark:hover:text-white"
+            className="flex h-10 w-10 items-center justify-center rounded-lg text-lg text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-la-gold/40 dark:hover:bg-white/10 dark:hover:text-white"
           >
             <span aria-hidden="true">{isRosterExpanded ? '▲' : '▼'}</span>
           </button>
@@ -93,7 +130,7 @@ const ExpeditionDashboardControls: React.FC<Props> = ({
                     onChange={() => onToggleServer(server)}
                     className="h-4 w-4 accent-amber-500"
                   />
-                  <button type="button" className="flex min-w-0 flex-1 items-center justify-between text-left" onClick={() => onToggleServerCollapsed(server)} aria-expanded={!collapsed}>
+                  <button type="button" className="flex min-w-0 flex-1 items-center justify-between rounded-md text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-la-gold/40" onClick={() => onToggleServerCollapsed(server)} aria-expanded={!collapsed}>
                     <span className="font-bold text-gray-800 dark:text-gray-200">{server}</span>
                     <span className="text-xs text-gray-500">{selectedCount}/{members.length} {collapsed ? '펼치기' : '접기'}</span>
                   </button>
