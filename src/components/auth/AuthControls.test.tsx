@@ -17,6 +17,7 @@ const authValue = (overrides: Partial<ReturnType<typeof useAuth>> = {}): ReturnT
   user: null,
   isBusy: false,
   errorMessage: null,
+  errorScope: null,
   signInWithDiscord,
   signOut,
   clearError,
@@ -58,7 +59,7 @@ test('authenticated users see their profile and can log out', async () => {
 });
 
 test('login errors are recoverable and dismissible', async () => {
-  vi.mocked(useAuth).mockReturnValue(authValue({ errorMessage: '로그인 오류' }));
+  vi.mocked(useAuth).mockReturnValue(authValue({ errorMessage: '로그인 오류', errorScope: 'action' }));
 
   render(<AuthControls variant="mobile" />);
 
@@ -75,6 +76,16 @@ test('can suppress a callback error already shown by the page', () => {
 
   expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Discord 로그인' })).toBeEnabled();
+});
+
+test('callback-scoped errors are not shown in the header', () => {
+  vi.mocked(useAuth).mockReturnValue(
+    authValue({ errorMessage: 'Discord 로그인이 취소되었거나 완료되지 않았습니다.', errorScope: 'callback' }),
+  );
+
+  render(<AuthControls />);
+
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument();
 });
 
 test('does not render authentication UI when Supabase is not configured', () => {

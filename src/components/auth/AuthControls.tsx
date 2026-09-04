@@ -18,7 +18,7 @@ const getAvatarUrl = (metadata: Record<string, unknown> | undefined): string | n
 };
 
 export const AuthControls: React.FC<AuthControlsProps> = ({ variant = 'desktop', showError = true }) => {
-  const { status, user, isBusy, errorMessage, signInWithDiscord, signOut, clearError } = useAuth();
+  const { status, user, isBusy, errorMessage, errorScope, signInWithDiscord, signOut, clearError } = useAuth();
   if (status === 'unavailable') return null;
 
   const isMobile = variant === 'mobile';
@@ -37,7 +37,7 @@ export const AuthControls: React.FC<AuthControlsProps> = ({ variant = 'desktop',
   if (status === 'anonymous') {
     return (
       <div className={isMobile ? 'space-y-2 rounded-xl border border-gray-200/60 p-3 dark:border-white/10' : 'flex items-center gap-2'}>
-        {showError && errorMessage && (
+        {showError && errorScope !== 'callback' && errorMessage && (
           <div role="alert" className="flex items-center gap-2 text-xs text-red-600 dark:text-red-400">
             <span>{errorMessage}</span>
             <button type="button" onClick={clearError} className="underline">닫기</button>
@@ -72,7 +72,7 @@ export const AuthControls: React.FC<AuthControlsProps> = ({ variant = 'desktop',
           {label}
         </span>
       </div>
-      {showError && errorMessage && <p role="alert" className="text-xs text-red-600 dark:text-red-400">{errorMessage}</p>}
+      {showError && errorScope !== 'callback' && errorMessage && <p role="alert" className="text-xs text-red-600 dark:text-red-400">{errorMessage}</p>}
       <button
         type="button"
         disabled={isBusy}

@@ -50,6 +50,7 @@ const Probe = () => {
       <span data-testid="status">{auth.status}</span>
       <span data-testid="user">{auth.user?.id ?? 'none'}</span>
       {auth.errorMessage && <span role="alert">{auth.errorMessage}</span>}
+      <span data-testid="error-scope">{auth.errorScope ?? 'none'}</span>
       <button type="button" onClick={() => void auth.signInWithDiscord()}>login</button>
       <button type="button" onClick={() => void auth.signOut()}>logout</button>
     </div>
@@ -107,6 +108,7 @@ test('reports an OAuth cancellation without blocking anonymous use', async () =>
 
   await waitFor(() => expect(screen.getByTestId('status')).toHaveTextContent('anonymous'));
   expect(screen.getByRole('alert')).toHaveTextContent('다시 시도');
+  expect(screen.getByTestId('error-scope')).toHaveTextContent('callback');
   expect(mocks.exchangeCodeForSession).not.toHaveBeenCalled();
 });
 
