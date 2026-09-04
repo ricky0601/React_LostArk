@@ -165,8 +165,10 @@ test('keeps API, known routes, missing routes, and static assets distinct in Ver
   const materialIconSource = '/api/material-icon/:path(.*\\.png)';
   const materialIconRewrite = rewrites.find((rewrite) => rewrite.source === materialIconSource);
   const materialIconHeaders = headers.find((rule) => rule.source === materialIconSource);
+  const authCallbackRewrite = rewrites.find((rewrite) => rewrite.source === '/auth/callback');
   const fallbackRewrite = rewrites[rewrites.length - 1];
-  const pageRewrites = rewrites.filter((rewrite) => rewrite.destination.endsWith('/index.html'));
+  const pageRewrites = rewrites.filter((rewrite) =>
+    rewrite.source !== '/auth/callback' && rewrite.destination.endsWith('/index.html'));
   const indexablePageRoutes = routeSeoEntries
     .filter((route) => route.path !== '/' && route.robots === 'index, follow')
     .map((route) => route.path)
@@ -191,6 +193,7 @@ test('keeps API, known routes, missing routes, and static assets distinct in Ver
       },
     ],
   });
+  expect(authCallbackRewrite).toEqual({ source: '/auth/callback', destination: '/index.html' });
   expect(pageRewrites.map((rewrite) => rewrite.source).sort()).toEqual(indexablePageRoutes);
   for (const rewrite of pageRewrites) {
     expect(rewrite.destination).toBe(`${rewrite.source}/index.html`);

@@ -29,6 +29,7 @@ vi.mock('./pages/Market', () => ({ default: () => <div>Market Page</div> }));
 vi.mock('./pages/Spending', () => ({ default: () => <div>Spending Page</div> }));
 vi.mock('./pages/Changelog', () => ({ default: () => <div>Changelog Page</div> }));
 vi.mock('./pages/Policy', () => ({ default: () => <div>Policy Page</div> }));
+vi.mock('./pages/AuthCallback', () => ({ default: () => <div>Auth Callback Page</div> }));
 vi.mock('./pages/NotFound', () => ({ default: () => <div>Not Found Page</div> }));
 
 import App from './App';
@@ -75,6 +76,15 @@ test('matches the policy route and renders the common footer', async () => {
 
   expect(await screen.findByText('Policy Page')).toBeInTheDocument();
   expect(screen.getByRole('contentinfo')).toHaveTextContent('© 2026 로아끼욧. All rights reserved.');
+});
+
+test('matches the OAuth callback route', async () => {
+  mockPathname = '/auth/callback';
+
+  render(<App />);
+
+  expect(await screen.findByText('Auth Callback Page')).toBeInTheDocument();
+  expect(screen.queryByText('Not Found Page')).not.toBeInTheDocument();
 });
 
 test('falls back to the not found page for unmatched routes', async () => {

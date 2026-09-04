@@ -4,6 +4,7 @@ import Footer from './components/Footer';
 import { LoadingIndicator } from './components/Loading';
 import { RouteSeo } from './components/RouteSeo';
 import { ROUTES } from './utils/routes';
+import { AuthProvider } from './context/AuthContext';
 import { PwaChunkProvider, usePwaChunk } from './context/PwaChunkContext';
 import { ThemeProvider } from './context/ThemeContext';
 
@@ -18,6 +19,7 @@ const Spending = React.lazy(() => import(/* webpackChunkName: "route-spending" *
 const Market = React.lazy(() => import(/* webpackChunkName: "route-market" */ './pages/Market'));
 const Changelog = React.lazy(() => import(/* webpackChunkName: "route-changelog" */ './pages/Changelog'));
 const Policy = React.lazy(() => import(/* webpackChunkName: "route-policy" */ './pages/Policy'));
+const AuthCallback = React.lazy(() => import(/* webpackChunkName: "route-auth-callback" */ './pages/AuthCallback'));
 const NotFound = React.lazy(() => import(/* webpackChunkName: "route-not-found" */ './pages/NotFound'));
 
 const ChunkErrorBanner: React.FC = () => {
@@ -72,6 +74,7 @@ const AppContent: React.FC = () => {
               <Route path="/spending" element={<Spending />} />
               <Route path={ROUTES.changelog} element={<Changelog />} />
               <Route path={ROUTES.policy} element={<Policy />} />
+              <Route path="/auth/callback" element={<AuthCallback />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </React.Suspense>
@@ -84,9 +87,11 @@ const AppContent: React.FC = () => {
 
 const App: React.FC = () => (
   <PwaChunkProvider>
-    <ThemeProvider>
-      <AppContent />
-    </ThemeProvider>
+    <AuthProvider>
+      <ThemeProvider>
+        <AppContent />
+      </ThemeProvider>
+    </AuthProvider>
   </PwaChunkProvider>
 );
 
