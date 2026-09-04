@@ -68,7 +68,7 @@ const ENGRAVING_ICON_URLS: Record<string, string> = {
   '공격력 감소': 'https://cdn-lostark.game.onstove.com/EFUI_IconAtlas/Ability/Ability_218.png',
 };
 
-const findEngravingIcon = (engravings: EngravingData, name: string, directIcon?: string): string | null => {
+export const resolveEngravingIcon = (engravings: EngravingData, name: string, directIcon?: string): string | null => {
   if (ENGRAVING_ICON_URLS[name]) return ENGRAVING_ICON_URLS[name];
   if (directIcon) return directIcon;
   return engravings.Engravings?.find((engraving) => engraving.Name === name)?.Icon ?? null;
@@ -156,7 +156,7 @@ export const SpecScoreCorePanel = ({
             {commonEngravings.map((e, index) => {
               const currentName = engravingMods[e.Name]?.Name ?? e.Name;
               const currentLevel = engravingMods[e.Name]?.Level ?? e.Level;
-              const icon = findEngravingIcon(engravings, currentName, e.Icon);
+              const icon = resolveEngravingIcon(engravings, currentName, e.Icon);
               const otherSelectedNames = selectedCommonNames.filter((_, selectedIndex) => selectedIndex !== index);
               return (
                 <div

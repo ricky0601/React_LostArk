@@ -168,6 +168,8 @@ export interface ArkPassiveEffect {
 /** GET /armories/characters/{name}/arkpassive 응답 — 직업 깨달음 포함 */
 export interface ArkPassiveData {
   IsArkPassive: boolean;
+  /** 깨달음 2티어 노드명. 구 응답에는 없을 수 있다. */
+  Title?: string | null;
   Points: ArkPassivePoint[] | null;
   Effects: ArkPassiveDataEffect[] | null;
 }
@@ -183,9 +185,11 @@ export interface ArkPassivePoint {
 export interface ArkPassiveDataEffect {
   /** 진화/깨달음/도약 중 하나 */
   Name: string;
-  Level: number;
-  /** 노드 이름. 예: '빛의 기사', '광기' */
+  /** 일부 이전 응답에만 제공되며, 현재 응답은 Description에 레벨을 포함한다. */
+  Level?: number;
+  /** 티어·노드 이름·레벨이 포함된 설명 */
   Description: string;
+  ToolTip?: string;
   Icon?: string;
 }
 
