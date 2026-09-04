@@ -115,23 +115,10 @@ export const matchMultiScaleTemplate = (
   }: MultiScaleTemplateMatchOptions,
 ): TemplateMatch[] => {
   const templateSource = cv.imread(templateCanvas);
-  const templateRgb = new cv.Mat();
-  const coarseSource = new cv.Mat();
-  const mask = new cv.Mat();
-  const cropCandidates = getTemplateCropCandidates(
-    templateSource.data,
-    templateSource.cols,
-    templateSource.rows,
-  );
-  cv.cvtColor(templateSource, templateRgb, cv.COLOR_RGBA2RGB);
-  cv.resize(
-    source,
-    coarseSource,
-    new cv.Size(Math.round(source.cols * coarseScale), Math.round(source.rows * coarseScale)),
-    0,
-    0,
-    cv.INTER_AREA,
-  );
+  let templateRgb!: Mat;
+  let coarseSource!: Mat;
+  let mask!: Mat;
+  let cropCandidates!: TemplateCropRatios[];
   const matches: TemplateMatch[] = [];
 
   const findMatchesForCrop = (cropRatios: TemplateCropRatios): boolean => {
@@ -230,15 +217,31 @@ export const matchMultiScaleTemplate = (
   };
 
   try {
+    templateRgb = new cv.Mat();
+    coarseSource = new cv.Mat();
+    mask = new cv.Mat();
+    cropCandidates = getTemplateCropCandidates(
+      templateSource.data,
+      templateSource.cols,
+      templateSource.rows,
+    );
+    cv.cvtColor(templateSource, templateRgb, cv.COLOR_RGBA2RGB);
+    cv.resize(
+      source,
+      coarseSource,
+      new cv.Size(Math.round(source.cols * coarseScale), Math.round(source.rows * coarseScale)),
+      0,
+      0,
+      cv.INTER_AREA,
+    );
     for (const cropRatios of cropCandidates) {
       if (findMatchesForCrop(cropRatios)) break;
     }
+    return matches;
   } finally {
     templateSource.delete();
-    templateRgb.delete();
-    coarseSource.delete();
-    mask.delete();
+    templateRgb?.delete();
+    coarseSource?.delete();
+    mask?.delete();
   }
-
-  return matches;
 };
