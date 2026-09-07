@@ -1,5 +1,5 @@
-import React, { useMemo } from 'react';
-import type { SiblingCharacter } from '../../types/lostark';
+import React, { useEffect, useMemo } from 'react';
+import type { CharacterProfile, SiblingCharacter } from '../../types/lostark';
 import { gradeText } from '../../utils/equipmentColors';
 import GlassCard from '../GlassCard';
 import StateFeedback from '../StateFeedback';
@@ -11,12 +11,19 @@ import { useExpeditionDashboard } from './useExpeditionDashboard';
 interface Props {
   readonly nickname: string;
   readonly siblings: readonly SiblingCharacter[];
+  readonly onProfilesChange?: (profiles: readonly CharacterProfile[]) => void;
 }
 
 const CORE_GRADE_ORDER = ['고대', '유물', '전설', '영웅', '희귀', '고급', '일반'];
 
-const ExpeditionDashboard: React.FC<Props> = ({ nickname, siblings }) => {
+const ExpeditionDashboard: React.FC<Props> = ({ nickname, siblings, onProfilesChange }) => {
   const dashboard = useExpeditionDashboard(nickname, siblings);
+  const loadedProfiles = useMemo(() => Object.values(dashboard.rows)
+    .flatMap((row) => (row.profile.data ? [row.profile.data] : [])), [dashboard.rows]);
+
+  useEffect(() => {
+    onProfilesChange?.(loadedProfiles);
+  }, [loadedProfiles, onProfilesChange]);
   const selectedRows = useMemo(() => Object.values(dashboard.rows)
     .filter((row) => dashboard.selectedNames.has(row.sibling.CharacterName))
     .sort((left, right) => parseItemLevel(right.sibling.ItemAvgLevel) - parseItemLevel(left.sibling.ItemAvgLevel)),

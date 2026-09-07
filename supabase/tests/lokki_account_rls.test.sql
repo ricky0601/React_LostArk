@@ -2,7 +2,7 @@
 -- The transaction is rolled back, including the two temporary Auth users.
 
 begin;
-select plan(18);
+select plan(24);
 
 insert into auth.users (id, email)
 values
@@ -85,6 +85,41 @@ select results_eq(
     returning activity_key$$,
   array['raid:test'::text],
   'owner creates a weekly state for their character'
+);
+select lives_ok(
+  $$select public.lokki_sync_roster(
+    '새대표',
+    '[{"character_name":"테스트캐릭터","server_name":"루페온","item_level":1700,"last_synced_at":"2026-09-04T12:00:00Z"},{"character_name":"새대표","server_name":"카단","item_level":1710,"combat_power":123456,"last_synced_at":"2026-09-04T12:00:00Z"}]'::jsonb
+  )$$,
+  'owner atomically upserts a complete roster'
+);
+select results_eq(
+  $$select representative_character_name || ':' || count(*)::text
+    from public.lokki_rosters join public.lokki_characters on lokki_characters.roster_id = lokki_rosters.id
+    group by representative_character_name$$,
+  array['새대표:2'::text],
+  'sync sets the representative and avoids duplicate roster rows'
+);
+select lives_ok(
+  $$select public.lokki_sync_roster(
+    '새대표',
+    '[{"character_name":"새대표","server_name":"카단","item_level":1711,"last_synced_at":"2026-09-04T13:00:00Z"}]'::jsonb
+  )$$,
+  'a later complete sync removes missing characters'
+);
+select results_eq(
+  $$select character_name || ':' || item_level::text || ':' || combat_power::text
+    from public.lokki_characters$$,
+  array['새대표:1711.00:123456.00'::text],
+  'sync keeps the last combat power when a profile endpoint is unavailable'
+);
+select is_empty(
+  $$select * from public.lokki_weekly_states$$,
+  'removing a missing character cascades its weekly state'
+);
+select lives_ok(
+  $$select public.lokki_set_representative(null)$$,
+  'owner can release the representative character'
 );
 
 set local request.jwt.claim.sub = '22222222-2222-2222-2222-222222222222';

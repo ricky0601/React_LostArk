@@ -26,6 +26,7 @@ export interface LokkiCharacter {
   readonly server_name: string | null;
   readonly character_class: string | null;
   readonly item_level: number | null;
+  readonly combat_power: number | null;
   readonly is_main: boolean;
   readonly last_synced_at: IsoTimestamp | null;
   readonly created_at: IsoTimestamp;
@@ -58,6 +59,7 @@ export interface CreateLokkiCharacter {
   readonly server_name?: string | null;
   readonly character_class?: string | null;
   readonly item_level?: number | null;
+  readonly combat_power?: number | null;
   readonly is_main?: boolean;
   readonly last_synced_at?: IsoTimestamp | null;
 }

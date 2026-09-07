@@ -97,7 +97,7 @@ const CardView: React.FC<Omit<Props, 'viewMode'>> = ({ rows, onToggleExpanded, o
                 <Link to={`/character?nickname=${encodeURIComponent(row.sibling.CharacterName)}`} className="font-bold text-gray-900 hover:text-la-gold-deep dark:text-white dark:hover:text-la-gold">{row.sibling.CharacterName}</Link>
                 <p className="text-xs text-gray-500 dark:text-gray-400">{row.sibling.CharacterClassName} · {row.sibling.ServerName}</p>
                 <p className="mt-1 text-sm font-bold text-la-gold-deep dark:text-la-gold">Lv. {profile?.ItemAvgLevel ?? row.sibling.ItemAvgLevel}</p>
-                <p className={`text-xs ${statusClass(row.profile.status, 'text-gray-500 dark:text-gray-400')}`}>전투력 {profile?.CombatPower ?? (row.profile.status === 'error' ? '조회 실패' : '…')}</p>
+                <p className={`text-xs ${statusClass(row.profile.status, 'text-gray-500 dark:text-gray-400')}`}>전투력 {profile?.CombatPower ?? row.sibling.CombatPower ?? (row.profile.status === 'error' ? '조회 실패' : '…')}</p>
               </div>
             </div>
             <div className="mt-4"><EquipmentStrip row={row} compact /></div>
@@ -126,7 +126,7 @@ const GridView: React.FC<Omit<Props, 'viewMode'>> = ({ rows, onToggleExpanded, o
               {profile?.CharacterImage && <FallbackImage src={profile.CharacterImage} alt={row.sibling.CharacterName} className="h-12 w-12 shrink-0 rounded-xl object-cover object-top" />}
               <div className="min-w-0"><p className="truncate font-bold text-gray-900 dark:text-white">{row.sibling.CharacterName}</p>
                 <p className="text-xs text-gray-500 dark:text-gray-400">{row.sibling.CharacterClassName} · {row.sibling.ServerName}</p>
-                <p className={`mt-1 text-xs font-bold ${statusClass(row.profile.status, 'text-la-gold-deep dark:text-la-gold')}`}>Lv. {profile?.ItemAvgLevel ?? row.sibling.ItemAvgLevel} · 전투력 {profile?.CombatPower ?? (row.profile.status === 'error' ? '조회 실패' : '…')}</p>
+                <p className={`mt-1 text-xs font-bold ${statusClass(row.profile.status, 'text-la-gold-deep dark:text-la-gold')}`}>Lv. {profile?.ItemAvgLevel ?? row.sibling.ItemAvgLevel} · 전투력 {profile?.CombatPower ?? row.sibling.CombatPower ?? (row.profile.status === 'error' ? '조회 실패' : '…')}</p>
               </div>
             </div>
             <EquipmentStrip row={row} />
@@ -171,7 +171,7 @@ const TableView: React.FC<Omit<Props, 'viewMode'>> = ({ rows, onToggleExpanded, 
                     </div>
                   </td>
                   <td className="px-3 py-3 font-bold text-la-gold-deep dark:text-la-gold">{profile?.ItemAvgLevel ?? row.sibling.ItemAvgLevel}</td>
-                  <td className={`px-3 py-3 ${statusClass(row.profile.status)}`}>{profile?.CombatPower ?? (row.profile.status === 'error' ? '조회 실패' : '…')}</td>
+                  <td className={`px-3 py-3 ${statusClass(row.profile.status)}`}>{profile?.CombatPower ?? row.sibling.CombatPower ?? (row.profile.status === 'error' ? '조회 실패' : '…')}</td>
                   {equipmentCells(row.equipment.data).map((cell) => {
                     const tip = equipmentTooltip(cell);
                     return (

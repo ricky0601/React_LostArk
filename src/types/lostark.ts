@@ -6,6 +6,8 @@ export interface SiblingCharacter {
   CharacterClassName: string;
   ItemAvgLevel: string;
   ItemMaxLevel: string;
+  /** 로그인 계정에서 복원한 마지막 정상 전투력. siblings API 응답에는 없다. */
+  CombatPower?: string | null;
 }
 
 /** 캐릭터 프로필 (profiles API 응답) */
