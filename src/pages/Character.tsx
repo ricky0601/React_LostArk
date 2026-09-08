@@ -12,8 +12,7 @@ import NavBar from '../components/NavBar';
 import NicknameInput from '../components/NicknameInput';
 import NicknameSearchBar from '../components/NicknameSearchBar';
 import StateFeedback from '../components/StateFeedback';
-import { fetchProfile, fetchEquipment, fetchGems, fetchEngravings, fetchArkGrid, LS_NICKNAME } from '../utils/api';
-import { safeLocalStorage } from '../utils/safeStorage';
+import { fetchProfile, fetchEquipment, fetchGems, fetchEngravings, fetchArkGrid } from '../utils/api';
 import CharacterProfileCard from '../components/character/CharacterProfileCard';
 import {
   ArkPassiveCard,
@@ -23,13 +22,19 @@ import {
 } from '../components/character/CharacterProgressionCards';
 import { EquipmentCard, GemsCard } from '../components/character/CharacterInventoryCards';
 import CharacterPageSkeleton from '../components/character/CharacterPageSkeleton';
+import RepresentativeCharacterControl from '../components/character/RepresentativeCharacterControl';
+import { useSavedRepresentative } from '../components/character/useSavedRepresentative';
 
 const Character: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const urlNickname = searchParams.get('nickname');
-  const [nickname, setNickname] = useState<string | null>(
-    () => urlNickname || safeLocalStorage.getItem(LS_NICKNAME)
-  );
+  const [nickname, setNickname] = useState<string | null>(() => urlNickname);
+  const [skipRepresentativeRestore, setSkipRepresentativeRestore] = useState(false);
+  const restoringRepresentative = useSavedRepresentative({
+    urlNickname,
+    disabled: skipRepresentativeRestore,
+    setNickname,
+  });
 
   const [profile, setProfile] = useState<CharacterProfile | null>(null);
   const [equipment, setEquipment] = useState<EquipmentItem[] | null>(null);
@@ -59,7 +64,6 @@ const Character: React.FC = () => {
     const controller = new AbortController();
     let active = true;
 
-    safeLocalStorage.setItem(LS_NICKNAME, nickname);
     setLoading(true);
     setError(null);
     setProfile(null);
@@ -93,10 +97,12 @@ const Character: React.FC = () => {
   }, [nickname]);
 
   const handleSearch = (name: string) => {
+    setSkipRepresentativeRestore(true);
     setSearchParams({ nickname: name });
   };
 
   const handleResetSearch = (): void => {
+    setSkipRepresentativeRestore(true);
     setSearchParams({});
     setNickname(null);
     setProfile(null);
@@ -111,12 +117,19 @@ const Character: React.FC = () => {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-la-dark transition-colors duration-300">
         <NavBar />
-        <NicknameInput
-          title="로스트아크 캐릭터 조회"
-          description="캐릭터 닉네임을 검색해 장비, 보석, 카드, 각인과 전투 정보를 한눈에 확인하세요."
-          buttonText="캐릭터 조회"
-          onSubmit={handleSearch}
-        />
+        {restoringRepresentative ? (
+          <main className="mx-auto max-w-2xl px-4 py-12">
+            <StateFeedback tone="loading" title="대표 캐릭터를 불러오는 중입니다" />
+          </main>
+        ) : (
+          <NicknameInput
+            title="로스트아크 캐릭터 조회"
+            description="캐릭터 닉네임을 검색해 장비, 보석, 카드, 각인과 전투 정보를 한눈에 확인하세요."
+            buttonText="캐릭터 조회"
+            onSubmit={handleSearch}
+            persistNickname={false}
+          />
+        )}
       </div>
     );
   }
@@ -153,6 +166,7 @@ const Character: React.FC = () => {
             {/* 왼쪽 컬럼 */}
             <div className="space-y-4">
               <CharacterProfileCard profile={profile} nickname={nickname} />
+              <RepresentativeCharacterControl characterName={profile.CharacterName} />
               {engravings && <ArkPassiveCard data={engravings} />}
               {arkGrid && <ArkGridCard data={arkGrid} />}
               {engravings && <EngravingsCard data={engravings} />}

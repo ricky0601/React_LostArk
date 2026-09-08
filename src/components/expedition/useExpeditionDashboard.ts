@@ -201,11 +201,12 @@ export const useExpeditionDashboard = (
     void loadEndpoint(name, 'engravings', (signal) => fetchEngravings(name, { signal }), force);
   }, [loadEndpoint]);
 
-  // siblings가 마운트 이후에 바뀌어도(닉네임은 같고 목록만 갱신) 행이 누락되지 않게 병합한다.
-  // 현재는 Expedition이 로딩 게이트 + key 리마운트로 커버하지만, 이 effect가 암묵 계약을 명시적으로 만든다.
+  // 같은 닉네임의 최신 siblings를 기준으로 행을 맞추되, 남아 있는 캐릭터의 조회 상태는 보존한다.
   useEffect(() => {
     const current = rowsRef.current;
+    const incomingNames = new Set(siblings.map((sibling) => sibling.CharacterName));
     const added = siblings.filter((sibling) => current[sibling.CharacterName] === undefined);
+    const removed = Object.keys(current).filter((name) => !incomingNames.has(name));
     const stale = siblings.filter((sibling) => {
       const row = current[sibling.CharacterName];
       return row !== undefined && (
@@ -216,15 +217,20 @@ export const useExpeditionDashboard = (
         || row.sibling.ItemMaxLevel !== sibling.ItemMaxLevel
       );
     });
-    if (added.length === 0 && stale.length === 0) return;
-    const next: Rows = { ...current };
-    added.forEach((sibling) => { next[sibling.CharacterName] = createCharacterState(sibling); });
-    stale.forEach((sibling) => {
-      const row = next[sibling.CharacterName];
-      if (row) next[sibling.CharacterName] = { ...row, sibling };
-    });
+    if (added.length === 0 && removed.length === 0 && stale.length === 0) return;
+
+    const next = Object.fromEntries(siblings.map((sibling) => {
+      const row = current[sibling.CharacterName];
+      return [sibling.CharacterName, row ? { ...row, sibling } : createCharacterState(sibling)];
+    }));
     rowsRef.current = next;
     setRows(next);
+    if (removed.length > 0) {
+      setPreferences((currentPreferences) => ({
+        ...currentPreferences,
+        selectedCharacters: currentPreferences.selectedCharacters.filter((name) => incomingNames.has(name)),
+      }));
+    }
     added.forEach((sibling) => {
       if (selectedNamesRef.current.has(sibling.CharacterName)) loadSummary(sibling.CharacterName);
     });

@@ -25,6 +25,8 @@ create table public.lokki_profiles (
   avatar_url text check (avatar_url is null or char_length(avatar_url) <= 2048),
   -- Server-managed. A browser cannot insert or update this column.
   discord_id text unique check (discord_id is null or discord_id ~ '^[0-9]{1,20}$'),
+  representative_character_name text
+    check (representative_character_name is null or char_length(representative_character_name) between 1 and 20),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -32,8 +34,6 @@ create table public.lokki_profiles (
 create table public.lokki_rosters (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null unique references public.lokki_profiles(user_id) on delete cascade,
-  representative_character_name text
-    check (representative_character_name is null or char_length(representative_character_name) between 1 and 20),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   unique (id, user_id)
@@ -47,7 +47,6 @@ create table public.lokki_characters (
   server_name text check (server_name is null or char_length(server_name) between 1 and 20),
   character_class text check (character_class is null or char_length(character_class) between 1 and 30),
   item_level numeric(8, 2) check (item_level is null or item_level >= 0),
-  is_main boolean not null default false,
   last_synced_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
@@ -57,9 +56,6 @@ create table public.lokki_characters (
     references public.lokki_rosters(id, user_id) on delete cascade
 );
 
-create unique index lokki_characters_one_main_per_user_idx
-  on public.lokki_characters (user_id)
-  where is_main;
 create index lokki_characters_roster_id_idx
   on public.lokki_characters (roster_id);
 
@@ -163,16 +159,15 @@ revoke all on table public.lokki_weekly_states from anon, authenticated;
 -- Discord identity is deliberately excluded from browser write grants.
 grant select, delete on table public.lokki_profiles to authenticated;
 grant insert (user_id, display_name, avatar_url) on table public.lokki_profiles to authenticated;
-grant update (display_name, avatar_url) on table public.lokki_profiles to authenticated;
+grant update (display_name, avatar_url, representative_character_name) on table public.lokki_profiles to authenticated;
 
 grant select, delete on table public.lokki_rosters to authenticated;
-grant insert (user_id, representative_character_name) on table public.lokki_rosters to authenticated;
-grant update (representative_character_name) on table public.lokki_rosters to authenticated;
+grant insert (user_id) on table public.lokki_rosters to authenticated;
 
 grant select, delete on table public.lokki_characters to authenticated;
-grant insert (user_id, roster_id, character_name, server_name, character_class, item_level, is_main, last_synced_at)
+grant insert (user_id, roster_id, character_name, server_name, character_class, item_level, last_synced_at)
   on table public.lokki_characters to authenticated;
-grant update (roster_id, character_name, server_name, character_class, item_level, is_main, last_synced_at)
+grant update (roster_id, character_name, server_name, character_class, item_level, last_synced_at)
   on table public.lokki_characters to authenticated;
 
 grant select, delete on table public.lokki_weekly_states to authenticated;

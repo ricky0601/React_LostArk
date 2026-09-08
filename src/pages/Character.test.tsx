@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import Character from './Character';
 import type { CharacterProfile, EquipmentItem } from '../types/lostark';
 import { getCombatEquipmentItems } from '../utils/characterEquipment';
+import { fetchLokkiRepresentative, setLokkiRepresentative, syncLokkiProfile } from '../lib/lokkiAccount';
 import {
   fetchArkGrid,
   fetchEngravings,
@@ -12,6 +13,8 @@ import {
 } from '../utils/api';
 
 const mockSetSearchParams = vi.fn();
+const client = { from: vi.fn(), rpc: vi.fn() };
+let auth: { status: string; user: { id: string } | null } = { status: 'authenticated', user: { id: 'user-1' } };
 let mockCurrentSearchParams = new URLSearchParams('nickname=테스트캐릭터');
 
 vi.mock(
@@ -26,7 +29,13 @@ vi.mock(
 
 vi.mock('../components/NavBar', () => ({ default: () => <div>NavBar</div> }));
 vi.mock('../components/PullToRefresh', () => ({ default: ({ children }: { children: React.ReactNode }) => <>{children}</> }));
-
+vi.mock('../context/AuthContext', () => ({ useAuth: () => auth }));
+vi.mock('../lib/supabase', () => ({ getSupabaseBrowserClient: () => client }));
+vi.mock('../lib/lokkiAccount', () => ({
+  fetchLokkiRepresentative: vi.fn(),
+  setLokkiRepresentative: vi.fn(),
+  syncLokkiProfile: vi.fn(),
+}));
 vi.mock('../utils/api', () => ({
   fetchProfile: vi.fn(),
   fetchEquipment: vi.fn(),
@@ -87,6 +96,8 @@ describe('getCombatEquipmentItems', () => {
 describe('Character route state affordances', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    window.localStorage.clear();
+    auth = { status: 'authenticated', user: { id: 'user-1' } };
     mockCurrentSearchParams = new URLSearchParams('nickname=테스트캐릭터');
     mockSetSearchParams.mockImplementation((nextInit) => {
       mockCurrentSearchParams = new URLSearchParams(nextInit);
@@ -95,6 +106,42 @@ describe('Character route state affordances', () => {
     mockedFetchGems.mockResolvedValue(null);
     mockedFetchEngravings.mockResolvedValue(null);
     mockedFetchArkGrid.mockResolvedValue(null);
+    vi.mocked(fetchLokkiRepresentative).mockResolvedValue(null);
+    vi.mocked(syncLokkiProfile).mockResolvedValue(true);
+    vi.mocked(setLokkiRepresentative).mockResolvedValue();
+  });
+
+  it('saves the displayed character as the account representative', async () => {
+    mockedFetchProfile.mockResolvedValue(profile);
+
+    render(<Character />);
+    await userEvent.click(await screen.findByRole('button', { name: '대표 캐릭터로 저장' }));
+
+    await waitFor(() => expect(syncLokkiProfile).toHaveBeenCalledWith(client, auth.user));
+    expect(setLokkiRepresentative).toHaveBeenCalledWith(client, '테스트캐릭터');
+    expect(await screen.findByText('테스트캐릭터 캐릭터를 대표 캐릭터로 저장했습니다.')).toBeInTheDocument();
+  });
+
+  it('shows a blank search without using local storage when no representative is saved', async () => {
+    mockCurrentSearchParams = new URLSearchParams();
+    window.localStorage.setItem('lostark_nickname', '로컬캐릭터');
+
+    render(<Character />);
+
+    expect(await screen.findByRole('textbox', { name: '캐릭터 닉네임' })).toHaveValue('');
+    expect(mockedFetchProfile).not.toHaveBeenCalled();
+  });
+
+  it('loads the saved representative from the account when there is no URL nickname', async () => {
+    mockCurrentSearchParams = new URLSearchParams();
+    vi.mocked(fetchLokkiRepresentative).mockResolvedValue('저장대표');
+    mockedFetchProfile.mockResolvedValue({ ...profile, CharacterName: '저장대표' });
+
+    render(<Character />);
+
+    await waitFor(() => expect(fetchLokkiRepresentative).toHaveBeenCalledWith(client, 'user-1'));
+    expect(await screen.findByRole('img', { name: '저장대표' })).toBeInTheDocument();
+    expect(mockedFetchProfile).toHaveBeenCalledWith('저장대표', expect.anything());
   });
 
   it('shows an intentional fallback when the profile image fails', async () => {

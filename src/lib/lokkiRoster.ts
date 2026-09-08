@@ -41,7 +41,7 @@ export const fetchSavedLokkiRoster = async (
 ): Promise<SavedLokkiRoster | null> => {
   const rosterResult = await client
     .from('lokki_rosters')
-    .select('id, user_id, representative_character_name, created_at, updated_at')
+    .select('id, user_id, created_at, updated_at')
     .eq('user_id', userId)
     .maybeSingle();
 
@@ -50,7 +50,7 @@ export const fetchSavedLokkiRoster = async (
 
   const characterResult = await client
     .from('lokki_characters')
-    .select('id, user_id, roster_id, character_name, server_name, character_class, item_level, combat_power, is_main, last_synced_at, created_at, updated_at')
+    .select('id, user_id, roster_id, character_name, server_name, character_class, item_level, combat_power, last_synced_at, created_at, updated_at')
     .eq('user_id', userId)
     .order('item_level', { ascending: false });
 
@@ -63,7 +63,6 @@ export const fetchSavedLokkiRoster = async (
 
 export const syncLokkiRoster = async (
   client: SupabaseLike,
-  representativeCharacterName: string | null,
   siblings: readonly SiblingCharacter[],
   combatPowers: RosterCombatPowers = {},
 ): Promise<string> => {
@@ -78,19 +77,8 @@ export const syncLokkiRoster = async (
   }));
 
   const { error } = await client.rpc('lokki_sync_roster', {
-    p_representative_character_name: representativeCharacterName,
     p_characters: characters,
   });
   if (error) throw error;
   return syncedAt;
-};
-
-export const setLokkiRepresentative = async (
-  client: SupabaseLike,
-  representativeCharacterName: string | null,
-): Promise<void> => {
-  const { error } = await client.rpc('lokki_set_representative', {
-    p_representative_character_name: representativeCharacterName,
-  });
-  if (error) throw error;
 };

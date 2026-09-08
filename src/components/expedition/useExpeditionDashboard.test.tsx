@@ -44,20 +44,26 @@ describe('useExpeditionDashboard selection guard', () => {
 
     expect(result.current.selectedNames.size).toBe(MAX_SELECTION_LIMIT);
     expect(result.current.selectedNames.has(`훅캐릭${MAX_SELECTION_LIMIT}`)).toBe(false);
+    await waitFor(() => expect(Object.values(result.current.rows)
+      .filter((row) => result.current.selectedNames.has(row.sibling.CharacterName))
+      .every((row) => row.profile.status === 'success' && row.equipment.status === 'success')).toBe(true));
   });
 
-  it('merges rows when siblings arrive after mount', async () => {
+  it('reconciles added and removed rows while preserving retained row state', async () => {
     const { result, rerender } = renderHook(
       ({ sibs }: { sibs: SiblingCharacter[] }) => useExpeditionDashboard('sync-nick', sibs),
       { initialProps: { sibs: [sibling(0), sibling(1)] } },
     );
-    await waitFor(() => expect(mockedFetchProfile).toHaveBeenCalled());
+    await waitFor(() => expect(result.current.rows['훅캐릭0']?.profile.status).toBe('success'));
+    const retainedProfileState = result.current.rows['훅캐릭0'].profile;
 
-    rerender({ sibs: [sibling(0), sibling(1), sibling(2)] });
+    rerender({ sibs: [sibling(0), sibling(2)] });
 
     await waitFor(() => {
-      expect(Object.keys(result.current.rows)).toContain('훅캐릭2');
+      expect(Object.keys(result.current.rows)).toEqual(['훅캐릭0', '훅캐릭2']);
     });
+    expect(result.current.rows['훅캐릭0'].profile).toBe(retainedProfileState);
+    expect(result.current.selectedNames.has('훅캐릭1')).toBe(false);
   });
 
   it('retries an errored row when it is reselected', async () => {

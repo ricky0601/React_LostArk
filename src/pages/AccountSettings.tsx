@@ -156,7 +156,11 @@ const AccountSettings: React.FC = () => {
               <dd className="font-semibold text-gray-900 dark:text-white">{scope ? 1 : 0}건</dd>
             </div>
             <div className="flex items-center justify-between gap-4">
-              <dt className="text-gray-600 dark:text-gray-300">원정대 대표 캐릭터</dt>
+              <dt className="text-gray-600 dark:text-gray-300">대표 캐릭터</dt>
+              <dd className="font-semibold text-gray-900 dark:text-white">{scope?.profile?.representative_character_name ?? '미등록'}</dd>
+            </div>
+            <div className="flex items-center justify-between gap-4">
+              <dt className="text-gray-600 dark:text-gray-300">저장 원정대</dt>
               <dd className="font-semibold text-gray-900 dark:text-white">{scope?.rosterCount ?? 0}건</dd>
             </div>
             <div className="flex items-center justify-between gap-4">

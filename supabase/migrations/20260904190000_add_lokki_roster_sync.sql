@@ -1,14 +1,26 @@
 -- #77: Atomic roster synchronization and representative-character management.
+-- Representative characters belong to profiles; rosters contain only saved expedition data.
+
+alter table public.lokki_profiles
+  add column if not exists representative_character_name text
+    check (representative_character_name is null or char_length(representative_character_name) between 1 and 20);
 
 alter table public.lokki_characters
-  add column combat_power numeric(20, 2)
+  add column if not exists combat_power numeric(20, 2)
     check (combat_power is null or combat_power >= 0);
 
+drop index if exists public.lokki_characters_one_main_per_user_idx;
+alter table public.lokki_characters drop column if exists is_main;
+alter table public.lokki_rosters drop column if exists representative_character_name;
+
+grant update (representative_character_name) on table public.lokki_profiles to authenticated;
+grant insert (user_id) on table public.lokki_rosters to authenticated;
 grant insert (combat_power) on table public.lokki_characters to authenticated;
 grant update (combat_power) on table public.lokki_characters to authenticated;
 
+drop function if exists public.lokki_sync_roster(text, jsonb);
+
 create or replace function public.lokki_sync_roster(
-  p_representative_character_name text,
   p_characters jsonb
 )
 returns void
@@ -23,26 +35,20 @@ begin
   if current_user_id is null then
     raise exception 'authentication required';
   end if;
-  if jsonb_typeof(p_characters) <> 'array' then
-    raise exception 'characters must be an array';
+  if p_characters is null or jsonb_typeof(p_characters) <> 'array' then
+    raise exception 'characters must be a non-null array';
   end if;
-  if p_representative_character_name is not null and not exists (
-    select 1
-    from jsonb_array_elements(p_characters) item
-    where item ->> 'character_name' = p_representative_character_name
-  ) then
-    raise exception 'representative character must belong to the roster';
+  if jsonb_array_length(p_characters) = 0 then
+    raise exception 'characters must not be empty';
   end if;
 
-  insert into public.lokki_rosters (user_id, representative_character_name)
-  values (current_user_id, p_representative_character_name)
-  on conflict (user_id) do update
-    set representative_character_name = excluded.representative_character_name
-  returning id into current_roster_id;
+  insert into public.lokki_rosters (user_id)
+  values (current_user_id)
+  on conflict (user_id) do nothing;
 
-  update public.lokki_characters
-  set is_main = false
-  where user_id = current_user_id and is_main;
+  select id into current_roster_id
+  from public.lokki_rosters
+  where user_id = current_user_id;
 
   insert into public.lokki_characters (
     user_id,
@@ -52,7 +58,6 @@ begin
     character_class,
     item_level,
     combat_power,
-    is_main,
     last_synced_at
   )
   select
@@ -63,7 +68,6 @@ begin
     character_class,
     item_level,
     combat_power,
-    character_name = p_representative_character_name,
     last_synced_at
   from jsonb_to_recordset(p_characters) as character_data (
     character_name text,
@@ -79,7 +83,6 @@ begin
     character_class = excluded.character_class,
     item_level = excluded.item_level,
     combat_power = coalesce(excluded.combat_power, public.lokki_characters.combat_power),
-    is_main = excluded.is_main,
     last_synced_at = excluded.last_synced_at;
 
   delete from public.lokki_characters existing
@@ -92,8 +95,8 @@ begin
 end;
 $$;
 
-revoke all on function public.lokki_sync_roster(text, jsonb) from public, anon;
-grant execute on function public.lokki_sync_roster(text, jsonb) to authenticated;
+revoke all on function public.lokki_sync_roster(jsonb) from public, anon;
+grant execute on function public.lokki_sync_roster(jsonb) to authenticated;
 
 create or replace function public.lokki_set_representative(
   p_representative_character_name text
@@ -109,22 +112,10 @@ begin
   if current_user_id is null then
     raise exception 'authentication required';
   end if;
-  if p_representative_character_name is not null and not exists (
-    select 1 from public.lokki_characters
-    where user_id = current_user_id
-      and character_name = p_representative_character_name
-  ) then
-    raise exception 'representative character must belong to the roster';
-  end if;
 
-  update public.lokki_rosters
+  update public.lokki_profiles
   set representative_character_name = p_representative_character_name
   where user_id = current_user_id;
-
-  update public.lokki_characters
-  set is_main = (character_name = p_representative_character_name)
-  where user_id = current_user_id
-    and is_main is distinct from (character_name = p_representative_character_name);
 end;
 $$;
 

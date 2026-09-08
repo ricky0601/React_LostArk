@@ -12,8 +12,7 @@ import ExpeditionDashboard from '../components/expedition/ExpeditionDashboard';
 import { useAccountRoster } from '../components/expedition/useAccountRoster';
 import { sortSiblingCharacters } from '../lib/lokkiRoster';
 import type { SiblingCharacter } from '../types/lostark';
-import { fetchSiblings, LS_NICKNAME } from '../utils/api';
-import { safeLocalStorage } from '../utils/safeStorage';
+import { fetchSiblings } from '../utils/api';
 
 const Expedition: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -23,7 +22,12 @@ const Expedition: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [refreshRequest, setRefreshRequest] = useState(0);
-  const account = useAccountRoster({ urlNickname, siblings, setNickname, setSiblings });
+  const account = useAccountRoster({
+    urlNickname,
+    siblings,
+    setNickname,
+    setSiblings,
+  });
 
   useEffect(() => {
     if (!urlNickname || urlNickname === nickname) return;
@@ -32,12 +36,6 @@ const Expedition: React.FC = () => {
     setSiblings([]);
     setError(null);
   }, [account.resetForSearch, nickname, urlNickname]);
-
-  useEffect(() => {
-    if (urlNickname || nickname || (account.authStatus !== 'anonymous' && account.authStatus !== 'unavailable')) return;
-    const localNickname = safeLocalStorage.getItem(LS_NICKNAME);
-    if (localNickname) setNickname(localNickname);
-  }, [account.authStatus, nickname, urlNickname]);
 
   const handleNicknameSubmit = (name: string): void => {
     account.resetForSearch();
@@ -50,7 +48,6 @@ const Expedition: React.FC = () => {
   const handleResetSearch = (): void => {
     account.resetForSearch();
     setSearchParams({});
-    safeLocalStorage.removeItem(LS_NICKNAME);
     setNickname(null);
     setSiblings([]);
     setError(null);
@@ -62,7 +59,6 @@ const Expedition: React.FC = () => {
     let active = true;
 
     const loadExpedition = async (): Promise<void> => {
-      safeLocalStorage.setItem(LS_NICKNAME, nickname);
       setLoading(true);
       setError(null);
       try {
@@ -70,19 +66,17 @@ const Expedition: React.FC = () => {
         if (!active || controller.signal.aborted) return;
         if (!Array.isArray(data)) {
           if (siblings.length === 0) setError('원정대 캐릭터 정보를 불러올 수 없습니다.');
-          else account.setMessage('최신 정보를 불러오지 못해 마지막 정상 데이터를 표시합니다.');
+          else account.showMessage('최신 정보를 불러오지 못해 마지막 정상 데이터를 표시합니다.', 'alert');
           return;
         }
         const sorted = sortSiblingCharacters(data);
+        account.handleRosterFetched();
         setSiblings(sorted);
-        account.setRepresentativeName((current) => current && sorted.some((character) => character.CharacterName === current)
-          ? current
-          : sorted.find((character) => character.CharacterName === nickname)?.CharacterName ?? sorted[0]?.CharacterName ?? null);
-        account.setMessage(null);
+        account.showMessage(null);
       } catch {
         if (!active || controller.signal.aborted) return;
         if (siblings.length === 0) setError('원정대 조회에 실패했습니다.');
-        else account.setMessage('최신 정보를 불러오지 못해 마지막 정상 데이터를 표시합니다.');
+        else account.showMessage('최신 정보를 불러오지 못해 마지막 정상 데이터를 표시합니다.', 'alert');
       } finally {
         if (active && !controller.signal.aborted) setLoading(false);
       }
@@ -93,14 +87,14 @@ const Expedition: React.FC = () => {
       active = false;
       controller.abort();
     };
-  }, [account.consumeSkipNextFetch, account.setMessage, account.setRepresentativeName, nickname, refreshRequest]);
+  }, [account.consumeSkipNextFetch, account.handleRosterFetched, account.showMessage, nickname, refreshRequest]);
 
   if (!nickname) {
     return (
       <div className="min-h-screen bg-gray-50 transition-colors duration-300 dark:bg-la-dark">
         <NavBar />
         {account.restoring ? <main className="mx-auto max-w-2xl px-4 py-12"><StateFeedback tone="loading" title="저장된 원정대를 불러오는 중입니다" /></main> : (
-          <NicknameInput title="원정대 스펙 관리" description="캐릭터 닉네임을 입력하면 같은 원정대 전체를 불러옵니다" buttonText="원정대 조회" onSubmit={handleNicknameSubmit} />
+          <NicknameInput title="원정대 스펙 관리" description="캐릭터 닉네임을 입력하면 같은 원정대 전체를 불러옵니다" buttonText="원정대 조회" onSubmit={handleNicknameSubmit} persistNickname={false} />
         )}
       </div>
     );
@@ -119,16 +113,13 @@ const Expedition: React.FC = () => {
 
           {account.authStatus === 'authenticated' && siblings.length > 0 && (
             <AccountRosterControls
-              siblings={siblings}
-              representativeName={account.representativeName}
               lastSyncedAt={account.lastSyncedAt}
               message={account.message}
+              messageTone={account.messageTone}
               loading={loading}
               saving={account.saving}
-              onRepresentativeChange={account.setRepresentativeName}
               onRefresh={() => setRefreshRequest((value) => value + 1)}
               onSave={() => void account.saveRoster()}
-              onReleaseRepresentative={() => void account.releaseRepresentative()}
             />
           )}
 
@@ -142,10 +133,7 @@ const Expedition: React.FC = () => {
           ) : siblings.length === 0 ? (
             <StateFeedback tone="empty" title="원정대 캐릭터가 없습니다" description="다른 닉네임을 입력해 원정대를 다시 조회해 주세요." action={{ label: '닉네임 다시 입력', onClick: handleResetSearch }} />
           ) : (
-            <>
-              {account.message?.includes('마지막 정상 데이터') && <div role="alert" className="mb-4 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-800 dark:text-amber-300">{account.message}</div>}
-              <ExpeditionDashboard key={nickname} nickname={nickname} siblings={siblings} onProfilesChange={account.handleProfilesChange} />
-            </>
+            <ExpeditionDashboard key={nickname} nickname={nickname} siblings={siblings} onProfilesChange={account.handleProfilesChange} />
           )}
         </main>
       </PullToRefresh>

@@ -6,6 +6,7 @@ export interface LokkiProfile {
   readonly display_name: string | null;
   readonly avatar_url: string | null;
   readonly discord_id: string | null;
+  readonly representative_character_name: string | null;
   readonly created_at: IsoTimestamp;
   readonly updated_at: IsoTimestamp;
 }
@@ -13,7 +14,6 @@ export interface LokkiProfile {
 export interface LokkiRoster {
   readonly id: string;
   readonly user_id: string;
-  readonly representative_character_name: string | null;
   readonly created_at: IsoTimestamp;
   readonly updated_at: IsoTimestamp;
 }
@@ -27,7 +27,6 @@ export interface LokkiCharacter {
   readonly character_class: string | null;
   readonly item_level: number | null;
   readonly combat_power: number | null;
-  readonly is_main: boolean;
   readonly last_synced_at: IsoTimestamp | null;
   readonly created_at: IsoTimestamp;
   readonly updated_at: IsoTimestamp;
@@ -48,7 +47,6 @@ export interface LokkiWeeklyState {
 
 export interface CreateLokkiRoster {
   readonly user_id: string;
-  readonly representative_character_name?: string | null;
 }
 export type UpdateLokkiRoster = Partial<Omit<CreateLokkiRoster, 'user_id'>>;
 
@@ -60,7 +58,6 @@ export interface CreateLokkiCharacter {
   readonly character_class?: string | null;
   readonly item_level?: number | null;
   readonly combat_power?: number | null;
-  readonly is_main?: boolean;
   readonly last_synced_at?: IsoTimestamp | null;
 }
 export type UpdateLokkiCharacter = Partial<Omit<CreateLokkiCharacter, 'user_id'>>;

@@ -31,6 +31,7 @@ const scopeSummary: LokkiDataScopeSummary = {
     display_name: '1_d_g',
     avatar_url: null,
     discord_id: null,
+    representative_character_name: null,
     created_at: '2026-09-04T00:00:00Z',
     updated_at: '2026-09-04T01:00:00Z',
   },

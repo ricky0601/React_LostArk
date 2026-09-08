@@ -8,11 +8,12 @@ interface NicknameInputProps {
   description: string;
   buttonText: string;
   onSubmit: (nickname: string) => void;
+  persistNickname?: boolean;
 }
 
-const NicknameInput: React.FC<NicknameInputProps> = ({ title, description, buttonText, onSubmit }) => {
+const NicknameInput: React.FC<NicknameInputProps> = ({ title, description, buttonText, onSubmit, persistNickname = true }) => {
   const [input, setInput] = useState<string>(() => {
-    return safeLocalStorage.getItem(LS_NICKNAME) || '';
+    return persistNickname ? safeLocalStorage.getItem(LS_NICKNAME) || '' : '';
   });
   const nicknameInputId = useId();
 
@@ -20,7 +21,7 @@ const NicknameInput: React.FC<NicknameInputProps> = ({ title, description, butto
     e.preventDefault();
     const trimmed = input.trim();
     if (trimmed) {
-      safeLocalStorage.setItem(LS_NICKNAME, trimmed);
+      if (persistNickname) safeLocalStorage.setItem(LS_NICKNAME, trimmed);
       onSubmit(trimmed);
     }
   };

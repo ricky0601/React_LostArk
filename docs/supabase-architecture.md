@@ -43,9 +43,9 @@ flowchart LR
 
 TypeScript 계약은 `src/types/lokkiAccount.ts`에 있다.
 
-- `lokki_profiles`: 계정 표시 정보와 서버 관리 Discord ID. PK는 `auth.users.id`와 동일하다.
-- `lokki_rosters`: 사용자당 하나인 원정대와 대표 캐릭터 이름.
-- `lokki_characters`: 저장된 원정대 캐릭터. 사용자당 캐릭터 이름이 유일하고 대표 캐릭터는 최대 한 명이다.
+- `lokki_profiles`: 계정 표시 정보, 서버 관리 Discord ID와 대표 캐릭터 이름. PK는 `auth.users.id`와 동일하다.
+- `lokki_rosters`: 사용자가 저장한 원정대. 사용자당 하나만 존재한다.
+- `lokki_characters`: 저장된 원정대 캐릭터. 사용자당 캐릭터 이름이 유일하다.
 - `lokki_weekly_states`: 월요일을 기준으로 한 캐릭터별 또는 계정 공통 주간 활동 상태. `character_id = null`은 계정 공통 상태다.
 
 모든 사용자 테이블에 `user_id`를 유지한다. 이 중복은 각 RLS 정책이 다른 사용자 테이블을
@@ -58,17 +58,19 @@ TypeScript 계약은 `src/types/lokkiAccount.ts`에 있다.
 ### 원정대 동기화 정책
 
 - 로그인 사용자가 저장을 요청하면 Lost Ark siblings API가 반환한 전체 목록을 하나의 정상 스냅샷으로 취급한다.
+- `NULL`, 비배열, 빈 배열 payload는 정상 스냅샷으로 보지 않고 동기화 전에 거부한다. 전체 삭제는 동기화의 암묵적 부작용으로 제공하지 않는다.
 - 정상 스냅샷에 없는 기존 캐릭터는 삭제한다. 이름 변경은 이전 이름 삭제와 새 이름 추가로 처리한다.
 - siblings API 자체가 실패하거나 배열이 아닌 응답을 반환하면 동기화를 호출하지 않고 마지막 정상 데이터를 유지한다.
 - 개별 profile 조회 실패 시 캐릭터 행은 최신화하되 마지막 정상 전투력은 유지한다.
-- `lokki_sync_roster` RPC가 원정대 upsert, 대표 캐릭터 변경, 캐릭터 upsert와 누락 캐릭터 삭제를 한 트랜잭션에서 수행한다.
+- `lokki_set_representative` RPC는 캐릭터 조회 페이지에서 `lokki_profiles.representative_character_name`만 변경한다.
+- `lokki_sync_roster` RPC는 대표 캐릭터와 독립적으로 원정대 upsert, 캐릭터 upsert와 누락 캐릭터 삭제를 한 트랜잭션에서 수행한다.
 
 ## 접근 경계
 
 ### 브라우저 직접 접근
 
 - 로그인 세션 생성, 갱신, 로그아웃
-- 본인 profile의 `display_name`, `avatar_url` 변경
+- 본인 profile의 `display_name`, `avatar_url`, 대표 캐릭터 이름 변경
 - 본인 원정대, 캐릭터, 주간 상태 CRUD
 - `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`만 사용
 
