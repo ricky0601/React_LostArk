@@ -21,6 +21,7 @@
     { "source": "/expedition", "destination": "/expedition/index.html" },
     { "source": "/compare", "destination": "/compare/index.html" },
     { "source": "/enhancement", "destination": "/enhancement/index.html" },
+    { "source": "/raid-composition", "destination": "/raid-composition/index.html" },
     { "source": "/market", "destination": "/market/index.html" },
     { "source": "/spending", "destination": "/spending/index.html" },
     { "source": "/changelog", "destination": "/changelog/index.html" },
