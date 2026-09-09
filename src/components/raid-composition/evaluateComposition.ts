@@ -1,4 +1,4 @@
-import type { AttackPosition, RaidRole } from '../../data/raidComposition';
+import type { AttackPosition, ClassSynergy, RaidRole } from '../../data/raidComposition';
 
 export type PartyNumber = 1 | 2;
 export type CompositionStrategy = 'position-focused' | 'balanced';
@@ -8,7 +8,7 @@ export interface RaidCompositionMember {
   readonly className: string;
   readonly role: RaidRole;
   readonly position: AttackPosition;
-  readonly synergyStackingGroups: readonly string[];
+  readonly synergies: readonly ClassSynergy[];
   readonly currentParty: PartyNumber;
   readonly fixed?: boolean;
 }
@@ -56,6 +56,7 @@ export interface PartyEvaluation {
   readonly supportCount: number;
   readonly positions: PositionCounts;
   readonly effectiveSynergyCount: number;
+  readonly armorReductionCount: number;
   readonly duplicateSynergyCount: number;
   readonly warnings: readonly CompositionWarning[];
 }
@@ -68,6 +69,7 @@ export interface CompositionEvaluation {
   readonly unresolvedMemberIds: readonly string[];
   readonly strategyScore: number;
   readonly effectiveSynergyCount: number;
+  readonly armorReductionStackingScore: number;
   readonly duplicateSynergyCount: number;
   readonly movedMemberIds: readonly string[];
   readonly warnings: readonly CompositionWarning[];
@@ -108,11 +110,16 @@ const evaluateParty = (
   }
 
   const synergyMembers = new Map<string, string[]>();
+  const armorReductionGroups = new Set<string>();
   members.filter((member) => member.role === 'dealer').forEach((member) => {
-    new Set(member.synergyStackingGroups).forEach((stackingGroup) => {
+    const memberSynergies = new Map(
+      member.synergies.map((synergy) => [synergy.stackingGroup, synergy]),
+    );
+    memberSynergies.forEach((synergy, stackingGroup) => {
       const memberIds = synergyMembers.get(stackingGroup) ?? [];
       memberIds.push(member.id);
       synergyMembers.set(stackingGroup, memberIds);
+      if (synergy.name === '방어력 감소') armorReductionGroups.add(stackingGroup);
     });
   });
 
@@ -135,6 +142,7 @@ const evaluateParty = (
     supportCount,
     positions: countPositions(members),
     effectiveSynergyCount: synergyMembers.size,
+    armorReductionCount: armorReductionGroups.size,
     duplicateSynergyCount: duplicateWarnings.reduce(
       (total, warning) => total + warning.memberIds.length - 1,
       0,
@@ -142,6 +150,8 @@ const evaluateParty = (
     warnings,
   };
 };
+
+const armorReductionPairCount = (count: number): number => count * (count - 1) / 2;
 
 const positionStrategyScore = (
   partyEvaluations: Readonly<Record<PartyNumber, PartyEvaluation>>,
@@ -196,6 +206,9 @@ export const evaluateRaidComposition = (
     strategyScore: positionStrategyScore(partyEvaluations, strategy),
     effectiveSynergyCount: partyEvaluations[1].effectiveSynergyCount
       + partyEvaluations[2].effectiveSynergyCount,
+    armorReductionStackingScore: armorReductionPairCount(
+      partyEvaluations[1].armorReductionCount,
+    ) + armorReductionPairCount(partyEvaluations[2].armorReductionCount),
     duplicateSynergyCount: partyEvaluations[1].duplicateSynergyCount
       + partyEvaluations[2].duplicateSynergyCount,
     movedMemberIds: members
@@ -212,6 +225,9 @@ const compareEvaluations = (
 ): number => {
   if (left.duplicateSynergyCount !== right.duplicateSynergyCount) {
     return left.duplicateSynergyCount - right.duplicateSynergyCount;
+  }
+  if (left.armorReductionStackingScore !== right.armorReductionStackingScore) {
+    return right.armorReductionStackingScore - left.armorReductionStackingScore;
   }
   if (left.strategyScore !== right.strategyScore) {
     return right.strategyScore - left.strategyScore;
@@ -275,8 +291,8 @@ export const recommendRaidComposition = (
   candidates.sort(compareEvaluations);
   const best = candidates[0];
   const strategyReason = strategy === 'position-focused'
-    ? '사멸 중심 파티와 타대 중심 파티가 되도록 평가했습니다.'
-    : '각 파티가 타대 2명과 사멸 1명에 가까워지도록 평가했습니다.';
+    ? '헤드·백 중심 파티와 타대 중심 파티가 되도록 평가했습니다.'
+    : '각 파티가 타대 2명과 헤드·백 1명에 가까워지도록 평가했습니다.';
 
   return {
     ...best,
@@ -286,6 +302,9 @@ export const recommendRaidComposition = (
       best.duplicateSynergyCount === 0
         ? '동일 stackingGroup 시너지 중복이 없습니다.'
         : `동일 stackingGroup 중복을 ${best.duplicateSynergyCount}건으로 최소화했습니다.`,
+      ...(best.armorReductionStackingScore > 0
+        ? ['방어력 감소 시너지를 같은 파티에 모아 중첩 효율을 높였습니다.']
+        : []),
       strategyReason,
       `현재 편성에서 ${best.movedMemberIds.length}명이 이동합니다.`,
       ...(members.some(({ fixed }) => fixed) ? ['고정 인원의 현재 파티를 유지했습니다.'] : []),

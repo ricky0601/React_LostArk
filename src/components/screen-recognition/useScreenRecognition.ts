@@ -113,8 +113,8 @@ export const useScreenRecognition = <TResult,>({
     return recognition;
   }, [getErrorMessage]);
 
-  const start = useCallback(async () => {
-    if (!navigator.mediaDevices?.getDisplayMedia) {
+  const start = useCallback(async (mediaDevices: MediaDevices | undefined = navigator.mediaDevices) => {
+    if (!mediaDevices?.getDisplayMedia) {
       setStatus('error');
       setError(unsupportedMessage);
       return;
@@ -140,7 +140,7 @@ export const useScreenRecognition = <TResult,>({
     let stream: MediaStream | null = null;
     let video: HTMLVideoElement | null = null;
     try {
-      stream = await navigator.mediaDevices.getDisplayMedia(displayMediaOptions);
+      stream = await mediaDevices.getDisplayMedia(displayMediaOptions);
       if (sessionId !== sessionIdRef.current || !mountedRef.current) {
         stream.getTracks().forEach((track) => track.stop());
         return;

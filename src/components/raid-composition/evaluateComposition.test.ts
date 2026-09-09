@@ -15,12 +15,16 @@ const member = (
   position: AttackPosition = 'hit-master',
   synergyStackingGroups: readonly string[] = [`synergy:${id}`],
   fixed = false,
+  synergyName = '테스트 시너지',
 ): RaidCompositionMember => ({
   id,
   className: id,
   role,
   position,
-  synergyStackingGroups,
+  synergies: synergyStackingGroups.map((stackingGroup) => ({
+    name: synergyName,
+    stackingGroup,
+  })),
   currentParty,
   fixed,
 });
@@ -149,6 +153,28 @@ describe('recommendRaidComposition', () => {
     expect(result?.duplicateSynergyCount).toBe(0);
     expect(result?.parties[1].some(({ id }) => id === 'duplicate-1'))
       .not.toBe(result?.parties[1].some(({ id }) => id === 'duplicate-2'));
+  });
+
+  it('groups distinct armor reduction synergies before applying the position strategy', () => {
+    const roster = [
+      ...supporters,
+      member('armor-1', 1, 'dealer', 'hit-master', ['armor:one'], false, '방어력 감소'),
+      member('armor-2', 1, 'dealer', 'entropy-back', ['armor:two'], false, '방어력 감소'),
+      member('dealer-1', 1),
+      member('armor-3', 2, 'dealer', 'hit-master', ['armor:three'], false, '방어력 감소'),
+      member('dealer-2', 2),
+      member('dealer-3', 2),
+    ];
+
+    const result = recommendRaidComposition(roster, 'balanced', 'test-version');
+
+    expect(result?.armorReductionStackingScore).toBe(3);
+    expect(Object.values(result?.partyEvaluations ?? {})
+      .map(({ armorReductionCount }) => armorReductionCount)
+      .sort()).toEqual([0, 3]);
+    expect(result?.reasons).toContain(
+      '방어력 감소 시너지를 같은 파티에 모아 중첩 효율을 높였습니다.',
+    );
   });
 
   it('never moves a fixed member out of the current party', () => {
