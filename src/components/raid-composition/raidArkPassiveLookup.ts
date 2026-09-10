@@ -9,6 +9,7 @@ export interface RaidArkPassiveLookupResult extends RaidBuildResolution {
 export class RaidArkPassiveLookupError extends Error {}
 
 const lookupCache = new Map<string, Promise<RaidArkPassiveLookupResult>>();
+const MAX_OCR_CANDIDATE_LOOKUPS = 72;
 
 export const lookupRaidArkPassive = (
   nickname: string,
@@ -55,10 +56,11 @@ export const lookupRaidArkPassiveCandidates = async (
   recognizedClassName: string,
 ): Promise<RaidArkPassiveLookupResult> => {
   let lastError: unknown = new RaidArkPassiveLookupError('인식된 닉네임이 없습니다.');
-  for (const nickname of Array.from(new Set(candidates)).slice(0, 4)) {
+  for (const nickname of Array.from(new Set(candidates)).slice(0, MAX_OCR_CANDIDATE_LOOKUPS)) {
     try {
       return await lookupRaidArkPassive(nickname, recognizedClassName);
     } catch (error) {
+      if (!(error instanceof RaidArkPassiveLookupError)) throw error;
       lastError = error;
     }
   }

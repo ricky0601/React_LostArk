@@ -62,6 +62,32 @@ describe('lookupRaidArkPassive', () => {
     expect(mockedFetchArkPassive).toHaveBeenCalledTimes(1);
   });
 
+  it('checks expanded OCR alternatives beyond the former four-candidate limit', async () => {
+    mockedFetchProfile
+      .mockResolvedValueOnce(null as never)
+      .mockResolvedValueOnce(null as never)
+      .mockResolvedValueOnce(null as never)
+      .mockResolvedValueOnce(null as never)
+      .mockResolvedValueOnce({ CharacterClassName: '디스트로이어' } as never);
+    mockedFetchArkPassive.mockResolvedValue({ IsArkPassive: true, Title: '분노의 망치' } as never);
+
+    await expect(lookupRaidArkPassiveCandidates(
+      ['오인식1', '오인식2', '오인식3', '오인식4', '정확한후보'],
+      '디스트로이어',
+    )).resolves.toMatchObject({ nickname: '정확한후보' });
+    expect(mockedFetchProfile).toHaveBeenCalledTimes(5);
+  });
+
+  it('stops candidate retries when the API itself fails', async () => {
+    mockedFetchProfile.mockRejectedValueOnce(new Error('API error: 429'));
+
+    await expect(lookupRaidArkPassiveCandidates(
+      ['첫후보', '둘째후보'],
+      '디스트로이어',
+    )).rejects.toThrow('API error: 429');
+    expect(mockedFetchProfile).toHaveBeenCalledTimes(1);
+  });
+
   it('deduplicates concurrent requests for the same character', async () => {
     mockedFetchProfile.mockResolvedValue({ CharacterClassName: '바드' } as never);
     mockedFetchArkPassive.mockResolvedValue({ IsArkPassive: true, Title: '절실한 구원' } as never);

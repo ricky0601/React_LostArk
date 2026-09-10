@@ -15,7 +15,7 @@ const member = (
   position: AttackPosition = 'hit-master',
   synergyStackingGroups: readonly string[] = [`synergy:${id}`],
   fixed = false,
-  synergyName = '테스트 시너지',
+  synergyName = `테스트 시너지:${id}`,
 ): RaidCompositionMember => ({
   id,
   className: id,
@@ -153,6 +153,24 @@ describe('recommendRaidComposition', () => {
     expect(result?.duplicateSynergyCount).toBe(0);
     expect(result?.parties[1].some(({ id }) => id === 'duplicate-1'))
       .not.toBe(result?.parties[1].some(({ id }) => id === 'duplicate-2'));
+  });
+
+  it('separates the same synergy type even when classes have distinct stacking groups', () => {
+    const roster = [
+      ...supporters,
+      member('critical-1', 1, 'dealer', 'hit-master', ['critical:gunslinger'], false, '치명타 적중률 증가'),
+      member('critical-2', 1, 'dealer', 'hit-master', ['critical:aeromancer'], false, '치명타 적중률 증가'),
+      member('a', 1),
+      member('b', 2),
+      member('c', 2),
+      member('d', 2),
+    ];
+
+    const result = recommendRaidComposition(roster, 'balanced', 'test-version');
+
+    expect(result?.repeatedSynergyTypeCount).toBe(0);
+    expect(result?.parties[1].some(({ id }) => id === 'critical-1'))
+      .not.toBe(result?.parties[1].some(({ id }) => id === 'critical-2'));
   });
 
   it('groups distinct armor reduction synergies before applying the position strategy', () => {

@@ -135,29 +135,44 @@ export const createInitialRoster = (): readonly RaidRosterSlot[] => (
  * 인식 결과를 로스터에 반영한다. 부분 인식이어도 기존 수동 입력은 유지되며,
  * 고정(fixed) 표시는 인식으로 해제되지 않는다.
  */
+interface ApplyRecognitionOptions {
+  readonly preserveConfirmedNicknames?: boolean;
+}
+
 export const applyRecognitionToRoster = (
   roster: readonly RaidRosterSlot[],
   observations: readonly RaidSlotObservation[],
+  options: ApplyRecognitionOptions = {},
 ): readonly RaidRosterSlot[] => {
   const observationBySlot = new Map(observations.map((observation) => [observation.slot, observation]));
   return roster.map((slot) => {
     const observation = observationBySlot.get(slot.slot);
     if (!observation) return slot;
     const nextClassName = observation.className ?? slot.className;
-    const nextNickname = observation.nickname ?? slot.nickname;
+    const preserveConfirmedNickname = options.preserveConfirmedNicknames === true
+      && slot.arkPassiveStatus === 'confirmed'
+      && nextClassName === slot.className;
+    const nextNickname = preserveConfirmedNickname
+      ? slot.nickname
+      : observation.nickname ?? slot.nickname;
     const identityChanged = nextClassName !== slot.className || nextNickname !== slot.nickname;
+    const preserveConfirmedResolution = !identityChanged && slot.arkPassiveStatus === 'confirmed';
     return {
       ...slot,
       className: nextClassName,
       nickname: nextNickname,
-      nicknameCandidates: (observation.nicknameCandidates?.length ?? 0) > 0
-        ? observation.nicknameCandidates
-        : slot.nicknameCandidates,
+      nicknameCandidates: preserveConfirmedNickname
+        ? slot.nicknameCandidates
+        : (observation.nicknameCandidates?.length ?? 0) > 0
+          ? observation.nicknameCandidates
+          : slot.nicknameCandidates,
       confidence: observation.confidence,
-      needsReview: observation.needsReview
-        || (observation.className == null && slot.className === '')
-        || classNeedsBuildResolution(nextClassName)
-        || (!identityChanged && ['loading', 'review', 'error'].includes(slot.arkPassiveStatus)),
+      needsReview: preserveConfirmedResolution
+        ? false
+        : observation.needsReview
+          || (observation.className == null && slot.className === '')
+          || classNeedsBuildResolution(nextClassName)
+          || (!identityChanged && ['loading', 'review', 'error'].includes(slot.arkPassiveStatus)),
       ...(identityChanged ? {
         nicknameCandidates: observation.nicknameCandidates ?? [],
         arkPassiveTitle: '',

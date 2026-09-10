@@ -1,22 +1,25 @@
 type TesseractModule = typeof import('tesseract.js');
 export type OcrWorker = Awaited<ReturnType<TesseractModule['createWorker']>>;
 type OcrParameters = Parameters<OcrWorker['setParameters']>[0];
+type OcrWorkerOptions = NonNullable<Parameters<TesseractModule['createWorker']>[2]>;
 
 export interface OcrWorkerSettings {
   languages: string;
   parameters?: OcrParameters;
+  options?: Partial<OcrWorkerOptions>;
 }
 
 type OcrWorkerFactory = (settings: OcrWorkerSettings) => Promise<OcrWorker>;
 
-const settingsKey = ({ languages, parameters = {} }: OcrWorkerSettings): string => JSON.stringify([
+const settingsKey = ({ languages, parameters = {}, options = {} }: OcrWorkerSettings): string => JSON.stringify([
   languages,
   Object.entries(parameters).sort(([left], [right]) => left.localeCompare(right)),
+  Object.entries(options).sort(([left], [right]) => left.localeCompare(right)),
 ]);
 
-const createDefaultWorker: OcrWorkerFactory = async ({ languages, parameters }) => {
-  const { createWorker } = await import('tesseract.js');
-  const worker = await createWorker(languages);
+const createDefaultWorker: OcrWorkerFactory = async ({ languages, parameters, options }) => {
+  const { createWorker, OEM } = await import('tesseract.js');
+  const worker = await createWorker(languages, OEM.LSTM_ONLY, options);
   try {
     if (parameters) await worker.setParameters(parameters);
     return worker;

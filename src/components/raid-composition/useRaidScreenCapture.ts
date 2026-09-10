@@ -23,15 +23,17 @@ export const useRaidScreenCapture = () => {
   const [roster, setRoster] = useState<readonly RaidRosterSlot[]>(createInitialRoster);
   const [framesScanned, setFramesScanned] = useState(0);
   const [lastScanAt, setLastScanAt] = useState<number | null>(null);
-  const [autoArkPassiveLookup, setAutoArkPassiveLookup] = useState(false);
+  const [autoArkPassiveLookup, setAutoArkPassiveLookup] = useState(true);
 
   const recognizer = useMemo(() => new RaidPartyFrameRecognizer(), []);
 
   const handleResult = useCallback((result: RaidFrameObservation) => {
     setFramesScanned((count) => count + 1);
     setLastScanAt(result.scannedAt);
-    setRoster((current) => applyRecognitionToRoster(current, result.observations));
-  }, []);
+    setRoster((current) => applyRecognitionToRoster(current, result.observations, {
+      preserveConfirmedNicknames: !autoArkPassiveLookup,
+    }));
+  }, [autoArkPassiveLookup]);
 
   const handleSessionStart = useCallback(() => {
     setFramesScanned(0);
@@ -44,7 +46,7 @@ export const useRaidScreenCapture = () => {
       slot.className !== ''
       && normalizeRaidNickname(slot.nickname) === slot.nickname
       && slot.arkPassiveStatus === 'idle'
-    )).slice(0, 2);
+    )).slice(0, 1);
     if (targets.length === 0) return;
 
     const timer = window.setTimeout(() => {

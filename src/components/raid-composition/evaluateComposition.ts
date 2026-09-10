@@ -57,6 +57,7 @@ export interface PartyEvaluation {
   readonly positions: PositionCounts;
   readonly effectiveSynergyCount: number;
   readonly armorReductionCount: number;
+  readonly repeatedSynergyTypeCount: number;
   readonly duplicateSynergyCount: number;
   readonly warnings: readonly CompositionWarning[];
 }
@@ -70,6 +71,7 @@ export interface CompositionEvaluation {
   readonly strategyScore: number;
   readonly effectiveSynergyCount: number;
   readonly armorReductionStackingScore: number;
+  readonly repeatedSynergyTypeCount: number;
   readonly duplicateSynergyCount: number;
   readonly movedMemberIds: readonly string[];
   readonly warnings: readonly CompositionWarning[];
@@ -110,6 +112,7 @@ const evaluateParty = (
   }
 
   const synergyMembers = new Map<string, string[]>();
+  const synergyTypeMembers = new Map<string, Set<string>>();
   const armorReductionGroups = new Set<string>();
   members.filter((member) => member.role === 'dealer').forEach((member) => {
     const memberSynergies = new Map(
@@ -119,7 +122,13 @@ const evaluateParty = (
       const memberIds = synergyMembers.get(stackingGroup) ?? [];
       memberIds.push(member.id);
       synergyMembers.set(stackingGroup, memberIds);
-      if (synergy.name === '방어력 감소') armorReductionGroups.add(stackingGroup);
+      if (synergy.name === '방어력 감소') {
+        armorReductionGroups.add(stackingGroup);
+      } else {
+        const typeMemberIds = synergyTypeMembers.get(synergy.name) ?? new Set<string>();
+        typeMemberIds.add(member.id);
+        synergyTypeMembers.set(synergy.name, typeMemberIds);
+      }
     });
   });
 
@@ -143,6 +152,10 @@ const evaluateParty = (
     positions: countPositions(members),
     effectiveSynergyCount: synergyMembers.size,
     armorReductionCount: armorReductionGroups.size,
+    repeatedSynergyTypeCount: Array.from(synergyTypeMembers.values()).reduce(
+      (total, memberIds) => total + Math.max(0, memberIds.size - 1),
+      0,
+    ),
     duplicateSynergyCount: duplicateWarnings.reduce(
       (total, warning) => total + warning.memberIds.length - 1,
       0,
@@ -209,6 +222,8 @@ export const evaluateRaidComposition = (
     armorReductionStackingScore: armorReductionPairCount(
       partyEvaluations[1].armorReductionCount,
     ) + armorReductionPairCount(partyEvaluations[2].armorReductionCount),
+    repeatedSynergyTypeCount: partyEvaluations[1].repeatedSynergyTypeCount
+      + partyEvaluations[2].repeatedSynergyTypeCount,
     duplicateSynergyCount: partyEvaluations[1].duplicateSynergyCount
       + partyEvaluations[2].duplicateSynergyCount,
     movedMemberIds: members
@@ -223,6 +238,9 @@ const compareEvaluations = (
   left: CompositionEvaluation,
   right: CompositionEvaluation,
 ): number => {
+  if (left.repeatedSynergyTypeCount !== right.repeatedSynergyTypeCount) {
+    return left.repeatedSynergyTypeCount - right.repeatedSynergyTypeCount;
+  }
   if (left.duplicateSynergyCount !== right.duplicateSynergyCount) {
     return left.duplicateSynergyCount - right.duplicateSynergyCount;
   }
@@ -299,6 +317,9 @@ export const recommendRaidComposition = (
     dataVersion,
     reasons: [
       '각 파티에 서포터를 1명씩 배치했습니다.',
+      best.repeatedSynergyTypeCount === 0
+        ? '동일 유형 시너지를 두 파티에 분산했습니다.'
+        : `한 파티에 몰린 동일 유형 시너지를 ${best.repeatedSynergyTypeCount}건으로 최소화했습니다.`,
       best.duplicateSynergyCount === 0
         ? '동일 stackingGroup 시너지 중복이 없습니다.'
         : `동일 stackingGroup 중복을 ${best.duplicateSynergyCount}건으로 최소화했습니다.`,

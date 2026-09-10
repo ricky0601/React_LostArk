@@ -1,6 +1,7 @@
 import React from 'react';
 import type { ScreenCaptureStatus } from '../screen-recognition/types';
 import RaidClassBadges from './RaidClassBadges';
+import { getRecommendationExchanges } from './RaidCompositionRecommendation';
 import type {
   CompositionEvaluation,
   CompositionRecommendation,
@@ -9,7 +10,6 @@ import type {
 } from './evaluateComposition';
 import {
   CLASS_OPTIONS,
-  getRaidClassDisplayLabel,
   updateRosterSlot,
   type RaidRosterSlot,
 } from './roster';
@@ -39,11 +39,6 @@ const statusLabel: Record<ScreenCaptureStatus, string> = {
   error: '오류',
 };
 
-const partyOf = (
-  recommendation: CompositionRecommendation,
-  memberId: string,
-): PartyNumber => (recommendation.parties[1].some((member) => member.id === memberId) ? 1 : 2);
-
 const RaidCompositionMini: React.FC<RaidCompositionMiniProps> = ({
   roster,
   setRoster,
@@ -71,6 +66,16 @@ const RaidCompositionMini: React.FC<RaidCompositionMiniProps> = ({
   ) => setRoster((current) => updateRosterSlot(current, id, patch));
   const [draggingId, setDraggingId] = React.useState<string | null>(null);
   const moveToParty = (id: string, party: PartyNumber) => updateSlot(id, { currentParty: party });
+  const exchanges = recommendation ? getRecommendationExchanges(recommendation) : [];
+  const applyRecommendation = () => {
+    if (!recommendation) return;
+    const firstPartyIds = new Set(recommendation.parties[1].map(({ id }) => id));
+    setRoster((current) => current.map((slot) => (
+      slot.className === ''
+        ? slot
+        : { ...slot, currentParty: firstPartyIds.has(slot.id) ? 1 : 2 }
+    )));
+  };
 
   return (
     <main className="flex min-h-screen flex-col gap-3 p-3 text-sm">
@@ -130,22 +135,34 @@ const RaidCompositionMini: React.FC<RaidCompositionMiniProps> = ({
           </select>
         </div>
         {!recommendation ? (
-          <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">8개 슬롯을 채우면 추천 교환을 표시합니다.</p>
+          <p className="mt-2 rounded bg-white/60 p-2 text-xs text-gray-500 dark:bg-white/5 dark:text-gray-400">8명의 직업과 서포터 배치를 확인하면 추천이 표시됩니다.</p>
+        ) : exchanges.length === 0 ? (
+          <p className="mt-2 rounded bg-emerald-50 p-2 text-xs font-semibold text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">현재 파티가 추천 편성과 일치합니다.</p>
         ) : (
-          <div className="mt-2 flex flex-col gap-1 text-xs">
+          <div className="mt-2 flex flex-col gap-2 text-xs">
             {!recommendation.isConfirmed && (
               <p className="rounded bg-amber-100 p-1.5 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300">
-                판정 불가 {recommendation.unresolvedMemberIds.length}명 · 수동 확인 필요
+                아직 확인이 필요한 인원 {recommendation.unresolvedMemberIds.length}명
               </p>
             )}
-            <p className="font-semibold">
-              이동 {recommendation.movedMemberIds.length}명
-              {recommendation.movedMemberIds.length > 0 && ` · ${recommendation.movedMemberIds.map((id) => {
-                const member = [...recommendation.parties[1], ...recommendation.parties[2]].find((item) => item.id === id);
-                return `${member ? getRaidClassDisplayLabel(member.className, member) : id} → ${partyOf(recommendation, id)}파티`;
-              }).join(', ')}`}
-            </p>
-            {recommendation.reasons.slice(0, 3).map((reason) => <p key={reason}>· {reason}</p>)}
+            {exchanges.map(({ toFirstParty, toSecondParty }) => {
+              const firstName = toFirstParty && (roster.find(({ id }) => id === toFirstParty.id)?.nickname || toFirstParty.className);
+              const secondName = toSecondParty && (roster.find(({ id }) => id === toSecondParty.id)?.nickname || toSecondParty.className);
+              return (
+                <div key={`${toFirstParty?.id ?? 'empty'}-${toSecondParty?.id ?? 'empty'}`} className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 rounded bg-white p-2 shadow-sm dark:bg-white/5">
+                  <span className="min-w-0 truncate"><small className="block text-blue-600 dark:text-blue-300">1파티로</small><strong>{firstName || '-'}</strong></span>
+                  <span className="font-bold text-la-gold">↔</span>
+                  <span className="min-w-0 truncate text-right"><small className="block text-violet-600 dark:text-violet-300">2파티로</small><strong>{secondName || '-'}</strong></span>
+                </div>
+              );
+            })}
+            <button
+              type="button"
+              onClick={applyRecommendation}
+              className="min-h-9 rounded bg-la-gold px-3 py-1.5 font-bold text-white"
+            >
+              추천 교환 적용
+            </button>
           </div>
         )}
       </section>
@@ -158,7 +175,7 @@ const RaidCompositionMini: React.FC<RaidCompositionMiniProps> = ({
                 ? `서포터 ${warning.actual}명`
                 : warning.type === 'party-size'
                   ? `인원 ${warning.actual}명`
-                  : `시너지 중복 (${warning.stackingGroup})`}
+                  : '같은 시너지 중복'}
             </p>
           ))}
         </section>
@@ -176,8 +193,8 @@ const RaidCompositionMini: React.FC<RaidCompositionMiniProps> = ({
               setDraggingId(null);
             }}
           >
-            <h2 className="mb-1 text-xs font-bold text-gray-600 dark:text-gray-300">{party}파티</h2>
-            <ul className="grid min-h-10 grid-cols-2 gap-1">
+            <h2 className={`mb-1 rounded px-2 py-1 text-xs font-bold ${party === 1 ? 'bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-300' : 'bg-violet-50 text-violet-700 dark:bg-violet-500/10 dark:text-violet-300'}`}>{party}파티</h2>
+            <ul className="grid min-h-10 grid-cols-1 gap-1 sm:grid-cols-2">
               {roster.filter((slot) => slot.currentParty === party).map((slot) => (
                 <li
                   key={slot.id}

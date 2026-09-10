@@ -15,7 +15,7 @@ export const RAID_SLOT_COUNT = 8 as const;
 export const PARTY_SPLIT_Y = 0.412;
 
 /** confidence가 이 값 미만이면 자동 판정 대신 `검토 필요`로 표시한다. */
-export const REVIEW_CONFIDENCE_THRESHOLD = 0.63;
+export const REVIEW_CONFIDENCE_THRESHOLD = 0.6;
 /** 1·2위 직업 점수가 가까우면 잘못된 자동 확정보다 검토 상태를 우선한다. */
 export const CLASS_CONFIDENCE_MARGIN = 0.04;
 

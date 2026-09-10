@@ -57,6 +57,18 @@ describe('mapMatchesToSlots', () => {
     expect(countRecognizedSlots(observations)).toBe(1);
   });
 
+  it('accepts a clear class match at the validated lower confidence boundary', () => {
+    const observations = mapMatchesToSlots([
+      { className: '인파이터', x: 0.85, y: 0.45, confidence: 0.605 },
+    ]);
+
+    expect(observations[5]).toMatchObject({
+      className: '인파이터',
+      confidence: 0.605,
+      needsReview: false,
+    });
+  });
+
   it('requires a clear margin over the runner-up before confirming a class', () => {
     const observations = mapMatchesToSlots([
       { className: '바드', x: 0.7, y: 0.3, confidence: 0.91 },

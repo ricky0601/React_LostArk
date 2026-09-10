@@ -84,6 +84,54 @@ describe('applyRecognitionToRoster', () => {
 
     expect(next[0].fixed).toBe(true);
   });
+
+  it('preserves an API-confirmed nickname while automatic lookup is disabled', () => {
+    const roster = createInitialRoster().map((slot) => (slot.slot === 0 ? {
+      ...slot,
+      className: '기공사',
+      nickname: '맑음깃',
+      nicknameCandidates: ['맑음깃'],
+      arkPassiveStatus: 'confirmed' as const,
+      arkPassiveMessage: '아크패시브 확인됨',
+      needsReview: false,
+    } : slot));
+
+    const next = applyRecognitionToRoster(
+      roster,
+      [observation(0, '기공사', false, 'ASN')],
+      { preserveConfirmedNicknames: true },
+    );
+
+    expect(next[0]).toMatchObject({
+      nickname: '맑음깃',
+      nicknameCandidates: ['맑음깃'],
+      arkPassiveStatus: 'confirmed',
+      arkPassiveMessage: '아크패시브 확인됨',
+      needsReview: false,
+    });
+  });
+
+  it('accepts a new nickname when the recognized class changes', () => {
+    const roster = createInitialRoster().map((slot) => (slot.slot === 0 ? {
+      ...slot,
+      className: '기공사',
+      nickname: '맑음깃',
+      nicknameCandidates: ['맑음깃'],
+      arkPassiveStatus: 'confirmed' as const,
+    } : slot));
+
+    const next = applyRecognitionToRoster(
+      roster,
+      [observation(0, '소서리스', false, '새닉네임')],
+      { preserveConfirmedNicknames: true },
+    );
+
+    expect(next[0]).toMatchObject({
+      className: '소서리스',
+      nickname: '새닉네임',
+      arkPassiveStatus: 'idle',
+    });
+  });
 });
 
 describe('updateRosterSlot and toCompositionMembers', () => {
