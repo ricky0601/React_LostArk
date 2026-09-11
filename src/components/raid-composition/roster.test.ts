@@ -3,8 +3,10 @@ import {
   applyRecognitionToRoster,
   createInitialRoster,
   getRaidClassBadges,
+  enableRosterAutoRecognition,
   getRaidClassDisplayLabel,
   toCompositionMembers,
+  updateRosterBuild,
   updateRosterSlot,
 } from './roster';
 import type { RaidSlotObservation } from './recognition';
@@ -111,6 +113,60 @@ describe('applyRecognitionToRoster', () => {
     });
   });
 
+  it('clears recognition identity and build only after two consecutive true vacancies', () => {
+    const recognized = applyRecognitionToRoster(createInitialRoster(), [observation(0, '바드', false, '자동닉')]);
+    const withBuild = recognized.map((slot) => (slot.slot === 0 ? {
+      ...slot,
+      arkPassiveTitle: '절실한 구원',
+      resolvedRole: 'support' as const,
+      resolvedPosition: 'unknown' as const,
+    } : slot));
+
+    const once = applyRecognitionToRoster(withBuild, [observation(0, null, true)]);
+    expect(once[0]).toMatchObject({ className: '바드', nickname: '자동닉', vacancyFrames: 1 });
+
+    const lowConfidence = applyRecognitionToRoster(once, [{ ...observation(0, null, true), confidence: 0.3 }]);
+    expect(lowConfidence[0]).toMatchObject({ className: '바드', nickname: '자동닉', vacancyFrames: 0 });
+
+    const twice = applyRecognitionToRoster(
+      applyRecognitionToRoster(lowConfidence, [observation(0, null, true)]),
+      [observation(0, null, true)],
+    );
+    expect(twice[0]).toMatchObject({ className: '', nickname: '', arkPassiveTitle: '', vacancyFrames: 2 });
+  });
+
+  it('clears a manually selected build when its recognized occupant becomes vacant', () => {
+    const recognized = applyRecognitionToRoster(createInitialRoster(), [observation(0, '바드', false, '자동닉')]);
+    const withManualBuild = updateRosterBuild(recognized, 'slot-0', '절실한 구원');
+
+    const vacant = applyRecognitionToRoster(
+      applyRecognitionToRoster(withManualBuild, [observation(0, null, true)]),
+      [observation(0, null, true)],
+    );
+
+    expect(vacant[0]).toMatchObject({
+      className: '', nickname: '', arkPassiveTitle: '', buildSource: 'recognition', arkPassiveStatus: 'idle',
+    });
+  });
+
+  it('does not overwrite or vacancy-clear manual class and nickname values until auto recognition is enabled', () => {
+    const manual = updateRosterSlot(createInitialRoster(), 'slot-0', { className: '바드', nickname: '수동닉' });
+    const observed = applyRecognitionToRoster(manual, [observation(0, '도화가', false, '자동닉')]);
+    const vacant = applyRecognitionToRoster(
+      applyRecognitionToRoster(observed, [observation(0, null, true)]),
+      [observation(0, null, true)],
+    );
+    expect(vacant[0]).toMatchObject({
+      className: '바드', nickname: '수동닉', classNameSource: 'manual', nicknameSource: 'manual',
+    });
+
+    const automatic = enableRosterAutoRecognition(vacant, 'slot-0');
+    const replaced = applyRecognitionToRoster(automatic, [observation(0, '도화가', false, '자동닉')]);
+    expect(replaced[0]).toMatchObject({
+      className: '도화가', nickname: '자동닉', classNameSource: 'recognition', nicknameSource: 'recognition',
+    });
+  });
+
   it('accepts a new nickname when the recognized class changes', () => {
     const roster = createInitialRoster().map((slot) => (slot.slot === 0 ? {
       ...slot,
@@ -139,6 +195,29 @@ describe('updateRosterSlot and toCompositionMembers', () => {
     const roster = updateRosterSlot(createInitialRoster(), 'slot-0', { className: '기상술사' });
 
     expect(roster[0]).toMatchObject({ needsReview: false });
+  });
+
+  it('resolves a manually selected build into role, position, and synergy', () => {
+    const withClass = updateRosterSlot(createInitialRoster(), 'slot-0', { className: '바드' });
+    const roster = updateRosterBuild(withClass, 'slot-0', '진실된 용맹');
+
+    expect(roster[0]).toMatchObject({
+      buildSource: 'manual', resolvedRole: 'dealer', resolvedPosition: 'hit-master', needsReview: false,
+    });
+    expect(toCompositionMembers(roster)[0]).toMatchObject({
+      role: 'dealer', position: 'hit-master',
+      synergies: [{ name: '방어력 감소', stackingGroup: 'bard:방어력 감소' }],
+    });
+  });
+
+  it('re-enables automatic lookup when a manual build selection is cleared', () => {
+    const withClass = updateRosterSlot(createInitialRoster(), 'slot-0', { className: '바드' });
+    const selected = updateRosterBuild(withClass, 'slot-0', '절실한 구원');
+    const cleared = updateRosterBuild(selected, 'slot-0', '');
+
+    expect(cleared[0]).toMatchObject({
+      arkPassiveTitle: '', buildSource: 'recognition', arkPassiveStatus: 'idle', resolvedRole: null,
+    });
   });
 
   it('excludes empty slots from composition members', () => {

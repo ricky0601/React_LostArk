@@ -108,11 +108,65 @@ const loadTemplateCanvas = async (template: RaidClassIconTemplate): Promise<HTML
   }
 };
 
-const pixelBox = (box: NormalizedBox, width: number, height: number) => {
-  const x = Math.max(0, Math.floor(box.x * width));
-  const y = Math.max(0, Math.floor(box.y * height));
-  const right = Math.min(width, Math.ceil((box.x + box.width) * width));
-  const bottom = Math.min(height, Math.ceil((box.y + box.height) * height));
+export interface RaidViewportTransform {
+  readonly x: number;
+  readonly y: number;
+  readonly width: number;
+  readonly height: number;
+}
+
+const fullViewport = (width: number, height: number): RaidViewportTransform => ({ x: 0, y: 0, width, height });
+
+/** 검은색/투명 여백 안에 게임 화면이 포함된 캡처의 실제 viewport를 찾는다. */
+export const detectRaidViewportTransform = (
+  pixels: ImageData,
+): RaidViewportTransform => {
+  const { width, height, data } = pixels;
+  const base = [data[0], data[1], data[2], data[3]];
+  const columns = new Uint32Array(width);
+  const rows = new Uint32Array(height);
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const index = (y * width + x) * 4;
+      const different = Math.abs(data[index] - base[0])
+        + Math.abs(data[index + 1] - base[1])
+        + Math.abs(data[index + 2] - base[2])
+        + Math.abs(data[index + 3] - base[3]) > 24;
+      if (different) {
+        columns[x] += 1;
+        rows[y] += 1;
+      }
+    }
+  }
+  const minColumnPixels = Math.max(1, Math.floor(height * 0.02));
+  const minRowPixels = Math.max(1, Math.floor(width * 0.02));
+  const left = columns.findIndex((count) => count >= minColumnPixels);
+  const top = rows.findIndex((count) => count >= minRowPixels);
+  let right = width - 1;
+  let bottom = height - 1;
+  while (right >= 0 && columns[right] < minColumnPixels) right -= 1;
+  while (bottom >= 0 && rows[bottom] < minRowPixels) bottom -= 1;
+  if (left < 0 || top < 0 || right <= left || bottom <= top) return fullViewport(width, height);
+  const candidate = { x: left, y: top, width: right - left + 1, height: bottom - top + 1 };
+  const referenceAspect = RAID_RECOGNITION_REFERENCE.width / RAID_RECOGNITION_REFERENCE.height;
+  const candidateAspect = candidate.width / candidate.height;
+  const substantiallyInset = candidate.width < width * 0.98 || candidate.height < height * 0.98;
+  const plausibleSize = candidate.width >= width * 0.6 && candidate.height >= height * 0.6;
+  return substantiallyInset && plausibleSize && Math.abs(candidateAspect / referenceAspect - 1) <= 0.03
+    ? candidate
+    : fullViewport(width, height);
+};
+
+export const getRaidPixelBox = (
+  box: NormalizedBox,
+  width: number,
+  height: number,
+  viewport: RaidViewportTransform = fullViewport(width, height),
+) => {
+  const x = Math.max(0, Math.floor(viewport.x + box.x * viewport.width));
+  const y = Math.max(0, Math.floor(viewport.y + box.y * viewport.height));
+  const right = Math.min(width, Math.ceil(viewport.x + (box.x + box.width) * viewport.width));
+  const bottom = Math.min(height, Math.ceil(viewport.y + (box.y + box.height) * viewport.height));
   return { x, y, width: right - x, height: bottom - y };
 };
 
@@ -134,9 +188,12 @@ interface IconPanel {
  * 8개 직업 아이콘 ROI만 4x2 atlas로 모은다. 원본 화면의 두 열 사이 여백과
  * 파티 사이 여백을 제거해 템플릿 매칭할 픽셀 수를 줄이고 텍스트 오탐을 막는다.
  */
-export const createRaidIconPanel = (frame: HTMLCanvasElement): IconPanel => {
-  const boxes = RAID_SLOT_ICON_BOXES.map((box) => pixelBox(box, frame.width, frame.height));
-  const padding = Math.max(4, Math.round(frame.width / RAID_RECOGNITION_REFERENCE.width * 4));
+export const createRaidIconPanel = (
+  frame: HTMLCanvasElement,
+  viewport: RaidViewportTransform = fullViewport(frame.width, frame.height),
+): IconPanel => {
+  const boxes = RAID_SLOT_ICON_BOXES.map((box) => getRaidPixelBox(box, frame.width, frame.height, viewport));
+  const padding = Math.max(4, Math.round(viewport.width / RAID_RECOGNITION_REFERENCE.width * 4));
   const cellWidth = Math.max(...boxes.map((box) => box.width)) + padding * 2;
   const cellHeight = Math.max(...boxes.map((box) => box.height)) + padding * 2;
   const canvas = document.createElement('canvas');
@@ -225,13 +282,14 @@ export const createNicknameCanvas = (
   slot: number,
   threshold = NICKNAME_PRIMARY_THRESHOLD,
   normalizedYOffset = 0,
+  viewport: RaidViewportTransform = fullViewport(frame.width, frame.height),
 ): HTMLCanvasElement => {
   const normalizedBox = RAID_SLOT_NICKNAME_BOXES[slot];
-  const box = pixelBox({
+  const box = getRaidPixelBox({
     ...normalizedBox,
     y: normalizedBox.y + normalizedYOffset,
     height: normalizedBox.height - normalizedYOffset,
-  }, frame.width, frame.height);
+  }, frame.width, frame.height, viewport);
   const canvas = document.createElement('canvas');
   canvas.width = box.width * NICKNAME_CANVAS_SCALE;
   canvas.height = box.height * NICKNAME_CANVAS_SCALE;
@@ -252,8 +310,9 @@ const createNativeThresholdNicknameCanvas = (
   trim: boolean,
   pixelOffsetX: number,
   pixelOffsetY: number,
+  viewport: RaidViewportTransform = fullViewport(frame.width, frame.height),
 ): HTMLCanvasElement => {
-  const baseBox = pixelBox(RAID_SLOT_NICKNAME_BOXES[slot], frame.width, frame.height);
+  const baseBox = getRaidPixelBox(RAID_SLOT_NICKNAME_BOXES[slot], frame.width, frame.height, viewport);
   const box = {
     ...baseBox,
     x: baseBox.x + pixelOffsetX,
@@ -488,8 +547,9 @@ const recognizeClasses = async (
   source: Mat,
   frame: HTMLCanvasElement,
   panel: IconPanel,
+  viewport: RaidViewportTransform,
 ): Promise<ClassIconMatch[]> => {
-  const sizes = scaledTemplateSizes(frame.width);
+  const sizes = scaledTemplateSizes(viewport.width);
   const matches: ClassIconMatch[] = [];
 
   for (const template of RAID_CLASS_ICON_TEMPLATES) {
@@ -535,6 +595,7 @@ export class RaidPartyFrameRecognizer implements FrameRecognizer<RaidFrameObserv
   private async recognizeNicknames(
     frame: HTMLCanvasElement,
     occupiedSlots: readonly { slot: number; className: string | null }[],
+    viewport: RaidViewportTransform,
   ): Promise<readonly NicknameObservation[]> {
     if (occupiedSlots.length === 0) return [];
     const worker = await getNicknameOcrWorker(this.ocrWorkers);
@@ -544,8 +605,8 @@ export class RaidPartyFrameRecognizer implements FrameRecognizer<RaidFrameObserv
       if (!occupied.className) continue;
       const [results, lostArkResults] = await Promise.all([
         Promise.all([
-          worker.recognize(createNicknameCanvas(frame, occupied.slot)),
-          worker.recognize(createNicknameCanvas(frame, occupied.slot, NICKNAME_FALLBACK_THRESHOLD)),
+          worker.recognize(createNicknameCanvas(frame, occupied.slot, NICKNAME_PRIMARY_THRESHOLD, 0, viewport)),
+          worker.recognize(createNicknameCanvas(frame, occupied.slot, NICKNAME_FALLBACK_THRESHOLD, 0, viewport)),
           ...NICKNAME_PRIMARY_NATIVE_VARIANTS.map(({
             threshold, scale, trim, pixelOffsetX, pixelOffsetY,
           }) => worker.recognize(createNativeThresholdNicknameCanvas(
@@ -556,14 +617,15 @@ export class RaidPartyFrameRecognizer implements FrameRecognizer<RaidFrameObserv
             trim,
             pixelOffsetX,
             pixelOffsetY,
+            viewport,
           ))),
         ]),
         lostArkWorker
           ? Promise.all([
-            lostArkWorker.recognize(createNicknameCanvas(frame, occupied.slot, 90)),
-            lostArkWorker.recognize(createNicknameCanvas(frame, occupied.slot, 110)),
-            lostArkWorker.recognize(createNicknameCanvas(frame, occupied.slot, 150)),
-            lostArkWorker.recognize(createNicknameCanvas(frame, occupied.slot, 170)),
+            lostArkWorker.recognize(createNicknameCanvas(frame, occupied.slot, 90, 0, viewport)),
+            lostArkWorker.recognize(createNicknameCanvas(frame, occupied.slot, 110, 0, viewport)),
+            lostArkWorker.recognize(createNicknameCanvas(frame, occupied.slot, 150, 0, viewport)),
+            lostArkWorker.recognize(createNicknameCanvas(frame, occupied.slot, 170, 0, viewport)),
           ]).catch(() => [])
           : Promise.resolve([]),
       ]);
@@ -597,6 +659,7 @@ export class RaidPartyFrameRecognizer implements FrameRecognizer<RaidFrameObserv
             occupied.slot,
             NICKNAME_SHIFTED_THRESHOLD,
             NICKNAME_SHIFTED_Y,
+            viewport,
           )),
           ...NICKNAME_FALLBACK_NATIVE_VARIANTS.map(({
             threshold, scale, trim, pixelOffsetX, pixelOffsetY,
@@ -608,6 +671,7 @@ export class RaidPartyFrameRecognizer implements FrameRecognizer<RaidFrameObserv
             trim,
             pixelOffsetX,
             pixelOffsetY,
+            viewport,
           ))),
         ]);
         const fallbackCandidateScores = [shiftedResult, ...nativeResults]
@@ -638,6 +702,7 @@ export class RaidPartyFrameRecognizer implements FrameRecognizer<RaidFrameObserv
           trim,
           pixelOffsetX,
           pixelOffsetY,
+          viewport,
         ));
         const shortText = shortResult.data.confidence >= NICKNAME_CONFIDENCE_THRESHOLD
           ? normalizeRaidNickname(shortResult.data.text)
@@ -681,17 +746,21 @@ export class RaidPartyFrameRecognizer implements FrameRecognizer<RaidFrameObserv
   async recognize(frame: HTMLCanvasElement): Promise<RaidFrameObservation> {
     validateRecognitionFrame(frame);
     const cv = await getOpenCv();
-    const panel = createRaidIconPanel(frame);
+    const frameContext = frame.getContext('2d', { willReadFrequently: true });
+    const viewport = frameContext
+      ? detectRaidViewportTransform(frameContext.getImageData(0, 0, frame.width, frame.height))
+      : fullViewport(frame.width, frame.height);
+    const panel = createRaidIconPanel(frame, viewport);
     const sourceRgba = cv.imread(panel.canvas);
     let sourceRgb!: Mat;
     try {
       sourceRgb = new cv.Mat();
       cv.cvtColor(sourceRgba, sourceRgb, cv.COLOR_RGBA2RGB);
-      const matches = await recognizeClasses(cv, sourceRgb, frame, panel);
+      const matches = await recognizeClasses(cv, sourceRgb, frame, panel, viewport);
       const classObservations = mapMatchesToSlots(matches);
       let nicknames: readonly NicknameObservation[] = [];
       try {
-        nicknames = await this.recognizeNicknames(frame, classObservations);
+        nicknames = await this.recognizeNicknames(frame, classObservations, viewport);
       } catch {
         // OCR은 보조 기능이다. 언어 데이터 로드나 판독 실패가 직업·파티 인식을 막지 않는다.
       }

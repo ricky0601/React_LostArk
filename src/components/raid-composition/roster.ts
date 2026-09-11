@@ -5,6 +5,7 @@ import type { RaidSlotObservation } from './recognition';
 import { RAID_SLOT_COUNT } from './recognition';
 
 export type ArkPassiveLookupStatus = 'idle' | 'loading' | 'confirmed' | 'review' | 'error';
+export type RaidValueProvenance = 'recognition' | 'manual';
 
 export interface RaidRosterSlot {
   readonly id: string;
@@ -12,11 +13,15 @@ export interface RaidRosterSlot {
   readonly currentParty: PartyNumber;
   /** 빈 슬롯은 ''이며, 직업 선택 전까지 검토 필요 상태이다. */
   readonly className: string;
+  readonly classNameSource: RaidValueProvenance;
   readonly nickname: string;
+  readonly nicknameSource: RaidValueProvenance;
   readonly nicknameCandidates: readonly string[];
   readonly confidence: number;
+  readonly vacancyFrames: number;
   readonly needsReview: boolean;
   readonly arkPassiveTitle: string;
+  readonly buildSource: RaidValueProvenance;
   readonly resolvedRole: RaidRole | null;
   readonly resolvedPosition: AttackPosition | null;
   readonly arkPassiveStatus: ArkPassiveLookupStatus;
@@ -118,11 +123,15 @@ export const createInitialRoster = (): readonly RaidRosterSlot[] => (
     slot,
     currentParty: (slot < 4 ? 1 : 2) as PartyNumber,
     className: '',
+    classNameSource: 'recognition' as const,
     nickname: '',
+    nicknameSource: 'recognition' as const,
     nicknameCandidates: [],
     confidence: 0,
+    vacancyFrames: 0,
     needsReview: true,
     arkPassiveTitle: '',
+    buildSource: 'recognition' as const,
     resolvedRole: null,
     resolvedPosition: null,
     arkPassiveStatus: 'idle' as const,
@@ -148,25 +157,53 @@ export const applyRecognitionToRoster = (
   return roster.map((slot) => {
     const observation = observationBySlot.get(slot.slot);
     if (!observation) return slot;
-    const nextClassName = observation.className ?? slot.className;
+    const isVacancy = observation.className == null && observation.confidence === 0;
+    const vacancyFrames = isVacancy ? slot.vacancyFrames + 1 : 0;
+    if (isVacancy && vacancyFrames >= 2) {
+      const clearClass = slot.classNameSource === 'recognition';
+      const clearNickname = slot.nicknameSource === 'recognition';
+      const clearBuild = clearClass || (clearNickname && slot.className === '');
+      return {
+        ...slot,
+        ...(clearClass ? { className: '' } : {}),
+        ...(clearNickname ? { nickname: '', nicknameCandidates: [] } : {}),
+        ...(clearBuild ? {
+          arkPassiveTitle: '',
+          buildSource: 'recognition' as const,
+          resolvedRole: null,
+          resolvedPosition: null,
+          arkPassiveStatus: 'idle' as const,
+          arkPassiveMessage: '',
+        } : {}),
+        confidence: 0,
+        vacancyFrames,
+        needsReview: clearClass || slot.needsReview,
+      };
+    }
+    const nextClassName = slot.classNameSource === 'manual'
+      ? slot.className
+      : observation.className ?? slot.className;
     const preserveConfirmedNickname = options.preserveConfirmedNicknames === true
       && slot.arkPassiveStatus === 'confirmed'
       && nextClassName === slot.className;
-    const nextNickname = preserveConfirmedNickname
+    const nextNickname = slot.nicknameSource === 'manual' || preserveConfirmedNickname
       ? slot.nickname
       : observation.nickname ?? slot.nickname;
-    const identityChanged = nextClassName !== slot.className || nextNickname !== slot.nickname;
+    const classChanged = nextClassName !== slot.className;
+    const nicknameChanged = nextNickname !== slot.nickname;
+    const identityChanged = classChanged || nicknameChanged;
     const preserveConfirmedResolution = !identityChanged && slot.arkPassiveStatus === 'confirmed';
     return {
       ...slot,
       className: nextClassName,
       nickname: nextNickname,
-      nicknameCandidates: preserveConfirmedNickname
+      nicknameCandidates: slot.nicknameSource === 'manual' || preserveConfirmedNickname
         ? slot.nicknameCandidates
         : (observation.nicknameCandidates?.length ?? 0) > 0
           ? observation.nicknameCandidates
           : slot.nicknameCandidates,
       confidence: observation.confidence,
+      vacancyFrames,
       needsReview: preserveConfirmedResolution
         ? false
         : observation.needsReview
@@ -174,8 +211,11 @@ export const applyRecognitionToRoster = (
           || classNeedsBuildResolution(nextClassName)
           || (!identityChanged && ['loading', 'review', 'error'].includes(slot.arkPassiveStatus)),
       ...(identityChanged ? {
-        nicknameCandidates: observation.nicknameCandidates ?? [],
+        nicknameCandidates: slot.nicknameSource === 'manual'
+          ? slot.nicknameCandidates
+          : observation.nicknameCandidates ?? [],
         arkPassiveTitle: '',
+        buildSource: 'recognition' as const,
         resolvedRole: null,
         resolvedPosition: null,
         arkPassiveStatus: 'idle' as const,
@@ -196,13 +236,17 @@ export const updateRosterSlot = (
   const next = {
     ...slot,
     ...patch,
+    ...(patch.className !== undefined ? { classNameSource: 'manual' as const } : {}),
+    ...(patch.nickname !== undefined ? { nicknameSource: 'manual' as const } : {}),
     ...(identityChanged ? {
       nicknameCandidates: patch.nickname !== undefined ? [patch.nickname] : slot.nicknameCandidates,
       arkPassiveTitle: '',
+      buildSource: 'recognition' as const,
       resolvedRole: null,
       resolvedPosition: null,
       arkPassiveStatus: 'idle' as const,
       arkPassiveMessage: '',
+      vacancyFrames: 0,
     } : {}),
   };
   if (patch.className !== undefined) {
@@ -211,6 +255,46 @@ export const updateRosterSlot = (
       || classNeedsBuildResolution(patch.className);
   }
   return next;
+});
+
+export const enableRosterAutoRecognition = (
+  roster: readonly RaidRosterSlot[],
+  id: string,
+): readonly RaidRosterSlot[] => roster.map((slot) => (
+  slot.id === id
+    ? { ...slot, classNameSource: 'recognition' as const, nicknameSource: 'recognition' as const, vacancyFrames: 0 }
+    : slot
+));
+
+export const updateRosterBuild = (
+  roster: readonly RaidRosterSlot[],
+  id: string,
+  title: string,
+): readonly RaidRosterSlot[] => roster.map((slot) => {
+  if (slot.id !== id) return slot;
+  if (title === '') {
+    return {
+      ...slot,
+      arkPassiveTitle: '',
+      buildSource: 'recognition' as const,
+      resolvedRole: null,
+      resolvedPosition: null,
+      arkPassiveStatus: 'idle' as const,
+      arkPassiveMessage: '',
+      needsReview: classNeedsBuildResolution(slot.className),
+    };
+  }
+  const resolution = resolveRaidBuild(slot.className, title);
+  return {
+    ...slot,
+    arkPassiveTitle: resolution.title,
+    buildSource: 'manual' as const,
+    resolvedRole: resolution.role,
+    resolvedPosition: resolution.position,
+    arkPassiveStatus: resolution.needsReview ? 'review' as const : 'confirmed' as const,
+    arkPassiveMessage: resolution.needsReview ? '빌드 확인 필요' : '수동 빌드 선택',
+    needsReview: resolution.needsReview,
+  };
 });
 
 const UNKNOWN_MEMBER = {

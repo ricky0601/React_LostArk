@@ -5,6 +5,7 @@ import RaidClassBadges from '../components/raid-composition/RaidClassBadges';
 import RaidCompositionMini from '../components/raid-composition/RaidCompositionMini';
 import RaidCompositionRecommendation from '../components/raid-composition/RaidCompositionRecommendation';
 import { RAID_COMPOSITION_DATA_METADATA } from '../data/raidComposition';
+import { getRaidBuildOptions } from '../data/raidBuildPositions';
 import {
   evaluateRaidComposition,
   recommendRaidComposition,
@@ -14,7 +15,9 @@ import {
 } from '../components/raid-composition/evaluateComposition';
 import {
   CLASS_OPTIONS,
+  enableRosterAutoRecognition,
   toCompositionMembers,
+  updateRosterBuild,
   updateRosterSlot,
   type RaidRosterSlot,
 } from '../components/raid-composition/roster';
@@ -46,7 +49,7 @@ const formatPositionSummary = (entropyHead: number, entropyBack: number, hitMast
   `헤드 ${entropyHead} · 백 ${entropyBack} · 타대 ${hitMaster} · 판정 불가 ${unknown}`
 );
 
-const SlotRow: React.FC<{
+export const SlotRow: React.FC<{
   slot: RaidRosterSlot;
   party: PartyNumber;
   dragging: boolean;
@@ -54,8 +57,11 @@ const SlotRow: React.FC<{
   onDragStart: (id: string) => void;
   onDragEnd: () => void;
   onMoveParty: (id: string, party: PartyNumber) => void;
-}> = ({ slot, party, dragging, onChange, onDragStart, onDragEnd, onMoveParty }) => {
+  onBuildChange: (id: string, title: string) => void;
+  onEnableAutoRecognition: (id: string) => void;
+}> = ({ slot, party, dragging, onChange, onDragStart, onDragEnd, onMoveParty, onBuildChange, onEnableAutoRecognition }) => {
   const slotLabel = `${party}파티 · 인식 ${slot.slot + 1}`;
+  const buildOptions = getRaidBuildOptions(slot.className);
   return (
   <li
     draggable
@@ -75,6 +81,7 @@ const SlotRow: React.FC<{
         <label className="flex items-center gap-1 text-xs text-gray-600 dark:text-gray-300">
           <input
             type="checkbox"
+            aria-label={`${slotLabel} 고정`}
             checked={slot.fixed}
             onChange={(event) => onChange(slot.id, { fixed: event.target.checked })}
           />
@@ -116,7 +123,29 @@ const SlotRow: React.FC<{
       </button>
     </div>
     <div className="flex flex-wrap items-center gap-1.5">
+      {buildOptions.length > 0 && (
+        <select
+          aria-label={`${slotLabel} 빌드`}
+          value={buildOptions.find((build) => build.titles.includes(slot.arkPassiveTitle))?.titles[0] ?? slot.arkPassiveTitle}
+          onChange={(event) => onBuildChange(slot.id, event.target.value)}
+          className="min-h-7 rounded border border-gray-300 bg-white px-1.5 text-[11px] dark:border-white/10 dark:bg-white/5"
+        >
+          <option value="">빌드 선택</option>
+          {buildOptions.map((build) => (
+            <option key={build.titles[0]} value={build.titles[0]}>{build.titles[0]}</option>
+          ))}
+        </select>
+      )}
       <RaidClassBadges slot={slot} />
+      {(slot.classNameSource === 'manual' || slot.nicknameSource === 'manual') && (
+        <button
+          type="button"
+          onClick={() => onEnableAutoRecognition(slot.id)}
+          className="text-[11px] font-semibold text-la-gold-dark underline dark:text-la-gold"
+        >
+          자동 인식으로 전환
+        </button>
+      )}
       {slot.arkPassiveMessage && (
         <span className="text-[11px] text-gray-500 dark:text-gray-400">
           {slot.arkPassiveTitle && `${slot.arkPassiveTitle} · `}{slot.arkPassiveMessage}
@@ -179,6 +208,12 @@ const RaidCompositionPage: React.FC = () => {
 
   const handleSlotChange: React.ComponentProps<typeof SlotRow>['onChange'] = (id, patch) => {
     setRoster((current) => updateRosterSlot(current, id, patch));
+  };
+  const handleBuildChange = (id: string, title: string) => {
+    setRoster((current) => updateRosterBuild(current, id, title));
+  };
+  const handleEnableAutoRecognition = (id: string) => {
+    setRoster((current) => enableRosterAutoRecognition(current, id));
   };
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const handleMoveParty = (id: string, party: PartyNumber) => {
@@ -314,6 +349,8 @@ const RaidCompositionPage: React.FC = () => {
                     onDragStart={setDraggingId}
                     onDragEnd={() => setDraggingId(null)}
                     onMoveParty={handleMoveParty}
+                    onBuildChange={handleBuildChange}
+                    onEnableAutoRecognition={handleEnableAutoRecognition}
                   />
                 ))}
               </ul>

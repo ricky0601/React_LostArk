@@ -88,6 +88,17 @@ describe('lookupRaidArkPassive', () => {
     expect(mockedFetchProfile).toHaveBeenCalledTimes(1);
   });
 
+  it('passes the abort signal to both profile and ark passive requests', async () => {
+    mockedFetchProfile.mockResolvedValue({ CharacterClassName: '바드' } as never);
+    mockedFetchArkPassive.mockResolvedValue({ IsArkPassive: true, Title: '절실한 구원' } as never);
+    const controller = new AbortController();
+
+    await lookupRaidArkPassive('비식별닉네임', '바드', controller.signal);
+
+    expect(mockedFetchProfile).toHaveBeenCalledWith('비식별닉네임', { signal: controller.signal });
+    expect(mockedFetchArkPassive).toHaveBeenCalledWith('비식별닉네임', { signal: controller.signal });
+  });
+
   it('deduplicates concurrent requests for the same character', async () => {
     mockedFetchProfile.mockResolvedValue({ CharacterClassName: '바드' } as never);
     mockedFetchArkPassive.mockResolvedValue({ IsArkPassive: true, Title: '절실한 구원' } as never);

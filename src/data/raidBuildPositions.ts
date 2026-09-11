@@ -8,7 +8,7 @@ export interface RaidBuildResolution {
   readonly synergies?: readonly ClassSynergy[];
 }
 
-interface RaidBuildDefinition {
+export interface RaidBuildDefinition {
   readonly className: string;
   readonly titles: readonly string[];
   readonly role: RaidRole;
@@ -74,6 +74,10 @@ BUILD_DEFINITIONS.forEach((definition) => {
     BUILD_BY_CLASS_AND_TITLE.set(`${definition.className}:${normalizeTitle(title)}`, definition);
   });
 });
+
+export const getRaidBuildOptions = (className: string): readonly RaidBuildDefinition[] => (
+  BUILD_DEFINITIONS.filter((definition) => definition.className === className)
+);
 
 export const resolveRaidBuild = (className: string, arkPassiveTitle: string | null | undefined): RaidBuildResolution => {
   const title = arkPassiveTitle?.trim() ?? '';

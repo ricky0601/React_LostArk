@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useScreenRecognition } from '../screen-recognition/useScreenRecognition';
 import { RaidPartyFrameRecognizer } from './RaidPartyFrameRecognizer';
-import { lookupRaidArkPassiveCandidates } from './raidArkPassiveLookup';
+import { clearRaidArkPassiveLookupCache, lookupRaidArkPassiveCandidates } from './raidArkPassiveLookup';
 import { normalizeRaidNickname, type RaidFrameObservation } from './recognition';
 import { applyRecognitionToRoster, createInitialRoster, type RaidRosterSlot } from './roster';
 
@@ -23,7 +23,12 @@ export const useRaidScreenCapture = () => {
   const [roster, setRoster] = useState<readonly RaidRosterSlot[]>(createInitialRoster);
   const [framesScanned, setFramesScanned] = useState(0);
   const [lastScanAt, setLastScanAt] = useState<number | null>(null);
-  const [autoArkPassiveLookup, setAutoArkPassiveLookup] = useState(true);
+  const [autoArkPassiveLookup, setAutoArkPassiveLookupState] = useState(false);
+  const activeLookups = useRef(new Map<string, {
+    identity: string;
+    controller: AbortController;
+    timer: number;
+  }>());
 
   const recognizer = useMemo(() => new RaidPartyFrameRecognizer(), []);
 
@@ -40,57 +45,100 @@ export const useRaidScreenCapture = () => {
     setLastScanAt(null);
   }, []);
 
+  const cancelLookups = useCallback(() => {
+    activeLookups.current.forEach(({ controller, timer }) => {
+      window.clearTimeout(timer);
+      controller.abort();
+    });
+    activeLookups.current.clear();
+  }, []);
+
+  const setAutoArkPassiveLookup = useCallback((enabled: boolean) => {
+    if (!enabled) {
+      const cancelledIds = new Set(activeLookups.current.keys());
+      cancelLookups();
+      setRoster((current) => current.map((slot) => (
+        cancelledIds.has(slot.id) && slot.arkPassiveStatus === 'loading'
+          ? { ...slot, arkPassiveStatus: 'idle' as const, arkPassiveMessage: '' }
+          : slot
+      )));
+    }
+    setAutoArkPassiveLookupState(enabled);
+  }, [cancelLookups]);
+
   useEffect(() => {
-    if (!autoArkPassiveLookup) return;
-    const targets = roster.filter((slot) => (
+    activeLookups.current.forEach((active, id) => {
+      const slot = roster.find((candidate) => candidate.id === id);
+      const identity = slot ? `${slot.className}:${slot.nickname}` : '';
+      if (!autoArkPassiveLookup || identity !== active.identity) {
+        window.clearTimeout(active.timer);
+        active.controller.abort();
+        activeLookups.current.delete(id);
+      }
+    });
+    if (!autoArkPassiveLookup || activeLookups.current.size > 0) return;
+    const target = roster.find((slot) => (
       slot.className !== ''
       && normalizeRaidNickname(slot.nickname) === slot.nickname
       && slot.arkPassiveStatus === 'idle'
-    )).slice(0, 1);
-    if (targets.length === 0) return;
+      && slot.buildSource !== 'manual'
+    ));
+    if (!target) return;
 
+    const controller = new AbortController();
+    const identity = `${target.className}:${target.nickname}`;
     const timer = window.setTimeout(() => {
+      if (controller.signal.aborted) return;
       setRoster((current) => current.map((slot) => (
-        targets.some((target) => target.id === slot.id && target.nickname === slot.nickname)
+        slot.id === target.id && `${slot.className}:${slot.nickname}` === identity
           ? { ...slot, arkPassiveStatus: 'loading' as const, arkPassiveMessage: '아크패시브 조회 중', needsReview: true }
           : slot
       )));
-      targets.forEach((target) => {
-        void lookupRaidArkPassiveCandidates(
-          target.nicknameCandidates.length > 0 ? target.nicknameCandidates : [target.nickname],
-          target.className,
-        )
-          .then((result) => {
-            setRoster((current) => current.map((slot) => {
-              if (slot.id !== target.id || slot.nickname !== target.nickname || slot.className !== target.className) return slot;
-              return {
-                ...slot,
-                nickname: result.nickname,
-                nicknameCandidates: [result.nickname],
-                arkPassiveTitle: result.title,
-                resolvedRole: result.role,
-                resolvedPosition: result.position,
-                arkPassiveStatus: result.needsReview ? 'review' as const : 'confirmed' as const,
-                arkPassiveMessage: result.needsReview ? '포지션 매핑 확인 필요' : '아크패시브 확인됨',
-                needsReview: result.needsReview,
-              };
-            }));
-          })
-          .catch((lookupError: unknown) => {
-            setRoster((current) => current.map((slot) => {
-              if (slot.id !== target.id || slot.nickname !== target.nickname || slot.className !== target.className) return slot;
-              return {
-                ...slot,
-                arkPassiveStatus: 'error' as const,
-                arkPassiveMessage: lookupError instanceof Error ? lookupError.message : '아크패시브 조회 실패',
-                needsReview: true,
-              };
-            }));
-          });
-      });
+      void lookupRaidArkPassiveCandidates(
+        target.nicknameCandidates.length > 0 ? target.nicknameCandidates : [target.nickname],
+        target.className,
+        controller.signal,
+      )
+        .then((result) => {
+          if (controller.signal.aborted) return;
+          setRoster((current) => current.map((slot) => {
+            if (slot.id !== target.id || `${slot.className}:${slot.nickname}` !== identity || slot.buildSource === 'manual') return slot;
+            return {
+              ...slot,
+              nickname: slot.nicknameSource === 'manual' ? slot.nickname : result.nickname,
+              nicknameCandidates: slot.nicknameSource === 'manual' ? slot.nicknameCandidates : [result.nickname],
+              arkPassiveTitle: result.title,
+              buildSource: 'recognition' as const,
+              resolvedRole: result.role,
+              resolvedPosition: result.position,
+              arkPassiveStatus: result.needsReview ? 'review' as const : 'confirmed' as const,
+              arkPassiveMessage: result.needsReview ? '포지션 매핑 확인 필요' : '아크패시브 확인됨',
+              needsReview: result.needsReview,
+            };
+          }));
+        })
+        .catch((lookupError: unknown) => {
+          if (controller.signal.aborted) return;
+          setRoster((current) => current.map((slot) => {
+            if (slot.id !== target.id || `${slot.className}:${slot.nickname}` !== identity) return slot;
+            return {
+              ...slot,
+              arkPassiveStatus: 'error' as const,
+              arkPassiveMessage: lookupError instanceof Error ? lookupError.message : '아크패시브 조회 실패',
+              needsReview: true,
+            };
+          }));
+        })
+        .finally(() => {
+          if (activeLookups.current.get(target.id)?.controller === controller) {
+            activeLookups.current.delete(target.id);
+          }
+        });
     }, 400);
-    return () => window.clearTimeout(timer);
+    activeLookups.current.set(target.id, { identity, controller, timer });
   }, [autoArkPassiveLookup, roster]);
+
+  useEffect(() => cancelLookups, [cancelLookups]);
 
   const recognition = useScreenRecognition<RaidFrameObservation>({
     recognizer,
@@ -101,6 +149,16 @@ export const useRaidScreenCapture = () => {
     onSessionStart: handleSessionStart,
   });
 
+  const reset = useCallback(() => {
+    cancelLookups();
+    clearRaidArkPassiveLookupCache();
+    recognition.reset();
+    setAutoArkPassiveLookupState(false);
+    setRoster(createInitialRoster());
+    setFramesScanned(0);
+    setLastScanAt(null);
+  }, [cancelLookups, recognition]);
+
   return {
     roster,
     setRoster,
@@ -109,5 +167,6 @@ export const useRaidScreenCapture = () => {
     autoArkPassiveLookup,
     setAutoArkPassiveLookup,
     ...recognition,
+    reset,
   };
 };

@@ -233,6 +233,7 @@ const RaidCompositionMini: React.FC<RaidCompositionMiniProps> = ({
                   <label className="flex items-center gap-1 text-[11px]">
                     <input
                       type="checkbox"
+                      aria-label={`미니 창 ${party}파티 인식 ${slot.slot + 1}번 슬롯 고정`}
                       checked={slot.fixed}
                       onChange={(event) => updateSlot(slot.id, { fixed: event.target.checked })}
                     />

@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
+  detectRaidViewportTransform,
   expandRaidOcrCandidates,
   getRaidOcrStableSignature,
+  getRaidPixelBox,
   normalizeClassIconPixels,
   prioritizeSpecializedRaidOcrCandidate,
   rankRaidOcrCandidates,
@@ -94,6 +96,32 @@ describe('getRaidOcrStableSignature', () => {
   it('stays stable when only lower-ranked OCR alternatives fluctuate', () => {
     expect(getRaidOcrStableSignature(['뜌슬비', '뉴슬비']))
       .toBe(getRaidOcrStableSignature(['뜌슬비', '듀을비', '류슬비']));
+  });
+});
+
+describe('detectRaidViewportTransform', () => {
+  it('finds a 1919x1079 game viewport placed at (200, 100) in a 2560x1440 frame', () => {
+    const width = 2560;
+    const height = 1440;
+    const data = new Uint8ClampedArray(width * height * 4);
+    for (let index = 3; index < data.length; index += 4) data[index] = 255;
+    for (let y = 100; y < 1179; y += 1) {
+      for (let x = 200; x < 2119; x += 1) {
+        const index = (y * width + x) * 4;
+        data[index] = 40 + ((x + y) % 80);
+        data[index + 1] = 50;
+        data[index + 2] = 60;
+      }
+    }
+
+    const viewport = detectRaidViewportTransform({ data, width, height } as ImageData);
+    expect(viewport).toEqual({ x: 200, y: 100, width: 1919, height: 1079 });
+    expect(getRaidPixelBox(
+      { x: 0.686, y: 0.282, width: 0.035, height: 0.057 },
+      width,
+      height,
+      viewport,
+    )).toEqual({ x: 1516, y: 404, width: 68, height: 62 });
   });
 });
 
