@@ -76,6 +76,39 @@ describe('useRaidScreenCapture', () => {
     unmount();
   });
 
+  it('keeps a confirmed identity on one mismatched nickname frame while auto lookup is enabled', async () => {
+    mocks.lookup.mockResolvedValueOnce({
+      nickname: '확정닉', className: '바드', title: '절실한 구원', role: 'support', position: 'unknown', needsReview: false,
+    });
+    const { result } = renderHook(() => useRaidScreenCapture());
+
+    act(() => mocks.options?.onResult(frame('바드', '확정닉')));
+    act(() => result.current.setAutoArkPassiveLookup(true));
+    await act(async () => { await vi.advanceTimersByTimeAsync(400); });
+
+    expect(result.current.roster[0]).toMatchObject({
+      className: '바드',
+      nickname: '확정닉',
+      arkPassiveTitle: '절실한 구원',
+      resolvedRole: 'support',
+      resolvedPosition: 'unknown',
+      arkPassiveStatus: 'confirmed',
+    });
+
+    act(() => mocks.options?.onResult(frame('바드', '오인식닉')));
+    await act(async () => { await vi.advanceTimersByTimeAsync(400); });
+
+    expect(result.current.roster[0]).toMatchObject({
+      className: '바드',
+      nickname: '확정닉',
+      arkPassiveTitle: '절실한 구원',
+      resolvedRole: 'support',
+      resolvedPosition: 'unknown',
+      arkPassiveStatus: 'confirmed',
+    });
+    expect(mocks.lookup).toHaveBeenCalledTimes(1);
+  });
+
   it('keeps a manual build when an active lookup fails after the selection', async () => {
     let rejectLookup!: (error: Error) => void;
     mocks.lookup.mockImplementationOnce(() => new Promise((_, reject) => { rejectLookup = reject; }));

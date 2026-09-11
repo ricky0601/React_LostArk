@@ -38,9 +38,9 @@ export const useRaidScreenCapture = () => {
     setFramesScanned((count) => count + 1);
     setLastScanAt(result.scannedAt);
     setRoster((current) => applyRecognitionToRoster(current, result.observations, {
-      preserveConfirmedNicknames: !autoArkPassiveLookup,
+      preserveConfirmedNicknames: true,
     }));
-  }, [autoArkPassiveLookup]);
+  }, []);
 
   const handleSessionStart = useCallback(() => {
     setFramesScanned(0);
