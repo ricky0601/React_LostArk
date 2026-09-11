@@ -24,6 +24,8 @@ export const useRaidScreenCapture = () => {
   const [framesScanned, setFramesScanned] = useState(0);
   const [lastScanAt, setLastScanAt] = useState<number | null>(null);
   const [autoArkPassiveLookup, setAutoArkPassiveLookupState] = useState(false);
+  const rosterRef = useRef(roster);
+  rosterRef.current = roster;
   const activeLookups = useRef(new Map<string, {
     identity: string;
     controller: AbortController;
@@ -70,7 +72,7 @@ export const useRaidScreenCapture = () => {
     activeLookups.current.forEach((active, id) => {
       const slot = roster.find((candidate) => candidate.id === id);
       const identity = slot ? `${slot.className}:${slot.nickname}` : '';
-      if (!autoArkPassiveLookup || identity !== active.identity) {
+      if (!autoArkPassiveLookup || identity !== active.identity || slot?.buildSource === 'manual') {
         window.clearTimeout(active.timer);
         active.controller.abort();
         activeLookups.current.delete(id);
@@ -87,10 +89,23 @@ export const useRaidScreenCapture = () => {
 
     const controller = new AbortController();
     const identity = `${target.className}:${target.nickname}`;
+    const ownsTarget = () => {
+      const currentSlot = rosterRef.current.find((slot) => slot.id === target.id);
+      return activeLookups.current.get(target.id)?.controller === controller
+        && !controller.signal.aborted
+        && currentSlot?.buildSource !== 'manual'
+        && `${currentSlot?.className}:${currentSlot?.nickname}` === identity;
+    };
     const timer = window.setTimeout(() => {
-      if (controller.signal.aborted) return;
+      if (!ownsTarget()) {
+        if (activeLookups.current.get(target.id)?.controller === controller) {
+          controller.abort();
+          activeLookups.current.delete(target.id);
+        }
+        return;
+      }
       setRoster((current) => current.map((slot) => (
-        slot.id === target.id && `${slot.className}:${slot.nickname}` === identity
+        slot.id === target.id && `${slot.className}:${slot.nickname}` === identity && slot.buildSource !== 'manual'
           ? { ...slot, arkPassiveStatus: 'loading' as const, arkPassiveMessage: '아크패시브 조회 중', needsReview: true }
           : slot
       )));
@@ -100,7 +115,7 @@ export const useRaidScreenCapture = () => {
         controller.signal,
       )
         .then((result) => {
-          if (controller.signal.aborted) return;
+          if (!ownsTarget()) return;
           setRoster((current) => current.map((slot) => {
             if (slot.id !== target.id || `${slot.className}:${slot.nickname}` !== identity || slot.buildSource === 'manual') return slot;
             return {
@@ -118,9 +133,9 @@ export const useRaidScreenCapture = () => {
           }));
         })
         .catch((lookupError: unknown) => {
-          if (controller.signal.aborted) return;
+          if (!ownsTarget()) return;
           setRoster((current) => current.map((slot) => {
-            if (slot.id !== target.id || `${slot.className}:${slot.nickname}` !== identity) return slot;
+            if (slot.id !== target.id || `${slot.className}:${slot.nickname}` !== identity || slot.buildSource === 'manual') return slot;
             return {
               ...slot,
               arkPassiveStatus: 'error' as const,

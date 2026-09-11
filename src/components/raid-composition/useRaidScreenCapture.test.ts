@@ -1,6 +1,7 @@
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { RaidFrameObservation } from './recognition';
+import { updateRosterBuild } from './roster';
 import { useRaidScreenCapture } from './useRaidScreenCapture';
 
 const mocks = vi.hoisted(() => ({
@@ -73,6 +74,38 @@ describe('useRaidScreenCapture', () => {
     });
     expect(result.current.roster[0]).toMatchObject({ className: '도화가', nickname: '새인식닉', arkPassiveTitle: '' });
     unmount();
+  });
+
+  it('keeps a manual build when an active lookup fails after the selection', async () => {
+    let rejectLookup!: (error: Error) => void;
+    mocks.lookup.mockImplementationOnce(() => new Promise((_, reject) => { rejectLookup = reject; }));
+    const { result } = renderHook(() => useRaidScreenCapture());
+    act(() => mocks.options?.onResult(frame()));
+    act(() => result.current.setAutoArkPassiveLookup(true));
+    await act(async () => { await vi.advanceTimersByTimeAsync(400); });
+    const signal = mocks.lookup.mock.calls[0][2] as AbortSignal;
+
+    act(() => result.current.setRoster((current) => updateRosterBuild(current, 'slot-0', '절실한 구원')));
+    expect(signal.aborted).toBe(true);
+    await act(async () => { rejectLookup(new Error('조회 실패')); await Promise.resolve(); });
+
+    expect(result.current.roster[0]).toMatchObject({
+      arkPassiveTitle: '절실한 구원', buildSource: 'manual', arkPassiveStatus: 'confirmed', arkPassiveMessage: '수동 빌드 선택',
+    });
+  });
+
+  it('cancels a pending lookup debounce when a manual build is selected', async () => {
+    const { result } = renderHook(() => useRaidScreenCapture());
+    act(() => mocks.options?.onResult(frame()));
+    act(() => result.current.setAutoArkPassiveLookup(true));
+
+    act(() => result.current.setRoster((current) => updateRosterBuild(current, 'slot-0', '절실한 구원')));
+    await act(async () => { await vi.advanceTimersByTimeAsync(400); });
+
+    expect(mocks.lookup).not.toHaveBeenCalled();
+    expect(result.current.roster[0]).toMatchObject({
+      arkPassiveTitle: '절실한 구원', buildSource: 'manual', arkPassiveStatus: 'confirmed', arkPassiveMessage: '수동 빌드 선택',
+    });
   });
 
   it('keeps a replacement lookup tracked when the aborted request settles late', async () => {

@@ -162,7 +162,7 @@ export const applyRecognitionToRoster = (
     if (isVacancy && vacancyFrames >= 2) {
       const clearClass = slot.classNameSource === 'recognition';
       const clearNickname = slot.nicknameSource === 'recognition';
-      const clearBuild = clearClass || (clearNickname && slot.className === '');
+      const clearBuild = clearClass || (clearNickname && slot.buildSource === 'recognition');
       return {
         ...slot,
         ...(clearClass ? { className: '' } : {}),
@@ -177,7 +177,7 @@ export const applyRecognitionToRoster = (
         } : {}),
         confidence: 0,
         vacancyFrames,
-        needsReview: clearClass || slot.needsReview,
+        needsReview: clearClass || (clearBuild ? classNeedsBuildResolution(slot.className) : slot.needsReview),
       };
     }
     const nextClassName = slot.classNameSource === 'manual'

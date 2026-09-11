@@ -135,6 +135,50 @@ describe('applyRecognitionToRoster', () => {
     expect(twice[0]).toMatchObject({ className: '', nickname: '', arkPassiveTitle: '', vacancyFrames: 2 });
   });
 
+  it('clears a recognition-derived build when a recognized nickname leaves a manually selected class', () => {
+    const withManualClass = updateRosterSlot(createInitialRoster(), 'slot-0', { className: '바드' });
+    const recognized = applyRecognitionToRoster(withManualClass, [observation(0, '바드', false, '자동닉')]);
+    const withRecognitionBuild = recognized.map((slot) => (slot.slot === 0 ? {
+      ...slot,
+      arkPassiveTitle: '절실한 구원',
+      buildSource: 'recognition' as const,
+      resolvedRole: 'support' as const,
+      resolvedPosition: 'unknown' as const,
+      arkPassiveStatus: 'confirmed' as const,
+      arkPassiveMessage: '아크패시브 확인됨',
+      needsReview: false,
+    } : slot));
+
+    const vacant = applyRecognitionToRoster(
+      applyRecognitionToRoster(withRecognitionBuild, [observation(0, null, true)]),
+      [observation(0, null, true)],
+    );
+
+    expect(vacant[0]).toMatchObject({
+      className: '바드', classNameSource: 'manual', nickname: '', nicknameSource: 'recognition',
+      arkPassiveTitle: '', buildSource: 'recognition', resolvedRole: null, resolvedPosition: null,
+      arkPassiveStatus: 'idle', arkPassiveMessage: '', needsReview: true,
+    });
+    expect(toCompositionMembers(vacant)[0]).toMatchObject({ role: 'unknown', position: 'unknown', synergies: [] });
+  });
+
+  it('preserves a manual class and build when its recognized nickname becomes vacant', () => {
+    const withManualClass = updateRosterSlot(createInitialRoster(), 'slot-0', { className: '바드' });
+    const recognized = applyRecognitionToRoster(withManualClass, [observation(0, '바드', false, '자동닉')]);
+    const withManualBuild = updateRosterBuild(recognized, 'slot-0', '절실한 구원');
+
+    const vacant = applyRecognitionToRoster(
+      applyRecognitionToRoster(withManualBuild, [observation(0, null, true)]),
+      [observation(0, null, true)],
+    );
+
+    expect(vacant[0]).toMatchObject({
+      className: '바드', classNameSource: 'manual', nickname: '', nicknameSource: 'recognition',
+      arkPassiveTitle: '절실한 구원', buildSource: 'manual', resolvedRole: 'support', resolvedPosition: 'unknown',
+      arkPassiveStatus: 'confirmed', arkPassiveMessage: '수동 빌드 선택', needsReview: false,
+    });
+  });
+
   it('clears a manually selected build when its recognized occupant becomes vacant', () => {
     const recognized = applyRecognitionToRoster(createInitialRoster(), [observation(0, '바드', false, '자동닉')]);
     const withManualBuild = updateRosterBuild(recognized, 'slot-0', '절실한 구원');
