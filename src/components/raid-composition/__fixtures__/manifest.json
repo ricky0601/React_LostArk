@@ -1,23 +1,13 @@
 {
-  "sourceKind": "Lost Ark party finder detail window",
-  "width": 1919,
-  "height": 1079,
-  "privacy": "The non-detail area left of x=1295 and every nickname region are masked. Original captures are not committed.",
+  "sourceKind": "Lost Ark joined raid participant panel",
+  "width": 1920,
+  "height": 1080,
+  "privacy": "Only the participant slot panel is retained and every nickname region is masked. Original capture is not committed.",
   "cases": [
     {
-      "file": "raid-8-1-member.png",
-      "occupiedSlots": 1,
-      "expectedClasses": ["환수사", null, null, null, null, null, null, null]
-    },
-    {
-      "file": "raid-8-7-members.png",
+      "file": "raid-joined-7-members.png",
       "occupiedSlots": 7,
-      "expectedClasses": ["소울이터", "소서리스", "기상술사", "도화가", "건슬링어", "인파이터", null, "도화가"]
-    },
-    {
-      "file": "raid-8-8-members.png",
-      "occupiedSlots": 8,
-      "expectedClasses": ["바드", "창술사", "디스트로이어", "호크아이", "데모닉", "환수사", "차원술사", "가디언나이트"]
+      "expectedClasses": ["차원술사", "가디언나이트", "데모닉", "홀리나이트", "슬레이어", "호크아이", "기상술사", null]
     }
   ]
 }

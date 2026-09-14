@@ -75,7 +75,7 @@ export const SlotRow: React.FC<{
   >
     <div className="flex items-center gap-2">
       <span className="cursor-grab text-xs font-semibold text-gray-600 active:cursor-grabbing dark:text-gray-300" title="드래그해서 파티 이동">
-        {party}파티 · {slot.slot + 1}번
+        {party}파티 · {(slot.slot % 4) + 1}번
       </span>
       <div className="ml-auto flex shrink-0 items-center gap-2">
         <label className="flex items-center gap-1 text-xs text-gray-600 dark:text-gray-300">
@@ -244,15 +244,15 @@ const RaidCompositionPage: React.FC = () => {
         <p className="text-xs font-bold text-la-gold-dark dark:text-la-gold">8인 레이드</p>
         <h1 className="mt-1 text-2xl font-bold text-gray-900 dark:text-white">공대 편성 도우미</h1>
         <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-600 dark:text-gray-300">
-          모집창을 공유하면 파티원을 자동으로 읽고, 겹치는 시너지를 분산한 추천 편성을 만들어 드립니다.
+          공대에 참여한 게임 화면을 공유하면 파티원을 자동으로 읽고, 겹치는 시너지를 분산한 추천 편성을 만들어 드립니다.
         </p>
       </header>
 
       <section aria-label="화면 공유" className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-white/[0.03]">
         <div className="mb-3 flex items-center justify-between gap-3">
           <div>
-            <h2 className="font-bold text-gray-900 dark:text-white"><span className="mr-2 text-la-gold-dark dark:text-la-gold">1</span>모집창 불러오기</h2>
-            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Lost Ark 모집창이 보이는 화면이나 창을 선택하세요.</p>
+            <h2 className="font-bold text-gray-900 dark:text-white"><span className="mr-2 text-la-gold-dark dark:text-la-gold">1</span>공대 화면 불러오기</h2>
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">공대에 참여한 뒤 파티 찾기의 참가자 패널이 보이는 Lost Ark 화면이나 창을 선택하세요.</p>
           </div>
           <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${status === 'sharing' ? 'bg-red-100 text-red-600 dark:bg-red-500/20 dark:text-red-300' : status === 'error' ? 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300' : 'bg-gray-100 text-gray-600 dark:bg-white/10 dark:text-gray-300'}`} aria-live="polite">
             {CAPTURE_STATUS_LABEL[status]}
@@ -326,7 +326,7 @@ const RaidCompositionPage: React.FC = () => {
           </div>
           <span className="shrink-0 rounded-full bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-600 dark:bg-white/10 dark:text-gray-300">{recognizedCount}/8 완료</span>
         </div>
-        <div className="mt-2 flex flex-col gap-3">
+        <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2">
           {([1, 2] as const).map((party) => (
             <section
               key={party}
@@ -338,7 +338,7 @@ const RaidCompositionPage: React.FC = () => {
               <h3 className="mb-2 text-xs font-bold text-gray-600 dark:text-gray-300">
                 {party}파티 · {roster.filter((slot) => slot.currentParty === party).length}/4
               </h3>
-              <ul className="grid min-h-16 grid-cols-1 gap-2 sm:grid-cols-2">
+              <ul className="grid min-h-16 grid-cols-1 gap-2">
                 {roster.filter((slot) => slot.currentParty === party).map((slot) => (
                   <SlotRow
                     key={slot.id}

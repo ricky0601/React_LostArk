@@ -181,7 +181,7 @@ const RaidCompositionMini: React.FC<RaidCompositionMiniProps> = ({
         </section>
       )}
 
-      <section aria-label="미니 창 슬롯 수동 조절" className="flex flex-col gap-3">
+      <section aria-label="미니 창 슬롯 수동 조절" className="grid grid-cols-2 gap-2">
         {([1, 2] as const).map((party) => (
           <div
             key={party}
@@ -194,7 +194,7 @@ const RaidCompositionMini: React.FC<RaidCompositionMiniProps> = ({
             }}
           >
             <h2 className={`mb-1 rounded px-2 py-1 text-xs font-bold ${party === 1 ? 'bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-300' : 'bg-violet-50 text-violet-700 dark:bg-violet-500/10 dark:text-violet-300'}`}>{party}파티</h2>
-            <ul className="grid min-h-10 grid-cols-1 gap-1 sm:grid-cols-2">
+            <ul className="grid min-h-10 grid-cols-1 gap-1">
               {roster.filter((slot) => slot.currentParty === party).map((slot) => (
                 <li
                   key={slot.id}

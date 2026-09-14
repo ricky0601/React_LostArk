@@ -36,6 +36,24 @@ describe('raid composition slot controls', () => {
     expect(onEnableAutoRecognition).toHaveBeenCalledWith('slot-0');
   });
 
+  it('shows party-local member numbers instead of global recognition indexes', () => {
+    const slot = createInitialRoster()[4];
+
+    render(<SlotRow
+      slot={slot}
+      party={2}
+      dragging={false}
+      onChange={noop}
+      onDragStart={noop}
+      onDragEnd={noop}
+      onMoveParty={noop}
+      onBuildChange={noop}
+      onEnableAutoRecognition={noop}
+    />);
+
+    expect(screen.getByText('2파티 · 1번')).toBeInTheDocument();
+  });
+
   it('gives each mini fixed checkbox a slot-unique accessible name', () => {
     render(<RaidCompositionMini
       roster={createInitialRoster()}

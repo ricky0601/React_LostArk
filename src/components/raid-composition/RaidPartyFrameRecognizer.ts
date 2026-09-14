@@ -18,7 +18,7 @@ import {
 } from './recognition';
 
 const TEMPLATE_CANVAS_SIZE = 100;
-const TEMPLATE_SIZES_AT_REFERENCE = [34, 35, 36, 37];
+const TEMPLATE_SIZES_AT_REFERENCE = [28, 29, 30, 31, 32, 33, 34];
 const MATCH_THRESHOLD = 0.52;
 const COARSE_THRESHOLD = 0.36;
 const NICKNAME_CONFIDENCE_THRESHOLD = 55;
@@ -30,7 +30,6 @@ const NICKNAME_PRIMARY_THRESHOLD = 90;
 const NICKNAME_FALLBACK_THRESHOLD = 150;
 const NICKNAME_SHIFTED_THRESHOLD = 120;
 const NICKNAME_SHIFTED_Y = 0.003;
-const NICKNAME_MAX_COLOR_SPREAD = 40;
 const NICKNAME_NATIVE_PADDING = 2;
 const NICKNAME_SHORT_WORD_VARIANT = {
   threshold: 170,
@@ -44,6 +43,10 @@ const NICKNAME_PRIMARY_NATIVE_VARIANTS = [
   { threshold: 110, scale: 6, trim: false, pixelOffsetX: 0, pixelOffsetY: 0 },
   { threshold: 140, scale: 6, trim: false, pixelOffsetX: 0, pixelOffsetY: 0 },
 ] as const;
+const CLASS_MATCH_CONFIDENCE_ADJUSTMENTS: Readonly<Partial<Record<string, number>>> = {
+  // 참가자 패널의 축소된 원형 문양은 배틀마스터와 유사해 실제 캡처로 보정한다.
+  가디언나이트: 0.025,
+};
 const NICKNAME_FALLBACK_NATIVE_VARIANTS = [
   { threshold: 150, scale: 4, trim: false, pixelOffsetX: 0, pixelOffsetY: 0 },
   { threshold: 70, scale: 6, trim: false, pixelOffsetX: 0, pixelOffsetY: 0 },
@@ -66,6 +69,19 @@ export const normalizeClassIconPixels = (imageData: ImageData): ImageData => {
       data[index + 2] = 255;
       data[index + 3] = 255;
     }
+  }
+  return imageData;
+};
+
+/** 금색과 흰색으로 표시되는 인게임 아이콘을 템플릿과 같은 무채색 밝기로 맞춘다. */
+export const normalizeClassIconSourcePixels = (imageData: ImageData): ImageData => {
+  const { data } = imageData;
+  for (let index = 0; index < data.length; index += 4) {
+    const brightness = Math.max(data[index], data[index + 1], data[index + 2]);
+    data[index] = brightness;
+    data[index + 1] = brightness;
+    data[index + 2] = brightness;
+    data[index + 3] = 255;
   }
   return imageData;
 };
@@ -177,6 +193,7 @@ interface PackedIconCell {
   readonly height: number;
   readonly normalizedCenterX: number;
   readonly normalizedCenterY: number;
+  readonly hasIcon: boolean;
 }
 
 interface IconPanel {
@@ -184,9 +201,19 @@ interface IconPanel {
   readonly cells: readonly PackedIconCell[];
 }
 
+export const hasRaidClassIconPixels = (pixels: ImageData): boolean => {
+  let brightPixels = 0;
+  for (let index = 0; index < pixels.data.length; index += 4) {
+    if (Math.max(pixels.data[index], pixels.data[index + 1], pixels.data[index + 2]) > 100) {
+      brightPixels += 1;
+    }
+  }
+  return brightPixels >= pixels.width * pixels.height * 0.03;
+};
+
 /**
- * 8개 직업 아이콘 ROI만 4x2 atlas로 모은다. 원본 화면의 두 열 사이 여백과
- * 파티 사이 여백을 제거해 템플릿 매칭할 픽셀 수를 줄이고 텍스트 오탐을 막는다.
+ * 8개 직업 아이콘 ROI만 논리적인 파티 순서의 4x2 atlas로 모은다. 원본 화면의
+ * 두 파티 열 사이 여백을 제거해 템플릿 매칭할 픽셀 수를 줄이고 텍스트 오탐을 막는다.
  */
 export const createRaidIconPanel = (
   frame: HTMLCanvasElement,
@@ -216,8 +243,11 @@ export const createRaidIconPanel = (
       height: box.height,
       normalizedCenterX: normalizedBox.x + normalizedBox.width / 2,
       normalizedCenterY: normalizedBox.y + normalizedBox.height / 2,
+      hasIcon: hasRaidClassIconPixels(context.getImageData(x, y, box.width, box.height)),
     };
   });
+  const pixels = context.getImageData(0, 0, canvas.width, canvas.height);
+  context.putImageData(normalizeClassIconSourcePixels(pixels), 0, 0);
   return { canvas, cells };
 };
 
@@ -267,14 +297,23 @@ const binarizeNicknamePixels = (pixels: ImageData, threshold: number): void => {
     const green = pixels.data[index + 1];
     const blue = pixels.data[index + 2];
     const brightness = Math.max(red, green, blue);
-    const colorSpread = brightness - Math.min(red, green, blue);
-    // 닉네임은 무채색이고 공대장 왕관은 노랑/보라색이므로 색상 픽셀을 문자에서 제외한다.
-    const value = brightness >= threshold && colorSpread <= NICKNAME_MAX_COLOR_SPREAD ? 255 : 0;
+    // 선택된 참가자의 닉네임은 노란색이므로 색상과 관계없이 밝은 글자를 보존한다.
+    const value = brightness >= threshold ? 255 : 0;
     pixels.data[index] = value;
     pixels.data[index + 1] = value;
     pixels.data[index + 2] = value;
     pixels.data[index + 3] = 255;
   }
+};
+
+export const invertMonochromePixels = (pixels: ImageData): ImageData => {
+  for (let index = 0; index < pixels.data.length; index += 4) {
+    pixels.data[index] = 255 - pixels.data[index];
+    pixels.data[index + 1] = 255 - pixels.data[index + 1];
+    pixels.data[index + 2] = 255 - pixels.data[index + 2];
+    pixels.data[index + 3] = 255;
+  }
+  return pixels;
 };
 
 export const createNicknameCanvas = (
@@ -283,6 +322,7 @@ export const createNicknameCanvas = (
   threshold = NICKNAME_PRIMARY_THRESHOLD,
   normalizedYOffset = 0,
   viewport: RaidViewportTransform = fullViewport(frame.width, frame.height),
+  invert = false,
 ): HTMLCanvasElement => {
   const normalizedBox = RAID_SLOT_NICKNAME_BOXES[slot];
   const box = getRaidPixelBox({
@@ -298,7 +338,7 @@ export const createNicknameCanvas = (
   context.drawImage(frame, box.x, box.y, box.width, box.height, 0, 0, canvas.width, canvas.height);
   const pixels = context.getImageData(0, 0, canvas.width, canvas.height);
   binarizeNicknamePixels(pixels, threshold);
-  context.putImageData(pixels, 0, 0);
+  context.putImageData(invert ? invertMonochromePixels(pixels) : pixels, 0, 0);
   return canvas;
 };
 
@@ -405,6 +445,11 @@ const NICKNAME_SYLLABLE_CONFUSION_GROUPS: readonly (readonly string[])[] = [
   ['대', '데', '테', '레'],
   ['도', '토', '트', '로'],
   ['는', '픈'],
+  ['동', '둥'],
+  ['욧', '웃'],
+  ['쿠', '큐'],
+  ['앤', '맨'],
+  ['깡', '깟'],
 ];
 
 const NICKNAME_SYLLABLE_ALTERNATIVES = new Map<string, readonly string[]>(
@@ -412,6 +457,11 @@ const NICKNAME_SYLLABLE_ALTERNATIVES = new Map<string, readonly string[]>(
     group.map((syllable) => [syllable, group.filter((candidate) => candidate !== syllable)] as const)
   )),
 );
+
+/** 붙어 보이는 두 글자를 한 음절로 읽는 저해상도 OCR의 일반적인 합자 혼동이다. */
+const NICKNAME_SEQUENCE_ALTERNATIVES: readonly (readonly [string, string])[] = [
+  ['잇', '이깟'],
+];
 
 export const expandRaidOcrCandidates = (text: string): readonly string[] => {
   let expanded = [{ text: '', substitutions: 0 }];
@@ -426,7 +476,13 @@ export const expandRaidOcrCandidates = (text: string): readonly string[] => {
       .sort((left, right) => left.substitutions - right.substitutions)
       .slice(0, NICKNAME_MAX_EXPANDED_CANDIDATES);
   });
-  const candidates = expanded.map((candidate) => candidate.text);
+  const candidates = expanded.map((candidate) => candidate.text)
+    .flatMap((candidate) => [
+      candidate,
+      ...NICKNAME_SEQUENCE_ALTERNATIVES.flatMap(([observed, alternative]) => (
+        candidate.includes(observed) ? [candidate.replace(observed, alternative)] : []
+      )),
+    ]);
 
   if (/^[0-9OUDS]+$/i.test(text)) {
     const alternatives: Readonly<Record<string, readonly string[]>> = {
@@ -452,6 +508,53 @@ interface NicknameCandidateScore {
   readonly text: string;
   readonly confidence: number;
 }
+
+export const getRaidOcrSequenceCandidates = (
+  observations: readonly NicknameCandidateScore[],
+): readonly string[] => Array.from(new Set(
+  [...observations]
+    .sort((left, right) => right.confidence - left.confidence)
+    .flatMap(({ text }) => NICKNAME_SEQUENCE_ALTERNATIVES.flatMap(([observed, alternative]) => {
+      if (text.includes(observed)) return [text.replace(observed, alternative)];
+      if (text.includes(alternative)) return [text.replace(alternative, observed)];
+      return [];
+    }))
+    .filter((candidate) => normalizeRaidNickname(candidate) != null),
+));
+
+export const getRaidOcrEditDistance = (left: string, right: string): number => {
+  const leftCharacters = Array.from(left);
+  const rightCharacters = Array.from(right);
+  const distances = Array.from({ length: rightCharacters.length + 1 }, (_, index) => index);
+  leftCharacters.forEach((leftCharacter, leftIndex) => {
+    let diagonal = distances[0];
+    distances[0] = leftIndex + 1;
+    rightCharacters.forEach((rightCharacter, rightIndex) => {
+      const above = distances[rightIndex + 1];
+      distances[rightIndex + 1] = Math.min(
+        above + 1,
+        distances[rightIndex] + 1,
+        diagonal + Number(leftCharacter !== rightCharacter),
+      );
+      diagonal = above;
+    });
+  });
+  return distances[rightCharacters.length];
+};
+
+export const getRaidOcrTransformationCost = (source: string, candidate: string): number => Math.min(
+  getRaidOcrEditDistance(source, candidate),
+  ...NICKNAME_SEQUENCE_ALTERNATIVES.flatMap(([observed, alternative]) => {
+    const transformed: number[] = [];
+    if (source.includes(observed)) {
+      transformed.push(1 + getRaidOcrEditDistance(source.replace(observed, alternative), candidate));
+    }
+    if (source.includes(alternative)) {
+      transformed.push(1 + getRaidOcrEditDistance(source.replace(alternative, observed), candidate));
+    }
+    return transformed;
+  }),
+);
 
 interface CharacterBeamCandidate {
   readonly text: string;
@@ -499,20 +602,40 @@ const buildCharacterConsensusCandidates = (
 export const rankRaidOcrCandidates = (
   observations: readonly NicknameCandidateScore[],
 ): readonly string[] => {
+  const bestObservationByText = new Map<string, NicknameCandidateScore>();
+  observations.forEach((observation) => {
+    const current = bestObservationByText.get(observation.text);
+    if (!current || observation.confidence > current.confidence) {
+      bestObservationByText.set(observation.text, observation);
+    }
+  });
+  const independentObservations = Array.from(bestObservationByText.values());
   const scores = new Map<string, number>();
-  observations.forEach(({ text, confidence }) => {
-    const sourceCharacters = Array.from(text);
+  independentObservations.forEach(({ text, confidence }) => {
+    const observationScores = new Map<string, number>();
     expandRaidOcrCandidates(text).forEach((candidate) => {
-      const candidateCharacters = Array.from(candidate);
-      const substitutions = candidateCharacters.reduce((count, character, index) => (
-        count + Number(character !== sourceCharacters[index])
-      ), 0);
-      const weightedConfidence = confidence * (0.8 ** substitutions);
-      scores.set(candidate, (scores.get(candidate) ?? 0) + weightedConfidence);
+      const transformationCost = getRaidOcrTransformationCost(text, candidate);
+      observationScores.set(candidate, confidence * (0.8 ** transformationCost));
+    });
+    NICKNAME_SEQUENCE_ALTERNATIVES.forEach(([observed, alternative]) => {
+      const directAlternative = text.includes(observed)
+        ? text.replace(observed, alternative)
+        : text.includes(alternative)
+          ? text.replace(alternative, observed)
+          : null;
+      if (directAlternative && normalizeRaidNickname(directAlternative)) {
+        observationScores.set(
+          directAlternative,
+          Math.max(observationScores.get(directAlternative) ?? 0, confidence * 0.95),
+        );
+      }
+    });
+    observationScores.forEach((score, candidate) => {
+      scores.set(candidate, (scores.get(candidate) ?? 0) + score);
     });
   });
-  buildCharacterConsensusCandidates(observations).forEach(({ text, score }) => {
-    scores.set(text, (scores.get(text) ?? 0) + score * 24);
+  buildCharacterConsensusCandidates(independentObservations).forEach(({ text, score }) => {
+    scores.set(text, (scores.get(text) ?? 0) + score * 4);
   });
   return Array.from(scores.entries())
     .sort((left, right) => right[1] - left[1])
@@ -542,6 +665,22 @@ export const prioritizeSpecializedRaidOcrCandidate = (
 
 export const getRaidOcrStableSignature = (candidates: readonly string[]): string => candidates[0] ?? '';
 
+export const mergeRaidOcrCandidates = (
+  previous: readonly string[],
+  current: readonly string[],
+): readonly string[] => {
+  const head = current[0] ?? previous[0];
+  const merged = head ? [head] : [];
+  const alternatives = Math.max(previous.length, current.length);
+  for (let index = 1; index < alternatives && merged.length < NICKNAME_MAX_RANKED_CANDIDATES; index += 1) {
+    const currentCandidate = current[index];
+    const previousCandidate = previous[index];
+    if (currentCandidate && !merged.includes(currentCandidate)) merged.push(currentCandidate);
+    if (previousCandidate && !merged.includes(previousCandidate)) merged.push(previousCandidate);
+  }
+  return merged.slice(0, NICKNAME_MAX_RANKED_CANDIDATES);
+};
+
 const recognizeClasses = async (
   cv: OpenCv,
   source: Mat,
@@ -570,12 +709,12 @@ const recognizeClasses = async (
         && centerY >= candidate.y
         && centerY <= candidate.y + candidate.height
       ));
-      if (!cell) return;
+      if (!cell || !cell.hasIcon) return;
       matches.push({
         className: template.className,
         x: cell.normalizedCenterX,
         y: cell.normalizedCenterY,
-        confidence: match.confidence,
+        confidence: Math.min(1, match.confidence + (CLASS_MATCH_CONFIDENCE_ADJUSTMENTS[template.className] ?? 0)),
       });
     });
   }
@@ -602,7 +741,10 @@ export class RaidPartyFrameRecognizer implements FrameRecognizer<RaidFrameObserv
     const lostArkWorker = await getLostArkNicknameOcrWorker(this.ocrWorkers).catch(() => null);
     const observations: NicknameObservation[] = [];
     for (const occupied of occupiedSlots) {
-      if (!occupied.className) continue;
+      if (!occupied.className) {
+        this.stableNicknames.delete(occupied.slot);
+        continue;
+      }
       const [results, lostArkResults] = await Promise.all([
         Promise.all([
           worker.recognize(createNicknameCanvas(frame, occupied.slot, NICKNAME_PRIMARY_THRESHOLD, 0, viewport)),
@@ -622,10 +764,10 @@ export class RaidPartyFrameRecognizer implements FrameRecognizer<RaidFrameObserv
         ]),
         lostArkWorker
           ? Promise.all([
-            lostArkWorker.recognize(createNicknameCanvas(frame, occupied.slot, 90, 0, viewport)),
-            lostArkWorker.recognize(createNicknameCanvas(frame, occupied.slot, 110, 0, viewport)),
-            lostArkWorker.recognize(createNicknameCanvas(frame, occupied.slot, 150, 0, viewport)),
-            lostArkWorker.recognize(createNicknameCanvas(frame, occupied.slot, 170, 0, viewport)),
+            lostArkWorker.recognize(createNicknameCanvas(frame, occupied.slot, 90, 0, viewport, true)),
+            lostArkWorker.recognize(createNicknameCanvas(frame, occupied.slot, 110, 0, viewport, true)),
+            lostArkWorker.recognize(createNicknameCanvas(frame, occupied.slot, 150, 0, viewport, true)),
+            lostArkWorker.recognize(createNicknameCanvas(frame, occupied.slot, 170, 0, viewport, true)),
           ]).catch(() => [])
           : Promise.resolve([]),
       ]);
@@ -718,24 +860,35 @@ export class RaidPartyFrameRecognizer implements FrameRecognizer<RaidFrameObserv
           ? [{ text, confidence }, { text: withoutLeaderMark, confidence }]
           : [{ text, confidence }];
       }));
-      const candidates = specializedPriority
-        ? [specializedPriority, ...rankedCandidates.filter((candidate) => candidate !== specializedPriority)]
-        : rankedCandidates;
+      const sequenceCandidates = getRaidOcrSequenceCandidates(specializedCandidateScores);
+      const candidates = Array.from(new Set([
+        ...(specializedPriority ? [specializedPriority] : []),
+        ...sequenceCandidates,
+        ...rankedCandidates,
+      ]));
       if (candidates.length === 0) {
         // 한 프레임의 OCR 실패 때문에 직전의 안정화 진행 상태를 초기화하지 않는다.
         continue;
       }
       const signature = getRaidOcrStableSignature(candidates);
       const previous = this.stableNicknames.get(occupied.slot);
-      const count = previous?.className === occupied.className && previous.signature === signature
-        ? previous.count + 1
-        : 1;
-      this.stableNicknames.set(occupied.slot, { className: occupied.className, signature, candidates, count });
+      const isStableContinuation = previous?.className === occupied.className
+        && previous.signature === signature;
+      const count = isStableContinuation ? previous.count + 1 : 1;
+      const stableCandidates = isStableContinuation
+        ? mergeRaidOcrCandidates(previous.candidates, candidates)
+        : candidates;
+      this.stableNicknames.set(occupied.slot, {
+        className: occupied.className,
+        signature,
+        candidates: stableCandidates,
+        count,
+      });
       if (count >= NICKNAME_STABLE_FRAME_COUNT) {
         observations.push({
           slot: occupied.slot,
-          text: candidates[0],
-          candidates,
+          text: stableCandidates[0],
+          candidates: stableCandidates,
           confidence: (candidateScores[0]?.confidence ?? 0) / 100,
         });
       }
