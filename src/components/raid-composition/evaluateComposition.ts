@@ -87,6 +87,7 @@ export interface CompositionEvaluation {
   readonly directionalSynergyBenefit: number | null;
   readonly estimatedRaidPower: number | null;
   readonly partyPowerDifference: number | null;
+  readonly supportDealerPowerScore: number | null;
   readonly estimatedSynergyNames: readonly string[];
   readonly synergyEffectSourceIds: readonly string[];
   readonly movedMemberIds: readonly string[];
@@ -289,7 +290,10 @@ export const evaluateRaidComposition = (
     ))
     .map((member) => member.id);
   const unresolvedCombatPowerMemberIds = members
-    .filter((member) => member.role === 'dealer' && (member.combatPower == null || member.combatPower <= 0))
+    .filter((member) => (
+      (member.role === 'dealer' || member.role === 'support')
+      && (member.combatPower == null || member.combatPower <= 0)
+    ))
     .map((member) => member.id)
     .sort();
   const unresolvedMemberIds = Array.from(new Set([
@@ -332,6 +336,16 @@ export const evaluateRaidComposition = (
       || partyEvaluations[2].effectivePartyPower == null
       ? null
       : Math.abs(partyEvaluations[1].effectivePartyPower - partyEvaluations[2].effectivePartyPower),
+    supportDealerPowerScore: (() => {
+      const firstSupportPower = parties[1].find(({ role }) => role === 'support')?.combatPower;
+      const secondSupportPower = parties[2].find(({ role }) => role === 'support')?.combatPower;
+      const firstDealerPower = partyEvaluations[1].effectivePartyPower;
+      const secondDealerPower = partyEvaluations[2].effectivePartyPower;
+      if (firstSupportPower == null || firstSupportPower <= 0
+        || secondSupportPower == null || secondSupportPower <= 0
+        || firstDealerPower == null || secondDealerPower == null) return null;
+      return firstSupportPower * firstDealerPower + secondSupportPower * secondDealerPower;
+    })(),
     estimatedSynergyNames: Array.from(new Set([
       ...partyEvaluations[1].estimatedSynergyNames,
       ...partyEvaluations[2].estimatedSynergyNames,
@@ -346,6 +360,13 @@ export const evaluateRaidComposition = (
       .sort(),
     warnings,
   };
+};
+
+const countMovedSupporters = (evaluation: CompositionEvaluation): number => {
+  const movedIds = new Set(evaluation.movedMemberIds);
+  return [...evaluation.parties[1], ...evaluation.parties[2]]
+    .filter(({ id, role }) => role === 'support' && movedIds.has(id))
+    .length;
 };
 
 export const compareCompositionEvaluations = (
@@ -364,6 +385,12 @@ export const compareCompositionEvaluations = (
   if (left.effectiveSynergyCount !== right.effectiveSynergyCount) {
     return right.effectiveSynergyCount - left.effectiveSynergyCount;
   }
+  if (left.supportDealerPowerScore != null && right.supportDealerPowerScore != null
+    && left.supportDealerPowerScore !== right.supportDealerPowerScore) {
+    return right.supportDealerPowerScore - left.supportDealerPowerScore;
+  }
+  const movedSupportDifference = countMovedSupporters(left) - countMovedSupporters(right);
+  if (movedSupportDifference !== 0) return movedSupportDifference;
   if (left.movedMemberIds.length !== right.movedMemberIds.length) {
     return left.movedMemberIds.length - right.movedMemberIds.length;
   }
@@ -436,6 +463,9 @@ export const recommendRaidComposition = (
         : '방어력 감소 중첩 가능한 조합이 없습니다.',
       strategyReason,
       `유효 시너지 ${best.effectiveSynergyCount}개를 확보했습니다.`,
+      ...(best.supportDealerPowerScore == null
+        ? []
+        : ['서포터 전투력이 높은 파티에 강한 딜러를 우선 배치했습니다.']),
       `현재 편성에서 ${best.movedMemberIds.length}명이 이동합니다.`,
       ...(members.some(({ fixed }) => fixed) ? ['고정 인원의 현재 파티를 유지했습니다.'] : []),
     ],

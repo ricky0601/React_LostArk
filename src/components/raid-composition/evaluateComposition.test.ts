@@ -123,6 +123,19 @@ describe('evaluateRaidComposition', () => {
     expect(result.estimatedRaidPower).toBeNull();
   });
 
+  it('does not confirm a recommendation while supporter combat power is unresolved', () => {
+    const parties = assignment(
+      [member('support-no-power', 1, 'support', 'unknown', [], false, '테스트', null), member('a', 1), member('b', 1), member('c', 1)],
+      [supporters[1], member('d', 2), member('e', 2), member('f', 2)],
+    );
+
+    const result = evaluateRaidComposition(parties, 'balanced');
+
+    expect(result.isConfirmed).toBe(false);
+    expect(result.unresolvedCombatPowerMemberIds).toEqual(['support-no-power']);
+    expect(result.supportDealerPowerScore).toBeNull();
+  });
+
   it('does not confirm a recommendation while a member role is unresolved', () => {
     const parties = assignment(
       [supporters[0], member('unknown-role', 1, 'unknown', 'unknown'), member('a', 1), member('b', 1)],
@@ -142,6 +155,7 @@ describe('recommendRaidComposition', () => {
     armorReductionStackingScore: 0,
     strategyScore: 0,
     effectiveSynergyCount: 0,
+    supportDealerPowerScore: null,
     movedMemberIds: [],
     parties: { 1: [{ id: 'z' }], 2: [] },
     ...metrics,
@@ -164,9 +178,14 @@ describe('recommendRaidComposition', () => {
       other: { strategyScore: 1, effectiveSynergyCount: 9, movedMemberIds: [] },
     },
     {
-      priority: 'effective synergy over movement',
-      preferred: { effectiveSynergyCount: 2, movedMemberIds: ['a'] },
-      other: { effectiveSynergyCount: 1, movedMemberIds: [] },
+      priority: 'effective synergy over support and dealer power matching',
+      preferred: { effectiveSynergyCount: 2, supportDealerPowerScore: 1, movedMemberIds: ['a'] },
+      other: { effectiveSynergyCount: 1, supportDealerPowerScore: 999, movedMemberIds: [] },
+    },
+    {
+      priority: 'support and dealer power matching over movement',
+      preferred: { supportDealerPowerScore: 2, movedMemberIds: ['a'] },
+      other: { supportDealerPowerScore: 1, movedMemberIds: [] },
     },
   ])('prioritizes $priority', ({ preferred, other }) => {
     expect(compareCompositionEvaluations(evaluation(preferred), evaluation(other))).toBeLessThan(0);
@@ -201,6 +220,27 @@ describe('recommendRaidComposition', () => {
     expect(result?.strategyScore).toBe(6);
     expect(result?.movedMemberIds).toEqual([]);
     expect(result?.dataVersion).toBe('test-version');
+  });
+
+  it('pairs the strongest dealers with the stronger existing supporter before minimizing movement', () => {
+    const roster = [
+      member('support-strong', 1, 'support', 'unknown', [], false, '테스트', 6000),
+      member('support-weak', 2, 'support', 'unknown', [], false, '테스트', 3000),
+      member('weak-1', 1, 'dealer', 'hit-master', [], false, '테스트', 100),
+      member('weak-2', 1, 'dealer', 'hit-master', [], false, '테스트', 200),
+      member('weak-3', 1, 'dealer', 'hit-master', [], false, '테스트', 300),
+      member('strong-1', 2, 'dealer', 'hit-master', [], false, '테스트', 700),
+      member('strong-2', 2, 'dealer', 'hit-master', [], false, '테스트', 800),
+      member('strong-3', 2, 'dealer', 'hit-master', [], false, '테스트', 900),
+    ];
+
+    const result = recommendRaidComposition(roster, 'balanced', 'test-version');
+
+    expect(result?.parties[1].filter(({ role }) => role === 'dealer').map(({ id }) => id).sort())
+      .toEqual(['strong-1', 'strong-2', 'strong-3']);
+    expect(result?.parties[1].map(({ id }) => id)).toContain('support-strong');
+    expect(result?.parties[2].map(({ id }) => id)).toContain('support-weak');
+    expect(result?.reasons).toContain('서포터 전투력이 높은 파티에 강한 딜러를 우선 배치했습니다.');
   });
 
   it('separates duplicate stackingGroups before applying the movement tie-break', () => {
