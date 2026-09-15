@@ -24,7 +24,7 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:proxy": "node --test api/lostark/proxy.test.js",
+    "test:proxy": "node --test api/lostark/proxy.test.js api/inven-incidents/*.test.js",
     "typecheck": "tsc --noEmit"
   },
   "browserslist": {

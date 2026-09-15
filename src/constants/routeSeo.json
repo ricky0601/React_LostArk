@@ -74,6 +74,16 @@
     "priority": "0.7"
   },
   {
+    "path": "/raid-composition/applicants",
+    "title": "로아 신청자 사건·사고 게시글 조회 | 로아끼욧",
+    "description": "파티 찾기 신청자 닉네임을 화면에서 인식하고 사용자가 선택한 닉네임의 인벤 사건·사고 게시글을 확인하세요.",
+    "name": "로아 신청자 사건·사고 게시글 조회",
+    "schemaType": "WebApplication",
+    "robots": "noindex, follow",
+    "lastmod": "2026-09-14",
+    "priority": "0.5"
+  },
+  {
     "path": "/market",
     "title": "로스트아크 거래소 검색 - 로아끼욧",
     "description": "로스트아크 거래소와 경매장 아이템 정보를 검색해 시세와 구매 판단에 필요한 정보를 확인하세요.",
