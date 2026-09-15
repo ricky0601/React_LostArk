@@ -70,14 +70,14 @@ export const useApplicantIncidentLookup = () => {
     requests.current.set(id, { controller, identity });
     const loading = applicantsRef.current.map((applicant) => (
       applicant.id === id
-        ? { ...applicant, searchStatus: 'loading' as const, results: [], error: '' }
+        ? { ...applicant, searchStatus: 'loading' as const, results: [], checkedNicknames: [], error: '' }
         : applicant
     ));
     applicantsRef.current = loading;
     setApplicants(loading);
 
     void fetchApplicantIncidents(nickname, controller.signal)
-      .then((results) => {
+      .then(({ results, checkedNicknames }) => {
         const active = requests.current.get(id);
         const current = applicantsRef.current.find((applicant) => applicant.id === id);
         if (active?.identity !== identity
@@ -85,7 +85,12 @@ export const useApplicantIncidentLookup = () => {
           || current?.nickname.trim() !== nickname) return;
         const next = applicantsRef.current.map((applicant) => (
           applicant.id === id
-            ? { ...applicant, searchStatus: results.length ? 'review' as const : 'empty' as const, results }
+            ? {
+              ...applicant,
+              searchStatus: results.length ? 'review' as const : 'empty' as const,
+              results,
+              checkedNicknames,
+            }
             : applicant
         ));
         applicantsRef.current = next;
@@ -95,7 +100,11 @@ export const useApplicantIncidentLookup = () => {
         if (controller.signal.aborted || requests.current.get(id)?.identity !== identity) return;
         const next = applicantsRef.current.map((applicant) => (
           applicant.id === id
-            ? { ...applicant, searchStatus: 'error' as const, error: error instanceof Error ? error.message : '검색 중 오류가 발생했습니다.' }
+            ? {
+              ...applicant,
+              searchStatus: 'incomplete' as const,
+              error: error instanceof Error ? error.message : '원정대 확인 중 오류가 발생했습니다.',
+            }
             : applicant
         ));
         applicantsRef.current = next;

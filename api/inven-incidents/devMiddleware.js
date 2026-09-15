@@ -13,12 +13,18 @@ function createInvenIncidentDevMiddleware(handler = createInvenIncidentHandler()
       method: req.method,
       query: {
         nickname: nicknameValues.length > 1 ? nicknameValues : nicknameValues[0],
+        scope: requestUrl.searchParams.get('scope') || undefined,
+        nicknames: requestUrl.searchParams.get('nicknames') || undefined,
       },
       headers: req.headers,
       socket: req.socket,
+      once: req.once?.bind(req),
+      removeListener: req.removeListener?.bind(req),
     };
     const apiResponse = {
       setHeader: (name, value) => res.setHeader(name, value),
+      once: res.once?.bind(res),
+      removeListener: res.removeListener?.bind(res),
       status(code) {
         res.statusCode = code;
         return apiResponse;

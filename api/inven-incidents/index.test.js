@@ -1,6 +1,7 @@
 const assert = require('node:assert/strict');
 const { describe, test } = require('node:test');
 const { readFileSync } = require('node:fs');
+const { EventEmitter } = require('node:events');
 const { join } = require('node:path');
 const { createInvenIncidentHandler } = require('./index');
 
@@ -79,6 +80,52 @@ describe('Inven incident proxy', () => {
     }]);
   });
 
+  test('searches expedition aliases and reports the nickname that matched', async () => {
+    const targets = [];
+    const handler = createInvenIncidentHandler({
+      logger: { error() {} },
+      fetchImpl: async (url) => {
+        const target = url.toString();
+        targets.push(target);
+        if (target.includes('keyword=%ED%83%80%EC%9E%84%ED%82%A4%EC%9A%94%EC%98%B7')) {
+          return upstream(fixture('no-results.html'));
+        }
+        if (target.includes('keyword=%ED%95%9C%EA%B1%B4%EB%9C%AC')) return upstream(searchHtml());
+        return upstream('<div id="powerbbsContent">■ 게임 닉네임<br>대상자: 한건뜬<br>■ 사건 설명<br>내용</div>');
+      },
+    });
+    const res = response();
+
+    await handler(request({
+      query: { scope: 'expedition', nicknames: '타임키요옷,한건뜬' },
+    }), res);
+
+    assert.equal(res.statusCode, 200);
+    assert.deepEqual(res.payload.results, [{
+      title: '결과 1',
+      url: 'https://www.inven.co.kr/board/lostark/5355/1',
+      matchedNicknames: ['한건뜬'],
+    }]);
+    assert.equal(targets.filter((target) => target.includes('?query=list')).length, 2);
+  });
+
+  test('rejects an expedition that exceeds the bounded nickname count', async () => {
+    let fetchCount = 0;
+    const handler = createInvenIncidentHandler({
+      maxExpeditionNicknames: 2,
+      logger: { error() {} },
+      fetchImpl: async () => { fetchCount += 1; return upstream(fixture('no-results.html')); },
+    });
+    const res = response();
+
+    await handler(request({
+      query: { scope: 'expedition', nicknames: '첫번째,두번째,세번째' },
+    }), res);
+
+    assert.equal(res.statusCode, 400);
+    assert.equal(fetchCount, 0);
+  });
+
   test('never fetches non-board URLs found in search HTML', async () => {
     const targets = [];
     const redirects = [];
@@ -140,6 +187,92 @@ describe('Inven incident proxy', () => {
     assert.match(res.payload.message, /게시글/);
   });
 
+  test('aborts concurrent upstream work when one expedition search fails', async () => {
+    let pendingSignal;
+    const handler = createInvenIncidentHandler({
+      logger: { error() {} },
+      fetchImpl: async (url, options) => {
+        if (url.toString().includes('keyword=%EC%B2%AB%EB%B2%88%EC%A7%B8')) {
+          return upstream('failure', { status: 503 });
+        }
+        pendingSignal = options.signal;
+        return new Promise((resolve, reject) => {
+          options.signal.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')), { once: true });
+        });
+      },
+    });
+    const res = response();
+
+    await handler(request({
+      query: { scope: 'expedition', nicknames: '첫번째,두번째' },
+    }), res);
+
+    assert.equal(res.statusCode, 502);
+    assert.equal(pendingSignal.aborted, true);
+  });
+
+  test('aborts upstream work when the client disconnects', async () => {
+    let upstreamSignal;
+    const handler = createInvenIncidentHandler({
+      logger: { error() {} },
+      fetchImpl: async (_url, options) => {
+        upstreamSignal = options.signal;
+        return new Promise((resolve, reject) => {
+          options.signal.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')), { once: true });
+        });
+      },
+    });
+    const req = Object.assign(new EventEmitter(), request());
+    const res = response();
+    const handling = handler(req, res);
+    await Promise.resolve();
+
+    req.emit('aborted');
+    await handling;
+
+    assert.equal(upstreamSignal.aborted, true);
+    assert.equal(res.statusCode, 504);
+  });
+
+  test('charges the rate limit for every nickname in an expedition request', async () => {
+    const rateStore = new Map();
+    const handler = createInvenIncidentHandler({
+      rateLimitUnits: 2,
+      minimumRequestCost: 1,
+      rateStore,
+      logger: { error() {} },
+      fetchImpl: async () => upstream(fixture('no-results.html')),
+    });
+    const first = response();
+    const second = response();
+
+    await handler(request({ query: { scope: 'expedition', nicknames: '첫번째,두번째' } }), first);
+    await handler(request({ query: { nickname: '세번째' } }), second);
+
+    assert.equal(first.statusCode, 200);
+    assert.equal(second.statusCode, 429);
+  });
+
+  test('allows four bounded expedition lookups before exhausting the alias budget', async () => {
+    const handler = createInvenIncidentHandler({
+      rateLimitUnits: 8,
+      minimumRequestCost: 1,
+      logger: { error() {} },
+      fetchImpl: async () => upstream(fixture('no-results.html')),
+    });
+    const statuses = [];
+
+    for (let index = 0; index < 5; index += 1) {
+      const res = response();
+      await handler(request({
+        query: { scope: 'expedition', nicknames: `원정대${index}가,원정대${index}나` },
+      }), res);
+      statuses.push(res.statusCode);
+    }
+
+    assert.deepEqual(statuses, [200, 200, 200, 200, 429]);
+  });
+
   test('limits streamed response size', async () => {
     const handler = createInvenIncidentHandler({
       maxResponseBytes: 10,
@@ -193,7 +326,8 @@ describe('Inven incident proxy', () => {
 
   test('rate limits repeated clients in memory', async () => {
     const handler = createInvenIncidentHandler({
-      rateLimitRequests: 1,
+      rateLimitUnits: 1,
+      minimumRequestCost: 1,
       logger: { error() {} },
       fetchImpl: twoStageFetch(),
     });
