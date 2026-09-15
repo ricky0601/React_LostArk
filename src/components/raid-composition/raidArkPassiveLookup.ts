@@ -9,6 +9,10 @@ export interface RaidArkPassiveLookupResult extends RaidBuildResolution {
 
 export class RaidArkPassiveLookupError extends Error {}
 
+export const isRetryableRaidArkPassiveLookupError = (error: unknown): boolean => (
+  !(error instanceof RaidArkPassiveLookupError)
+);
+
 class RaidArkPassiveCandidateError extends RaidArkPassiveLookupError {}
 
 export const parseRaidCombatPower = (value: string | null | undefined): number | null => {

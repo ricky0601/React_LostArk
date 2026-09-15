@@ -150,6 +150,86 @@ describe('applyRecognitionToRoster', () => {
     });
   });
 
+  it('moves participant-owned state when two stably named participants swap physical slots', () => {
+    const roster = createInitialRoster().map((slot) => {
+      if (slot.slot === 0) return {
+        ...slot,
+        className: '바드',
+        nickname: '첫번째참가자',
+        nicknameCandidates: ['첫번째참가자'],
+        currentParty: 2 as const,
+        fixed: true,
+        arkPassiveTitle: '절실한 구원',
+        combatPower: 111111,
+        resolvedRole: 'support' as const,
+        resolvedPosition: 'unknown' as const,
+        arkPassiveStatus: 'confirmed' as const,
+        needsReview: false,
+      };
+      if (slot.slot === 4) return {
+        ...slot,
+        className: '기상술사',
+        nickname: '두번째참가자',
+        nicknameCandidates: ['두번째참가자'],
+        currentParty: 1 as const,
+        arkPassiveTitle: '질풍노도',
+        combatPower: 222222,
+        resolvedRole: 'dealer' as const,
+        resolvedPosition: 'hit-master' as const,
+        arkPassiveStatus: 'confirmed' as const,
+        needsReview: false,
+      };
+      return slot;
+    });
+
+    const next = applyRecognitionToRoster(roster, [
+      observation(0, '기상술사', false, '두번째참가자'),
+      observation(4, '바드', false, '첫번째참가자'),
+    ], { preserveConfirmedNicknames: true });
+
+    expect(next[0]).toMatchObject({
+      id: 'slot-4', slot: 0, currentParty: 1, nickname: '두번째참가자', fixed: false,
+      arkPassiveTitle: '질풍노도', combatPower: 222222, resolvedRole: 'dealer', resolvedPosition: 'hit-master',
+    });
+    expect(next[4]).toMatchObject({
+      id: 'slot-0', slot: 4, currentParty: 2, nickname: '첫번째참가자', fixed: true,
+      arkPassiveTitle: '절실한 구원', combatPower: 111111, resolvedRole: 'support', resolvedPosition: 'unknown',
+    });
+  });
+
+  it('keeps a pending recommended party while the participant remains in the same physical slot', () => {
+    const roster = createInitialRoster().map((slot) => (slot.slot === 0 ? {
+      ...slot,
+      className: '바드',
+      nickname: '이동대기자',
+      nicknameCandidates: ['이동대기자'],
+      currentParty: 2 as const,
+    } : slot));
+
+    const next = applyRecognitionToRoster(roster, [observation(0, '바드', false, '이동대기자')]);
+
+    expect(next[0]).toMatchObject({ id: 'slot-0', slot: 0, currentParty: 2 });
+  });
+
+  it('does not move participant state when the displaced participant has no stable nickname observation', () => {
+    const roster = createInitialRoster().map((slot) => {
+      if (slot.slot === 0) return {
+        ...slot, className: '바드', nickname: '확정참가자', fixed: true,
+      };
+      if (slot.slot === 4) return {
+        ...slot, className: '기상술사', nickname: '관측불안정', combatPower: 222222,
+      };
+      return slot;
+    });
+
+    const next = applyRecognitionToRoster(roster, [observation(4, '바드', false, '확정참가자')]);
+
+    expect(next[0]).toMatchObject({ id: 'slot-0', slot: 0, nickname: '확정참가자', fixed: true });
+    expect(next[4]).toMatchObject({
+      id: 'slot-4', slot: 4, className: '기상술사', nickname: '관측불안정', combatPower: 222222,
+    });
+  });
+
   it('clears recognition identity and build only after two consecutive true vacancies', () => {
     const recognized = applyRecognitionToRoster(createInitialRoster(), [observation(0, '바드', false, '자동닉')]);
     const withBuild = recognized.map((slot) => (slot.slot === 0 ? {

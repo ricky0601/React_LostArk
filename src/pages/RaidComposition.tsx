@@ -173,6 +173,16 @@ export const SlotRow: React.FC<{
   );
 };
 
+export const CaptureProgress: React.FC<{ recognizedCount: number; framesScanned: number }> = ({
+  recognizedCount,
+  framesScanned,
+}) => (
+  <span className="ml-auto text-xs font-medium text-gray-500 dark:text-gray-400">
+    <span aria-live="polite">{recognizedCount}/8명 확인</span>
+    {framesScanned > 0 && <span>{` · ${framesScanned}회 분석`}</span>}
+  </span>
+);
+
 const RaidCompositionPage: React.FC = () => {
   const {
     roster,
@@ -308,9 +318,7 @@ const RaidCompositionPage: React.FC = () => {
           >
             {miniWindow.pictureInPictureWindow ? '미니 창으로 이동' : '미니 창 열기'}
           </button>
-          <span className="ml-auto text-xs font-medium text-gray-500 dark:text-gray-400" aria-live="polite">
-            {recognizedCount}/8명 확인{framesScanned > 0 && ` · ${framesScanned}회 분석`}
-          </span>
+          <CaptureProgress recognizedCount={recognizedCount} framesScanned={framesScanned} />
         </div>
         {error && <p className="mt-2 text-xs text-red-500">{error}</p>}
         {miniWindow.error && <p className="mt-2 text-xs text-amber-600 dark:text-amber-300">{miniWindow.error}</p>}

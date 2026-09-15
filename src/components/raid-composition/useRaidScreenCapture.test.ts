@@ -1,5 +1,6 @@
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { RaidArkPassiveLookupError } from './raidArkPassiveLookup';
 import type { RaidFrameObservation } from './recognition';
 import { updateRosterBuild } from './roster';
 import { useRaidScreenCapture } from './useRaidScreenCapture';
@@ -23,7 +24,8 @@ vi.mock('../screen-recognition/useScreenRecognition', () => ({
   }),
 }));
 
-vi.mock('./raidArkPassiveLookup', () => ({
+vi.mock('./raidArkPassiveLookup', async (importOriginal) => ({
+  ...await importOriginal<typeof import('./raidArkPassiveLookup')>(),
   clearRaidArkPassiveLookupCache: vi.fn(),
   lookupRaidArkPassiveCandidates: mocks.lookup,
 }));
@@ -139,6 +141,39 @@ describe('useRaidScreenCapture', () => {
     expect(mocks.lookup).not.toHaveBeenCalled();
     expect(result.current.roster[0]).toMatchObject({
       arkPassiveTitle: '절실한 구원', buildSource: 'manual', arkPassiveStatus: 'confirmed', arkPassiveMessage: '수동 빌드 선택',
+    });
+  });
+
+  it('retries one transient lookup failure and applies the successful result', async () => {
+    mocks.lookup
+      .mockRejectedValueOnce(new Error('API error: 429'))
+      .mockResolvedValueOnce({
+        nickname: '인식닉', className: '바드', title: '절실한 구원', role: 'support', position: 'unknown', combatPower: 123456, needsReview: false,
+      });
+    const { result } = renderHook(() => useRaidScreenCapture());
+
+    act(() => mocks.options?.onResult(frame()));
+    act(() => result.current.setAutoArkPassiveLookup(true));
+    await act(async () => { await vi.advanceTimersByTimeAsync(400); });
+    await act(async () => { await vi.advanceTimersByTimeAsync(400); });
+
+    expect(mocks.lookup).toHaveBeenCalledTimes(2);
+    expect(result.current.roster[0]).toMatchObject({
+      arkPassiveStatus: 'confirmed', arkPassiveTitle: '절실한 구원', combatPower: 123456,
+    });
+  });
+
+  it('does not repeatedly retry a deterministic lookup error', async () => {
+    mocks.lookup.mockRejectedValueOnce(new RaidArkPassiveLookupError('직업 불일치'));
+    const { result } = renderHook(() => useRaidScreenCapture());
+
+    act(() => mocks.options?.onResult(frame()));
+    act(() => result.current.setAutoArkPassiveLookup(true));
+    await act(async () => { await vi.advanceTimersByTimeAsync(1200); });
+
+    expect(mocks.lookup).toHaveBeenCalledTimes(1);
+    expect(result.current.roster[0]).toMatchObject({
+      arkPassiveStatus: 'error', arkPassiveMessage: '직업 불일치',
     });
   });
 

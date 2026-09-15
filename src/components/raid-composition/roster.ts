@@ -2,7 +2,7 @@ import { RAID_CLASS_DATA_BY_NAME, type AttackPosition, type ClassSynergy, type R
 import { resolveRaidBuild } from '../../data/raidBuildPositions';
 import type { PartyNumber, RaidCompositionMember } from './evaluateComposition';
 import type { RaidSlotObservation } from './recognition';
-import { RAID_SLOT_COUNT } from './recognition';
+import { normalizeRaidNickname, RAID_SLOT_COUNT } from './recognition';
 
 export type ArkPassiveLookupStatus = 'idle' | 'loading' | 'confirmed' | 'review' | 'error';
 export type RaidValueProvenance = 'recognition' | 'manual';
@@ -154,13 +154,89 @@ interface ApplyRecognitionOptions {
   readonly preserveConfirmedNicknames?: boolean;
 }
 
+const moveIdentifiedParticipants = (
+  roster: readonly RaidRosterSlot[],
+  observations: readonly RaidSlotObservation[],
+): { roster: readonly RaidRosterSlot[]; ignoredObservationSlots: ReadonlySet<number> } => {
+  const rosterNicknameCounts = new Map<string, number>();
+  const observationNicknameCounts = new Map<string, number>();
+  roster.forEach(({ nickname }) => {
+    if (normalizeRaidNickname(nickname) === nickname) {
+      rosterNicknameCounts.set(nickname, (rosterNicknameCounts.get(nickname) ?? 0) + 1);
+    }
+  });
+  observations.forEach(({ nickname }) => {
+    if (nickname != null && normalizeRaidNickname(nickname) === nickname) {
+      observationNicknameCounts.set(nickname, (observationNicknameCounts.get(nickname) ?? 0) + 1);
+    }
+  });
+
+  const rosterByNickname = new Map(roster
+    .filter(({ nickname }) => rosterNicknameCounts.get(nickname) === 1)
+    .map((slot) => [slot.nickname, slot]));
+  const rosterByPhysicalPosition = new Map(roster.map((slot) => [slot.slot, slot]));
+  const proposals = new Map<string, { participant: RaidRosterSlot; observation: RaidSlotObservation }>();
+  observations.forEach((observation) => {
+    if (observation.nickname == null || observationNicknameCounts.get(observation.nickname) !== 1) return;
+    const participant = rosterByNickname.get(observation.nickname);
+    if (participant?.className === observation.className) {
+      proposals.set(participant.id, { participant, observation });
+    }
+  });
+  const canApplyProposal = (participantId: string, visited = new Set<string>()): boolean => {
+    const proposal = proposals.get(participantId);
+    if (!proposal || visited.has(participantId)) return visited.has(participantId);
+    if (proposal.participant.slot === proposal.observation.slot) return true;
+    const displaced = rosterByPhysicalPosition.get(proposal.observation.slot);
+    if (!displaced || (displaced.className === '' && displaced.nickname === '')) return true;
+    if (!proposals.has(displaced.id)) return false;
+    const nextVisited = new Set(visited);
+    nextVisited.add(participantId);
+    return canApplyProposal(displaced.id, nextVisited);
+  };
+
+  const assignedIds = new Set<string>();
+  const ignoredObservationSlots = new Set<number>();
+  const slotsByPhysicalPosition: Array<RaidRosterSlot | undefined> = Array(RAID_SLOT_COUNT);
+  proposals.forEach(({ participant, observation }) => {
+    if (!canApplyProposal(participant.id)) {
+      ignoredObservationSlots.add(observation.slot);
+      return;
+    }
+    const moved = participant.slot !== observation.slot;
+    slotsByPhysicalPosition[observation.slot] = moved
+      ? { ...participant, slot: observation.slot, currentParty: observation.party }
+      : participant;
+    assignedIds.add(participant.id);
+  });
+
+  const remaining = roster.filter(({ id }) => !assignedIds.has(id));
+  remaining.forEach((slot) => {
+    if (slotsByPhysicalPosition[slot.slot] == null) slotsByPhysicalPosition[slot.slot] = slot;
+  });
+  const displaced = remaining.filter((slot) => slotsByPhysicalPosition[slot.slot]?.id !== slot.id);
+  slotsByPhysicalPosition.forEach((slot, physicalPosition) => {
+    if (slot != null) return;
+    const participant = displaced.shift();
+    if (participant) slotsByPhysicalPosition[physicalPosition] = { ...participant, slot: physicalPosition };
+  });
+
+  return {
+    roster: slotsByPhysicalPosition.filter((slot): slot is RaidRosterSlot => slot != null),
+    ignoredObservationSlots,
+  };
+};
+
 export const applyRecognitionToRoster = (
   roster: readonly RaidRosterSlot[],
   observations: readonly RaidSlotObservation[],
   options: ApplyRecognitionOptions = {},
 ): readonly RaidRosterSlot[] => {
-  const observationBySlot = new Map(observations.map((observation) => [observation.slot, observation]));
-  return roster.map((slot) => {
+  const { roster: positionedRoster, ignoredObservationSlots } = moveIdentifiedParticipants(roster, observations);
+  const observationBySlot = new Map(observations
+    .filter(({ slot }) => !ignoredObservationSlots.has(slot))
+    .map((observation) => [observation.slot, observation]));
+  return positionedRoster.map((slot) => {
     const observation = observationBySlot.get(slot.slot);
     if (!observation) return slot;
     const isVacancy = observation.className == null && observation.confidence === 0;

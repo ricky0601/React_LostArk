@@ -1,11 +1,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useScreenRecognition } from '../screen-recognition/useScreenRecognition';
 import { RaidPartyFrameRecognizer } from './RaidPartyFrameRecognizer';
-import { clearRaidArkPassiveLookupCache, lookupRaidArkPassiveCandidates } from './raidArkPassiveLookup';
+import {
+  clearRaidArkPassiveLookupCache,
+  isRetryableRaidArkPassiveLookupError,
+  lookupRaidArkPassiveCandidates,
+} from './raidArkPassiveLookup';
 import { normalizeRaidNickname, type RaidFrameObservation } from './recognition';
 import { applyRecognitionToRoster, createInitialRoster, type RaidRosterSlot } from './roster';
 
 const SCAN_INTERVAL_MS = 2500;
+const MAX_TRANSIENT_LOOKUP_RETRIES = 1;
 
 export const getRaidRecognitionErrorMessage = (error: unknown): string => {
   if (error instanceof DOMException && error.name === 'NotAllowedError') {
@@ -31,6 +36,7 @@ export const useRaidScreenCapture = () => {
     controller: AbortController;
     timer: number;
   }>());
+  const lookupRetryCounts = useRef(new Map<string, number>());
 
   const recognizer = useMemo(() => new RaidPartyFrameRecognizer(), []);
 
@@ -53,6 +59,7 @@ export const useRaidScreenCapture = () => {
       controller.abort();
     });
     activeLookups.current.clear();
+    lookupRetryCounts.current.clear();
   }, []);
 
   const setAutoArkPassiveLookup = useCallback((enabled: boolean) => {
@@ -89,6 +96,7 @@ export const useRaidScreenCapture = () => {
 
     const controller = new AbortController();
     const identity = `${target.className}:${target.nickname}`;
+    const retryKey = `${target.id}:${identity}`;
     const ownsTarget = () => {
       const currentSlot = rosterRef.current.find((slot) => slot.id === target.id);
       return activeLookups.current.get(target.id)?.controller === controller
@@ -116,6 +124,7 @@ export const useRaidScreenCapture = () => {
       )
         .then((result) => {
           if (!ownsTarget()) return;
+          lookupRetryCounts.current.delete(retryKey);
           setRoster((current) => current.map((slot) => {
             if (slot.id !== target.id || `${slot.className}:${slot.nickname}` !== identity || slot.buildSource === 'manual') return slot;
             return {
@@ -135,12 +144,18 @@ export const useRaidScreenCapture = () => {
         })
         .catch((lookupError: unknown) => {
           if (!ownsTarget()) return;
+          const retryCount = lookupRetryCounts.current.get(retryKey) ?? 0;
+          const shouldRetry = isRetryableRaidArkPassiveLookupError(lookupError)
+            && retryCount < MAX_TRANSIENT_LOOKUP_RETRIES;
+          if (shouldRetry) lookupRetryCounts.current.set(retryKey, retryCount + 1);
           setRoster((current) => current.map((slot) => {
             if (slot.id !== target.id || `${slot.className}:${slot.nickname}` !== identity || slot.buildSource === 'manual') return slot;
             return {
               ...slot,
-              arkPassiveStatus: 'error' as const,
-              arkPassiveMessage: lookupError instanceof Error ? lookupError.message : '아크패시브 조회 실패',
+              arkPassiveStatus: shouldRetry ? 'idle' as const : 'error' as const,
+              arkPassiveMessage: shouldRetry
+                ? '일시적인 조회 오류로 재시도 중'
+                : lookupError instanceof Error ? lookupError.message : '아크패시브 조회 실패',
               needsReview: true,
             };
           }));

@@ -2,11 +2,18 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import RaidCompositionMini from '../components/raid-composition/RaidCompositionMini';
 import { createInitialRoster, updateRosterSlot } from '../components/raid-composition/roster';
-import { SlotRow } from './RaidComposition';
+import { CaptureProgress, SlotRow } from './RaidComposition';
 
 const noop = vi.fn();
 
 describe('raid composition slot controls', () => {
+  it('keeps the analysis count outside the recognition live region', () => {
+    render(<CaptureProgress recognizedCount={3} framesScanned={12} />);
+
+    expect(screen.getByText('3/8명 확인')).toHaveAttribute('aria-live', 'polite');
+    expect(screen.getByText(/12회 분석/)).not.toHaveAttribute('aria-live');
+  });
+
   it('gives the main fixed checkbox a slot-unique name and exposes build/manual recognition controls', () => {
     const slot = updateRosterSlot(createInitialRoster(), 'slot-0', {
       className: '바드',
