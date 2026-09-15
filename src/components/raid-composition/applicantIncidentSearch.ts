@@ -1,8 +1,18 @@
-export type ApplicantSearchStatus = 'idle' | 'loading' | 'empty' | 'review' | 'error';
+import { fetchSiblings } from '../../utils/api';
+
+export type ApplicantSearchStatus = 'idle' | 'loading' | 'empty' | 'review' | 'incomplete';
+
+const MAX_EXPEDITION_NICKNAMES = 24;
 
 export interface InvenIncidentResult {
   readonly title: string;
   readonly url: string;
+  readonly matchedNicknames: readonly string[];
+}
+
+export interface ApplicantIncidentSearchResult {
+  readonly results: readonly InvenIncidentResult[];
+  readonly checkedNicknames: readonly string[];
 }
 
 export interface ApplicantReview {
@@ -14,6 +24,7 @@ export interface ApplicantReview {
   readonly needsReview: boolean;
   readonly searchStatus: ApplicantSearchStatus;
   readonly results: readonly InvenIncidentResult[];
+  readonly checkedNicknames: readonly string[];
   readonly error: string;
 }
 
@@ -30,6 +41,7 @@ export const createApplicantReview = (
   needsReview: true,
   searchStatus: 'idle',
   results: [],
+  checkedNicknames: [],
   error: '',
 });
 
@@ -41,6 +53,7 @@ export const editApplicantNickname = (applicant: ApplicantReview, nickname: stri
   needsReview: !isValidApplicantNickname(nickname),
   searchStatus: 'idle',
   results: [],
+  checkedNicknames: [],
   error: '',
 });
 
@@ -51,9 +64,26 @@ export const isValidApplicantNickname = (nickname: string): boolean => (
 export const fetchApplicantIncidents = async (
   nickname: string,
   signal: AbortSignal,
-): Promise<readonly InvenIncidentResult[]> => {
-  const response = await fetch(`/api/inven-incidents?nickname=${encodeURIComponent(nickname)}`, { signal });
+): Promise<ApplicantIncidentSearchResult> => {
+  const siblings = await fetchSiblings(nickname, { signal });
+  if (!Array.isArray(siblings)
+    || siblings.some((sibling) => !sibling || !isValidApplicantNickname(sibling.CharacterName))) {
+    throw new Error('원정대 캐릭터 정보를 확인할 수 없습니다.');
+  }
+  const checkedNicknames = Array.from(new Set([
+    nickname,
+    ...siblings.map((sibling) => sibling.CharacterName),
+  ]));
+  if (checkedNicknames.length > MAX_EXPEDITION_NICKNAMES) {
+    throw new Error('원정대 캐릭터가 너무 많아 모두 확인할 수 없습니다.');
+  }
+  const parameters = new URLSearchParams({
+    scope: 'expedition',
+    nicknames: checkedNicknames.join(','),
+  });
+  const response = await fetch(`/api/inven-incidents?${parameters}`, { signal });
   const payload = await response.json().catch(() => null) as { results?: InvenIncidentResult[]; message?: string } | null;
-  if (!response.ok) throw new Error(payload?.message || '검색 중 오류가 발생했습니다.');
-  return Array.isArray(payload?.results) ? payload.results : [];
+  if (!response.ok) throw new Error(payload?.message || '원정대 사사게 검색 중 오류가 발생했습니다.');
+  if (!Array.isArray(payload?.results)) throw new Error('원정대 사사게 검색 결과를 확인할 수 없습니다.');
+  return { results: payload.results, checkedNicknames };
 };

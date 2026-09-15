@@ -25,10 +25,10 @@ const STATUS_PRESENTATION = {
     card: 'border-amber-300 bg-amber-50/40 dark:border-amber-400/30 dark:bg-amber-500/10',
     badge: 'bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-200',
   },
-  error: {
-    label: '조회 실패',
-    card: 'border-red-300 bg-red-50/40 dark:border-red-400/30 dark:bg-red-500/10',
-    badge: 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-200',
+  incomplete: {
+    label: '원정대 확인 불완전',
+    card: 'border-amber-300 bg-amber-50/40 dark:border-amber-400/30 dark:bg-amber-500/10',
+    badge: 'bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-200',
   },
 } as const;
 
@@ -103,17 +103,22 @@ const ApplicantReviewList: React.FC<ApplicantReviewListProps> = ({
             </div>
             {applicant.searchStatus === 'empty' && (
               <div className="mt-2 rounded-md border border-emerald-200 bg-white/70 p-3 dark:border-emerald-400/20 dark:bg-black/10">
-                <p className="text-sm font-bold text-emerald-700 dark:text-emerald-200">제목·대상자 구간 일치 결과 없음</p>
+                <p className="text-sm font-bold text-emerald-700 dark:text-emerald-200">원정대 제목·대상자 구간 일치 결과 없음</p>
                 <p className="mt-1 text-xs leading-5 text-emerald-800/80 dark:text-emerald-100/80">
-                  게시글 제목과 본문의 대상자 구간에서 일치 닉네임을 찾지 못했습니다. 검색 결과 없음이 안전을 보장하지는 않습니다.
+                  원정대 {applicant.checkedNicknames.length}개 캐릭터의 게시글 제목과 본문 대상자 구간에서 일치 닉네임을 찾지 못했습니다. 검색 결과 없음이 안전을 보장하지는 않습니다.
                 </p>
               </div>
             )}
-            {applicant.searchStatus === 'error' && <p role="alert" className="mt-2 text-sm text-red-500">{applicant.error}</p>}
+            {applicant.searchStatus === 'incomplete' && (
+              <p role="alert" className="mt-2 text-sm text-amber-700 dark:text-amber-300">{applicant.error}</p>
+            )}
             {applicant.searchStatus === 'review' && (
               <ul className="mt-2 space-y-2">
                 {applicant.results.map((result) => (
                   <li key={result.url}>
+                    <p className="mb-1 text-xs font-semibold text-amber-700 dark:text-amber-200">
+                      일치 원정대 캐릭터: {result.matchedNicknames.join(', ')}
+                    </p>
                     <a
                       href={result.url}
                       target="_blank"

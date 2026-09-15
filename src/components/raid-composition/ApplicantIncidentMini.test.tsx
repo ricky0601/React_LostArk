@@ -9,13 +9,18 @@ const applicant = {
   results: [{
     title: '백정핑 관련 게시글',
     url: 'https://www.inven.co.kr/board/lostark/5355/236999',
+    matchedNicknames: ['원정대부캐'],
   }],
 };
 
 describe('ApplicantIncidentMini', () => {
   it('shows a green, scoped PASS state without claiming the applicant is safe', () => {
     render(<ApplicantIncidentMini
-      applicants={[{ ...createApplicantReview(0, '검색닉'), searchStatus: 'empty' }]}
+      applicants={[{
+        ...createApplicantReview(0, '검색닉'),
+        searchStatus: 'empty',
+        checkedNicknames: ['검색닉', '원정대부캐'],
+      }]}
       status="review"
       error={null}
       framesScanned={2}
@@ -27,8 +32,8 @@ describe('ApplicantIncidentMini', () => {
     />);
 
     expect(screen.getByText('인벤 검색 기준 PASS')).toHaveClass('text-emerald-700');
-    expect(screen.getByText('제목·대상자 구간 일치 결과 없음')).toBeInTheDocument();
-    expect(screen.getByText(/게시글 제목과 본문의 대상자 구간에서 일치 닉네임을 찾지 못했습니다/)).toBeInTheDocument();
+    expect(screen.getByText('원정대 제목·대상자 구간 일치 결과 없음')).toBeInTheDocument();
+    expect(screen.getByText(/원정대 2개 캐릭터의 게시글 제목과 본문 대상자 구간/)).toBeInTheDocument();
     expect(screen.getByText(/검색 결과 없음이 안전을 보장하지는 않습니다/)).toBeInTheDocument();
   });
 
@@ -49,6 +54,7 @@ describe('ApplicantIncidentMini', () => {
       close={() => {}}
     />);
 
+    expect(screen.getByText('일치 원정대 캐릭터: 원정대부캐')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /백정핑 관련 게시글/ })).toHaveAttribute(
       'href',
       'https://www.inven.co.kr/board/lostark/5355/236999',
