@@ -113,6 +113,43 @@ describe('applyRecognitionToRoster', () => {
     });
   });
 
+  it('replaces a confirmed same-class participant after two stable nickname observations', () => {
+    const roster = createInitialRoster().map((slot) => (slot.slot === 0 ? {
+      ...slot,
+      className: '기공사',
+      nickname: '기존닉네임',
+      nicknameCandidates: ['기존닉네임'],
+      combatPower: 123456,
+      arkPassiveTitle: '세맥타통',
+      resolvedRole: 'dealer' as const,
+      resolvedPosition: 'hit-master' as const,
+      arkPassiveStatus: 'confirmed' as const,
+      arkPassiveMessage: '아크패시브 확인됨',
+      needsReview: false,
+    } : slot));
+
+    const once = applyRecognitionToRoster(
+      roster,
+      [observation(0, '기공사', false, '새닉네임')],
+      { preserveConfirmedNicknames: true },
+    );
+    expect(once[0]).toMatchObject({
+      nickname: '기존닉네임', pendingNickname: '새닉네임', pendingNicknameFrames: 1,
+      arkPassiveStatus: 'confirmed', combatPower: 123456,
+    });
+
+    const twice = applyRecognitionToRoster(
+      once,
+      [observation(0, '기공사', false, '새닉네임')],
+      { preserveConfirmedNicknames: true },
+    );
+    expect(twice[0]).toMatchObject({
+      nickname: '새닉네임', nicknameCandidates: ['새닉네임'], pendingNickname: '', pendingNicknameFrames: 0,
+      arkPassiveTitle: '', resolvedRole: null, resolvedPosition: null, arkPassiveStatus: 'idle',
+      arkPassiveMessage: '', combatPower: null,
+    });
+  });
+
   it('clears recognition identity and build only after two consecutive true vacancies', () => {
     const recognized = applyRecognitionToRoster(createInitialRoster(), [observation(0, '바드', false, '자동닉')]);
     const withBuild = recognized.map((slot) => (slot.slot === 0 ? {

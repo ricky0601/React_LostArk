@@ -57,6 +57,29 @@ describe('useDocumentPictureInPicture', () => {
     hook.unmount();
   });
 
+  it('closes a stale window when requestWindow resolves after unmount', async () => {
+    const pip = createPictureInPictureWindow();
+    let resolveRequest!: (window: Window) => void;
+    const requestWindow = vi.fn(() => new Promise<Window>((resolve) => { resolveRequest = resolve; }));
+    const observe = vi.spyOn(MutationObserver.prototype, 'observe');
+    setDocumentPictureInPicture({ window: null, requestWindow });
+    const hook = renderHook(() => useDocumentPictureInPicture());
+
+    const firstOpen = hook.result.current.open();
+    const duplicateOpen = hook.result.current.open();
+    expect(requestWindow).toHaveBeenCalledTimes(1);
+    hook.unmount();
+
+    await act(async () => {
+      resolveRequest(pip.window);
+      await Promise.all([firstOpen, duplicateOpen]);
+    });
+
+    expect(pip.close).toHaveBeenCalledOnce();
+    expect(observe).not.toHaveBeenCalled();
+    expect(pip.window.document.getElementById('raid-composition-mini-root')).toBeNull();
+  });
+
   it('reports unsupported browsers without requesting a window', async () => {
     setDocumentPictureInPicture(undefined);
     const hook = renderHook(() => useDocumentPictureInPicture());

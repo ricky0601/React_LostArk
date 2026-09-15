@@ -87,6 +87,29 @@ describe('lookupRaidArkPassive', () => {
     expect(mockedFetchProfile).toHaveBeenCalledTimes(5);
   });
 
+  it('stops candidate retries after a valid profile has unavailable ark passive data', async () => {
+    mockedFetchProfile.mockResolvedValue({ CharacterClassName: '디스트로이어' } as never);
+    mockedFetchArkPassive.mockResolvedValue(null as never);
+
+    await expect(lookupRaidArkPassiveCandidates(
+      ['정확한후보', '재시도하면안됨'],
+      '디스트로이어',
+    )).rejects.toThrow('아크패시브 정보를 찾을 수 없습니다.');
+    expect(mockedFetchProfile).toHaveBeenCalledTimes(1);
+    expect(mockedFetchArkPassive).toHaveBeenCalledTimes(1);
+  });
+
+  it('limits OCR candidate requests to a bounded budget', async () => {
+    mockedFetchProfile.mockResolvedValue(null as never);
+
+    await expect(lookupRaidArkPassiveCandidates(
+      Array.from({ length: 20 }, (_, index) => `오인식${index}`),
+      '디스트로이어',
+    )).rejects.toThrow('캐릭터를 찾을 수 없습니다.');
+    expect(mockedFetchProfile).toHaveBeenCalledTimes(8);
+    expect(mockedFetchArkPassive).not.toHaveBeenCalled();
+  });
+
   it('stops candidate retries when the API itself fails', async () => {
     mockedFetchProfile.mockRejectedValueOnce(new Error('API error: 429'));
 
@@ -108,19 +131,23 @@ describe('lookupRaidArkPassive', () => {
     expect(mockedFetchArkPassive).toHaveBeenCalledWith('비식별닉네임', { signal: controller.signal });
   });
 
-  it('deduplicates concurrent production requests that include abort signals', async () => {
-    mockedFetchProfile.mockResolvedValue({ CharacterClassName: '바드' } as never);
+  it('does not share an abort-owned in-flight request with a different signal', async () => {
+    let rejectFirst: ((reason: unknown) => void) | undefined;
+    mockedFetchProfile
+      .mockImplementationOnce(() => new Promise((_, reject) => { rejectFirst = reject; }) as never)
+      .mockResolvedValueOnce({ CharacterClassName: '바드' } as never);
     mockedFetchArkPassive.mockResolvedValue({ IsArkPassive: true, Title: '절실한 구원' } as never);
     const firstController = new AbortController();
     const secondController = new AbortController();
 
-    await Promise.all([
-      lookupRaidArkPassive('비식별닉네임', '바드', firstController.signal),
-      lookupRaidArkPassive('비식별닉네임', '바드', secondController.signal),
-    ]);
-    await lookupRaidArkPassive('비식별닉네임', '바드', new AbortController().signal);
+    const first = lookupRaidArkPassive('비식별닉네임', '바드', firstController.signal);
+    firstController.abort();
+    rejectFirst?.(new DOMException('Aborted', 'AbortError'));
+    const second = lookupRaidArkPassive('비식별닉네임', '바드', secondController.signal);
 
-    expect(mockedFetchProfile).toHaveBeenCalledTimes(1);
+    await expect(first).rejects.toMatchObject({ name: 'AbortError' });
+    await expect(second).resolves.toMatchObject({ title: '절실한 구원' });
+    expect(mockedFetchProfile).toHaveBeenCalledTimes(2);
     expect(mockedFetchArkPassive).toHaveBeenCalledTimes(1);
   });
 

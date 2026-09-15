@@ -252,6 +252,7 @@ const RaidCompositionMini: React.FC<RaidCompositionMiniProps> = ({
                     </span>
                   )}
                   <span
+                    aria-label={slot.needsReview ? '검토 필요' : '확인됨'}
                     title={slot.needsReview ? '검토 필요' : '확인됨'}
                     className={`h-2 w-2 shrink-0 rounded-full ${slot.needsReview ? 'bg-amber-400' : 'bg-emerald-500'}`}
                   />

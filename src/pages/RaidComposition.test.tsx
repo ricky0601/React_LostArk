@@ -59,7 +59,7 @@ describe('raid composition slot controls', () => {
     expect(screen.getByText('2파티 · 1번')).toBeInTheDocument();
   });
 
-  it('gives each mini fixed checkbox a slot-unique accessible name', () => {
+  it('gives mini fixed checkboxes and review indicators accessible names', () => {
     render(<RaidCompositionMini
       roster={createInitialRoster()}
       setRoster={noop}
@@ -79,5 +79,6 @@ describe('raid composition slot controls', () => {
 
     expect(screen.getByRole('checkbox', { name: '미니 창 1파티 인식 1번 슬롯 고정' })).toBeInTheDocument();
     expect(screen.getByRole('checkbox', { name: '미니 창 2파티 인식 5번 슬롯 고정' })).toBeInTheDocument();
+    expect(screen.getAllByLabelText('검토 필요')).toHaveLength(8);
   });
 });

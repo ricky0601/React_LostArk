@@ -348,35 +348,21 @@ export const evaluateRaidComposition = (
   };
 };
 
-const compareNullableDescending = (left: number | null, right: number | null): number => (
-  left == null || right == null ? 0 : right - left
-);
-
-const compareNullableAscending = (left: number | null, right: number | null): number => (
-  left == null || right == null ? 0 : left - right
-);
-
-const compareEvaluations = (
+export const compareCompositionEvaluations = (
   left: CompositionEvaluation,
   right: CompositionEvaluation,
 ): number => {
   if (left.duplicateSynergyCount !== right.duplicateSynergyCount) {
     return left.duplicateSynergyCount - right.duplicateSynergyCount;
   }
-  if (left.headBackConflictCount !== right.headBackConflictCount) {
-    return left.headBackConflictCount - right.headBackConflictCount;
+  if (left.armorReductionStackingScore !== right.armorReductionStackingScore) {
+    return right.armorReductionStackingScore - left.armorReductionStackingScore;
   }
-  const directionalDifference = compareNullableDescending(
-    left.directionalSynergyBenefit,
-    right.directionalSynergyBenefit,
-  );
-  if (directionalDifference !== 0) return directionalDifference;
-  const raidPowerDifference = compareNullableDescending(left.estimatedRaidPower, right.estimatedRaidPower);
-  if (raidPowerDifference !== 0) return raidPowerDifference;
-  const balanceDifference = compareNullableAscending(left.partyPowerDifference, right.partyPowerDifference);
-  if (balanceDifference !== 0) return balanceDifference;
   if (left.strategyScore !== right.strategyScore) {
     return right.strategyScore - left.strategyScore;
+  }
+  if (left.effectiveSynergyCount !== right.effectiveSynergyCount) {
+    return right.effectiveSynergyCount - left.effectiveSynergyCount;
   }
   if (left.movedMemberIds.length !== right.movedMemberIds.length) {
     return left.movedMemberIds.length - right.movedMemberIds.length;
@@ -431,11 +417,11 @@ export const recommendRaidComposition = (
   });
 
   if (candidates.length === 0) return null;
-  candidates.sort(compareEvaluations);
+  candidates.sort(compareCompositionEvaluations);
   const best = candidates[0];
   const strategyReason = strategy === 'position-focused'
     ? '헤드·백·타대 딜러가 같은 포지션끼리 모이도록 평가했습니다.'
-    : '헤드와 백은 분리하면서 각 파티의 전투력 차이를 줄이도록 평가했습니다.';
+    : '각 파티의 타대와 헤드·백 딜러 분포가 균형을 이루도록 평가했습니다.';
 
   return {
     ...best,
@@ -445,21 +431,11 @@ export const recommendRaidComposition = (
       best.duplicateSynergyCount === 0
         ? '중첩되지 않는 동일 stackingGroup 시너지를 분리했습니다.'
         : `동일 stackingGroup 중복을 ${best.duplicateSynergyCount}건으로 최소화했습니다.`,
-      best.headBackConflictCount === 0
-        ? '헤드와 백 딜러를 분리해 포지션 충돌을 없앴습니다.'
-        : `헤드·백 혼합 충돌 점수를 ${best.headBackConflictCount}점으로 최소화했습니다.`,
-      ...(best.directionalSynergyBenefit != null && best.directionalSynergyBenefit > 0
-        ? ['전투력이 높은 헤드·백 딜러가 방향성 시너지를 받도록 평가했습니다.']
-        : best.directionalSynergyBenefit == null
-          ? ['전투력 미확인 인원이 있어 전투력 기반 시너지 평가는 확정하지 않았습니다.']
-          : []),
-      best.repeatedSynergyTypeCount === 0
-        ? '추천 편성에 동일 유형 시너지 집중이 없습니다.'
-        : `추천 편성의 동일 유형 시너지 집중은 ${best.repeatedSynergyTypeCount}건입니다.`,
-      ...(best.armorReductionStackingScore > 0
-        ? ['방어력 감소 중첩 효과를 추정 효율 계산에 반영했습니다.']
-        : []),
+      best.armorReductionStackingScore > 0
+        ? `방어력 감소 중첩 점수를 ${best.armorReductionStackingScore}점으로 최대화했습니다.`
+        : '방어력 감소 중첩 가능한 조합이 없습니다.',
       strategyReason,
+      `유효 시너지 ${best.effectiveSynergyCount}개를 확보했습니다.`,
       `현재 편성에서 ${best.movedMemberIds.length}명이 이동합니다.`,
       ...(members.some(({ fixed }) => fixed) ? ['고정 인원의 현재 파티를 유지했습니다.'] : []),
     ],

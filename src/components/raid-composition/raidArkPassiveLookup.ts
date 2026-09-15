@@ -9,6 +9,8 @@ export interface RaidArkPassiveLookupResult extends RaidBuildResolution {
 
 export class RaidArkPassiveLookupError extends Error {}
 
+class RaidArkPassiveCandidateError extends RaidArkPassiveLookupError {}
+
 export const parseRaidCombatPower = (value: string | null | undefined): number | null => {
   if (!value) return null;
   const parsed = Number(value.replace(/,/g, '').trim());
@@ -16,9 +18,14 @@ export const parseRaidCombatPower = (value: string | null | undefined): number |
 };
 
 const lookupCache = new Map<string, RaidArkPassiveLookupResult>();
-const inFlightLookups = new Map<string, Promise<RaidArkPassiveLookupResult>>();
+interface InFlightLookup {
+  readonly signal: AbortSignal | undefined;
+  readonly promise: Promise<RaidArkPassiveLookupResult>;
+}
+
+const inFlightLookups = new Map<string, InFlightLookup>();
 let lookupCacheGeneration = 0;
-const MAX_OCR_CANDIDATE_LOOKUPS = 72;
+const MAX_OCR_CANDIDATE_LOOKUPS = 8;
 
 export const lookupRaidArkPassive = (
   nickname: string,
@@ -29,16 +36,16 @@ export const lookupRaidArkPassive = (
   const cached = lookupCache.get(key);
   if (cached) return Promise.resolve(cached);
   const inFlight = inFlightLookups.get(key);
-  if (inFlight) return inFlight;
+  if (inFlight && inFlight.signal === signal) return inFlight.promise;
   const cacheGeneration = lookupCacheGeneration;
 
   const request = fetchProfile(nickname, { signal })
     .then(async (profile) => {
       if (!profile) {
-        throw new RaidArkPassiveLookupError('캐릭터를 찾을 수 없습니다. 닉네임을 확인해 주세요.');
+        throw new RaidArkPassiveCandidateError('캐릭터를 찾을 수 없습니다. 닉네임을 확인해 주세요.');
       }
       if (profile.CharacterClassName !== recognizedClassName) {
-        throw new RaidArkPassiveLookupError(
+        throw new RaidArkPassiveCandidateError(
           `API 직업(${profile.CharacterClassName})이 화면 인식 직업(${recognizedClassName})과 다릅니다.`,
         );
       }
@@ -59,9 +66,9 @@ export const lookupRaidArkPassive = (
       return result;
     })
     .finally(() => {
-      if (inFlightLookups.get(key) === request) inFlightLookups.delete(key);
+      if (inFlightLookups.get(key)?.promise === request) inFlightLookups.delete(key);
     });
-  inFlightLookups.set(key, request);
+  inFlightLookups.set(key, { signal, promise: request });
   return request;
 };
 
@@ -75,7 +82,7 @@ export const lookupRaidArkPassiveCandidates = async (
     try {
       return await lookupRaidArkPassive(nickname, recognizedClassName, signal);
     } catch (error) {
-      if (!(error instanceof RaidArkPassiveLookupError)) throw error;
+      if (!(error instanceof RaidArkPassiveCandidateError)) throw error;
       lastError = error;
     }
   }

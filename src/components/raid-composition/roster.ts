@@ -20,6 +20,8 @@ export interface RaidRosterSlot {
   readonly confidence: number;
   readonly combatPower: number | null;
   readonly vacancyFrames: number;
+  readonly pendingNickname: string;
+  readonly pendingNicknameFrames: number;
   readonly needsReview: boolean;
   readonly arkPassiveTitle: string;
   readonly buildSource: RaidValueProvenance;
@@ -131,6 +133,8 @@ export const createInitialRoster = (): readonly RaidRosterSlot[] => (
     confidence: 0,
     combatPower: null,
     vacancyFrames: 0,
+    pendingNickname: '',
+    pendingNicknameFrames: 0,
     needsReview: true,
     arkPassiveTitle: '',
     buildSource: 'recognition' as const,
@@ -180,15 +184,28 @@ export const applyRecognitionToRoster = (
         } : {}),
         confidence: 0,
         vacancyFrames,
+        pendingNickname: '',
+        pendingNicknameFrames: 0,
         needsReview: clearClass || (clearBuild ? classNeedsBuildResolution(slot.className) : slot.needsReview),
       };
     }
     const nextClassName = slot.classNameSource === 'manual'
       ? slot.className
       : observation.className ?? slot.className;
+    const confirmedNicknameMismatch = options.preserveConfirmedNicknames === true
+      && slot.nicknameSource === 'recognition'
+      && slot.arkPassiveStatus === 'confirmed'
+      && nextClassName === slot.className
+      && observation.nickname != null
+      && observation.nickname !== slot.nickname;
+    const pendingNicknameFrames = confirmedNicknameMismatch
+      ? (slot.pendingNickname === observation.nickname ? slot.pendingNicknameFrames + 1 : 1)
+      : 0;
+    const replaceConfirmedNickname = confirmedNicknameMismatch && pendingNicknameFrames >= 2;
     const preserveConfirmedNickname = options.preserveConfirmedNicknames === true
       && slot.arkPassiveStatus === 'confirmed'
-      && nextClassName === slot.className;
+      && nextClassName === slot.className
+      && !replaceConfirmedNickname;
     const nextNickname = slot.nicknameSource === 'manual' || preserveConfirmedNickname
       ? slot.nickname
       : observation.nickname ?? slot.nickname;
@@ -207,6 +224,8 @@ export const applyRecognitionToRoster = (
           : slot.nicknameCandidates,
       confidence: observation.confidence,
       vacancyFrames,
+      pendingNickname: confirmedNicknameMismatch && !replaceConfirmedNickname ? observation.nickname ?? '' : '',
+      pendingNicknameFrames: confirmedNicknameMismatch && !replaceConfirmedNickname ? pendingNicknameFrames : 0,
       needsReview: preserveConfirmedResolution
         ? false
         : observation.needsReview
@@ -252,6 +271,8 @@ export const updateRosterSlot = (
       arkPassiveStatus: 'idle' as const,
       arkPassiveMessage: '',
       vacancyFrames: 0,
+      pendingNickname: '',
+      pendingNicknameFrames: 0,
     } : {}),
   };
   if (identityChanged) {
@@ -267,7 +288,14 @@ export const enableRosterAutoRecognition = (
   id: string,
 ): readonly RaidRosterSlot[] => roster.map((slot) => (
   slot.id === id
-    ? { ...slot, classNameSource: 'recognition' as const, nicknameSource: 'recognition' as const, vacancyFrames: 0 }
+    ? {
+      ...slot,
+      classNameSource: 'recognition' as const,
+      nicknameSource: 'recognition' as const,
+      vacancyFrames: 0,
+      pendingNickname: '',
+      pendingNicknameFrames: 0,
+    }
     : slot
 ));
 

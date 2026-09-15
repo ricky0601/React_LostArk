@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
   combinationsOfFour,
+  compareCompositionEvaluations,
   evaluateRaidComposition,
   recommendRaidComposition,
+  type CompositionEvaluation,
   type PartyAssignment,
   type PartyNumber,
   type RaidCompositionMember,
@@ -135,6 +137,48 @@ describe('evaluateRaidComposition', () => {
 });
 
 describe('recommendRaidComposition', () => {
+  const evaluation = (metrics: Partial<CompositionEvaluation>): CompositionEvaluation => ({
+    duplicateSynergyCount: 0,
+    armorReductionStackingScore: 0,
+    strategyScore: 0,
+    effectiveSynergyCount: 0,
+    movedMemberIds: [],
+    parties: { 1: [{ id: 'z' }], 2: [] },
+    ...metrics,
+  } as CompositionEvaluation);
+
+  it.each([
+    {
+      priority: 'stackingGroup duplicates over every lower score',
+      preferred: { duplicateSynergyCount: 0, armorReductionStackingScore: 0, strategyScore: 0, effectiveSynergyCount: 0, movedMemberIds: ['a'] },
+      other: { duplicateSynergyCount: 1, armorReductionStackingScore: 9, strategyScore: 9, effectiveSynergyCount: 9, movedMemberIds: [] },
+    },
+    {
+      priority: 'armor reduction stacking over strategy, synergy, and movement',
+      preferred: { armorReductionStackingScore: 2, strategyScore: 0, effectiveSynergyCount: 0, movedMemberIds: ['a'] },
+      other: { armorReductionStackingScore: 1, strategyScore: 9, effectiveSynergyCount: 9, movedMemberIds: [] },
+    },
+    {
+      priority: 'strategy score over effective synergy and movement',
+      preferred: { strategyScore: 2, effectiveSynergyCount: 0, movedMemberIds: ['a'] },
+      other: { strategyScore: 1, effectiveSynergyCount: 9, movedMemberIds: [] },
+    },
+    {
+      priority: 'effective synergy over movement',
+      preferred: { effectiveSynergyCount: 2, movedMemberIds: ['a'] },
+      other: { effectiveSynergyCount: 1, movedMemberIds: [] },
+    },
+  ])('prioritizes $priority', ({ preferred, other }) => {
+    expect(compareCompositionEvaluations(evaluation(preferred), evaluation(other))).toBeLessThan(0);
+  });
+
+  it('uses movement before the deterministic party-id tie-break', () => {
+    const preferred = evaluation({ movedMemberIds: [], parties: { 1: [{ id: 'z' }], 2: [] } as never });
+    const other = evaluation({ movedMemberIds: ['a'], parties: { 1: [{ id: 'a' }], 2: [] } as never });
+
+    expect(compareCompositionEvaluations(preferred, other)).toBeLessThan(0);
+  });
+
   it('exhaustively considers all 8 choose 4 first-party assignments', () => {
     const roster = Array.from({ length: 8 }, (_, index) => member(`member-${index}`, index < 4 ? 1 : 2));
 
@@ -178,24 +222,6 @@ describe('recommendRaidComposition', () => {
       .not.toBe(result?.parties[1].some(({ id }) => id === 'duplicate-2'));
   });
 
-  it('separates the same synergy type even when classes have distinct stacking groups', () => {
-    const roster = [
-      ...supporters,
-      member('critical-1', 1, 'dealer', 'hit-master', ['critical:gunslinger'], false, '치명타 적중률 증가'),
-      member('critical-2', 1, 'dealer', 'hit-master', ['critical:aeromancer'], false, '치명타 적중률 증가'),
-      member('a', 1),
-      member('b', 2),
-      member('c', 2),
-      member('d', 2),
-    ];
-
-    const result = recommendRaidComposition(roster, 'balanced', 'test-version');
-
-    expect(result?.repeatedSynergyTypeCount).toBe(0);
-    expect(result?.parties[1].some(({ id }) => id === 'critical-1'))
-      .not.toBe(result?.parties[1].some(({ id }) => id === 'critical-2'));
-  });
-
   it('groups distinct armor reduction synergies before applying the position strategy', () => {
     const roster = [
       ...supporters,
@@ -214,67 +240,8 @@ describe('recommendRaidComposition', () => {
       .map(({ armorReductionCount }) => armorReductionCount)
       .sort()).toEqual([0, 3]);
     expect(result?.reasons).toContain(
-      '방어력 감소 중첩 효과를 추정 효율 계산에 반영했습니다.',
+      '방어력 감소 중첩 점수를 3점으로 최대화했습니다.',
     );
-  });
-
-  it('separates three head dealers from three back dealers before other soft preferences', () => {
-    const roster = [
-      ...supporters,
-      member('head-1', 1, 'dealer', 'entropy-head'),
-      member('head-2', 1, 'dealer', 'entropy-head'),
-      member('back-1', 1, 'dealer', 'entropy-back'),
-      member('head-3', 2, 'dealer', 'entropy-head'),
-      member('back-2', 2, 'dealer', 'entropy-back'),
-      member('back-3', 2, 'dealer', 'entropy-back'),
-    ];
-
-    const result = recommendRaidComposition(roster, 'balanced', 'test-version');
-    const firstPositions = result?.parties[1].filter(({ role }) => role === 'dealer').map(({ position }) => position);
-    const secondPositions = result?.parties[2].filter(({ role }) => role === 'dealer').map(({ position }) => position);
-
-    expect(result?.headBackConflictCount).toBe(0);
-    expect([firstPositions, secondPositions]).toEqual(expect.arrayContaining([
-      ['entropy-head', 'entropy-head', 'entropy-head'],
-      ['entropy-back', 'entropy-back', 'entropy-back'],
-    ]));
-  });
-
-  it('places directional synergy with the higher-combat-power directional dealers', () => {
-    const directional = ['directional:blade'];
-    const roster = [
-      ...supporters,
-      member('synergy', 1, 'dealer', 'entropy-back', directional, false, '헤드·백어택 피해 증가', 100),
-      member('strong-1', 1, 'dealer', 'entropy-back', [], false, '테스트', 1000),
-      member('weak-1', 1, 'dealer', 'entropy-back', [], false, '테스트', 100),
-      member('strong-2', 2, 'dealer', 'entropy-back', [], false, '테스트', 900),
-      member('weak-2', 2, 'dealer', 'entropy-back', [], false, '테스트', 100),
-      member('weak-3', 2, 'dealer', 'entropy-back', [], false, '테스트', 100),
-    ];
-
-    const result = recommendRaidComposition(roster, 'balanced', 'test-version');
-    const synergyParty = result?.parties[1].some(({ id }) => id === 'synergy') ? result?.parties[1] : result?.parties[2];
-
-    expect(synergyParty?.map(({ id }) => id)).toEqual(expect.arrayContaining(['strong-1', 'strong-2']));
-    expect(result?.directionalSynergyBenefit).toBeGreaterThan(0);
-  });
-
-  it('balances combat power when higher-priority position and synergy scores tie', () => {
-    const roster = [
-      ...supporters,
-      member('power-1000', 1, 'dealer', 'hit-master', [], false, '테스트', 1000),
-      member('power-900', 1, 'dealer', 'hit-master', [], false, '테스트', 900),
-      member('power-100-a', 1, 'dealer', 'hit-master', [], false, '테스트', 100),
-      member('power-100-b', 2, 'dealer', 'hit-master', [], false, '테스트', 100),
-      member('power-100-c', 2, 'dealer', 'hit-master', [], false, '테스트', 100),
-      member('power-100-d', 2, 'dealer', 'hit-master', [], false, '테스트', 100),
-    ];
-
-    const result = recommendRaidComposition(roster, 'balanced', 'test-version');
-
-    expect(result?.partyPowerDifference).toBe(100);
-    expect(result?.parties[1].some(({ id }) => id === 'power-1000'))
-      .not.toBe(result?.parties[1].some(({ id }) => id === 'power-900'));
   });
 
   it('never moves a fixed member out of the current party', () => {
