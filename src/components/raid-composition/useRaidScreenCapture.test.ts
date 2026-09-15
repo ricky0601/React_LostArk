@@ -51,7 +51,7 @@ describe('useRaidScreenCapture', () => {
 
   it('keeps ark passive lookup opt-in and aborts an active lookup when identity changes', async () => {
     let resolveLookup!: (value: {
-      nickname: string; className: string; title: string; role: 'support'; position: 'unknown'; needsReview: false;
+      nickname: string; className: string; title: string; role: 'support'; position: 'unknown'; combatPower: number; needsReview: false;
     }) => void;
     mocks.lookup.mockImplementationOnce(() => new Promise((resolve) => { resolveLookup = resolve; }));
     const { result, unmount } = renderHook(() => useRaidScreenCapture());
@@ -68,7 +68,7 @@ describe('useRaidScreenCapture', () => {
     expect(signal.aborted).toBe(true);
     await act(async () => {
       resolveLookup({
-        nickname: '인식닉', className: '바드', title: '절실한 구원', role: 'support', position: 'unknown', needsReview: false,
+        nickname: '인식닉', className: '바드', title: '절실한 구원', role: 'support', position: 'unknown', combatPower: 100000, needsReview: false,
       });
       await Promise.resolve();
     });
@@ -78,7 +78,7 @@ describe('useRaidScreenCapture', () => {
 
   it('keeps a confirmed identity on one mismatched nickname frame while auto lookup is enabled', async () => {
     mocks.lookup.mockResolvedValueOnce({
-      nickname: '확정닉', className: '바드', title: '절실한 구원', role: 'support', position: 'unknown', needsReview: false,
+      nickname: '확정닉', className: '바드', title: '절실한 구원', role: 'support', position: 'unknown', combatPower: 123456, needsReview: false,
     });
     const { result } = renderHook(() => useRaidScreenCapture());
 
@@ -92,6 +92,7 @@ describe('useRaidScreenCapture', () => {
       arkPassiveTitle: '절실한 구원',
       resolvedRole: 'support',
       resolvedPosition: 'unknown',
+      combatPower: 123456,
       arkPassiveStatus: 'confirmed',
     });
 

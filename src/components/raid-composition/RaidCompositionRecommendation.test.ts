@@ -8,6 +8,7 @@ const member = (id: string, currentParty: 1 | 2): RaidCompositionMember => ({
   role: 'dealer',
   position: 'hit-master',
   synergies: [],
+  combatPower: 100,
   currentParty,
 });
 
@@ -20,11 +21,18 @@ const recommendationWith = (
   isValid: true,
   isConfirmed: true,
   unresolvedMemberIds: [],
+  unresolvedCombatPowerMemberIds: [],
   strategyScore: 0,
   effectiveSynergyCount: 0,
   armorReductionStackingScore: 0,
   repeatedSynergyTypeCount: 0,
   duplicateSynergyCount: 0,
+  headBackConflictCount: 0,
+  directionalSynergyBenefit: 0,
+  estimatedRaidPower: 800,
+  partyPowerDifference: 0,
+  estimatedSynergyNames: [],
+  synergyEffectSourceIds: [],
   movedMemberIds: [...firstParty, ...secondParty]
     .filter((item) => item.currentParty !== (firstParty.includes(item) ? 1 : 2))
     .map(({ id }) => id),

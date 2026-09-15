@@ -1,4 +1,5 @@
 import type { AttackPosition, ClassSynergy, RaidRole } from '../../data/raidComposition';
+import { resolveRaidSynergyEffect } from './raidSynergyEffects';
 
 export type PartyNumber = 1 | 2;
 export type CompositionStrategy = 'position-focused' | 'balanced';
@@ -9,6 +10,7 @@ export interface RaidCompositionMember {
   readonly role: RaidRole;
   readonly position: AttackPosition;
   readonly synergies: readonly ClassSynergy[];
+  readonly combatPower: number | null;
   readonly currentParty: PartyNumber;
   readonly fixed?: boolean;
 }
@@ -59,6 +61,13 @@ export interface PartyEvaluation {
   readonly armorReductionCount: number;
   readonly repeatedSynergyTypeCount: number;
   readonly duplicateSynergyCount: number;
+  readonly headBackConflictCount: number;
+  readonly dealerCombatPower: number | null;
+  readonly directionalSynergyBenefit: number | null;
+  readonly estimatedSynergyBenefit: number | null;
+  readonly effectivePartyPower: number | null;
+  readonly estimatedSynergyNames: readonly string[];
+  readonly synergyEffectSourceIds: readonly string[];
   readonly warnings: readonly CompositionWarning[];
 }
 
@@ -68,11 +77,18 @@ export interface CompositionEvaluation {
   readonly isValid: boolean;
   readonly isConfirmed: boolean;
   readonly unresolvedMemberIds: readonly string[];
+  readonly unresolvedCombatPowerMemberIds: readonly string[];
   readonly strategyScore: number;
   readonly effectiveSynergyCount: number;
   readonly armorReductionStackingScore: number;
   readonly repeatedSynergyTypeCount: number;
   readonly duplicateSynergyCount: number;
+  readonly headBackConflictCount: number;
+  readonly directionalSynergyBenefit: number | null;
+  readonly estimatedRaidPower: number | null;
+  readonly partyPowerDifference: number | null;
+  readonly estimatedSynergyNames: readonly string[];
+  readonly synergyEffectSourceIds: readonly string[];
   readonly movedMemberIds: readonly string[];
   readonly warnings: readonly CompositionWarning[];
 }
@@ -98,6 +114,57 @@ const countPositions = (members: readonly RaidCompositionMember[]): PositionCoun
   }, { entropyHead: 0, entropyBack: 0, hitMaster: 0, unknown: 0 })
 );
 
+const isDirectionalDealer = (member: RaidCompositionMember): boolean => (
+  member.position === 'entropy-head' || member.position === 'entropy-back'
+);
+
+const estimatePartyPower = (
+  dealers: readonly RaidCompositionMember[],
+  synergies: ReadonlyMap<string, ClassSynergy>,
+): Pick<PartyEvaluation,
+  'dealerCombatPower' | 'directionalSynergyBenefit' | 'estimatedSynergyBenefit' | 'effectivePartyPower'
+> => {
+  if (dealers.some(({ combatPower }) => combatPower == null || combatPower <= 0)) {
+    return {
+      dealerCombatPower: null,
+      directionalSynergyBenefit: null,
+      estimatedSynergyBenefit: null,
+      effectivePartyPower: null,
+    };
+  }
+  const dealerCombatPower = dealers.reduce((total, member) => total + (member.combatPower ?? 0), 0);
+  let directionalSynergyBenefit = 0;
+  let effectivePartyPower = 0;
+  dealers.forEach((dealer) => {
+    const categoryRates = new Map<string, number>();
+    synergies.forEach((synergy, stackingGroup) => {
+      const effect = resolveRaidSynergyEffect(synergy.name);
+      if (!effect) return;
+      const directionalRate = isDirectionalDealer(dealer) ? effect.directionalRate : 0;
+      directionalSynergyBenefit += (dealer.combatPower ?? 0) * directionalRate;
+      // 서로 다른 방어력 감소는 곱연산되도록 각 stackingGroup을 별도 범주로 둔다.
+      const category = effect.category === 'armor-reduction'
+        ? `${effect.category}:${stackingGroup}`
+        : effect.category;
+      categoryRates.set(
+        category,
+        (categoryRates.get(category) ?? 0) + effect.generalRate + directionalRate,
+      );
+    });
+    const multiplier = Array.from(categoryRates.values()).reduce(
+      (combined, rate) => combined * (1 + rate),
+      1,
+    );
+    effectivePartyPower += (dealer.combatPower ?? 0) * multiplier;
+  });
+  return {
+    dealerCombatPower,
+    directionalSynergyBenefit,
+    estimatedSynergyBenefit: effectivePartyPower - dealerCombatPower,
+    effectivePartyPower,
+  };
+};
+
 const evaluateParty = (
   party: PartyNumber,
   members: readonly RaidCompositionMember[],
@@ -111,10 +178,12 @@ const evaluateParty = (
     warnings.push({ type: 'support-count', party, actual: supportCount, expected: 1 });
   }
 
+  const dealers = members.filter((member) => member.role === 'dealer');
   const synergyMembers = new Map<string, string[]>();
+  const effectiveSynergies = new Map<string, ClassSynergy>();
   const synergyTypeMembers = new Map<string, Set<string>>();
   const armorReductionGroups = new Set<string>();
-  members.filter((member) => member.role === 'dealer').forEach((member) => {
+  dealers.forEach((member) => {
     const memberSynergies = new Map(
       member.synergies.map((synergy) => [synergy.stackingGroup, synergy]),
     );
@@ -122,6 +191,7 @@ const evaluateParty = (
       const memberIds = synergyMembers.get(stackingGroup) ?? [];
       memberIds.push(member.id);
       synergyMembers.set(stackingGroup, memberIds);
+      if (!effectiveSynergies.has(stackingGroup)) effectiveSynergies.set(stackingGroup, synergy);
       if (synergy.name === '방어력 감소') {
         armorReductionGroups.add(stackingGroup);
       } else {
@@ -145,11 +215,13 @@ const evaluateParty = (
   });
   duplicateWarnings.sort((left, right) => left.stackingGroup.localeCompare(right.stackingGroup));
   warnings.push(...duplicateWarnings);
+  const positions = countPositions(members);
+  const power = estimatePartyPower(dealers, effectiveSynergies);
 
   return {
     party,
     supportCount,
-    positions: countPositions(members),
+    positions,
     effectiveSynergyCount: synergyMembers.size,
     armorReductionCount: armorReductionGroups.size,
     repeatedSynergyTypeCount: Array.from(synergyTypeMembers.values()).reduce(
@@ -160,11 +232,21 @@ const evaluateParty = (
       (total, warning) => total + warning.memberIds.length - 1,
       0,
     ),
+    headBackConflictCount: positions.entropyHead * positions.entropyBack,
+    ...power,
+    estimatedSynergyNames: Array.from(new Set(Array.from(effectiveSynergies.values())
+      .filter((synergy) => resolveRaidSynergyEffect(synergy.name)?.estimated)
+      .map((synergy) => synergy.name))).sort(),
+    synergyEffectSourceIds: Array.from(new Set(Array.from(effectiveSynergies.values())
+      .flatMap((synergy) => {
+        const effect = resolveRaidSynergyEffect(synergy.name);
+        return effect ? [effect.sourceId] : [];
+      }))).sort(),
     warnings,
   };
 };
 
-const armorReductionPairCount = (count: number): number => count * (count - 1) / 2;
+const pairCount = (count: number): number => count * (count - 1) / 2;
 
 const positionStrategyScore = (
   partyEvaluations: Readonly<Record<PartyNumber, PartyEvaluation>>,
@@ -176,10 +258,12 @@ const positionStrategyScore = (
   const secondEntropy = second.entropyHead + second.entropyBack;
 
   if (strategy === 'position-focused') {
-    return Math.max(
-      firstEntropy + second.hitMaster,
-      first.hitMaster + secondEntropy,
-    );
+    return [first, second].reduce((score, positions) => (
+      score
+      + pairCount(positions.entropyHead)
+      + pairCount(positions.entropyBack)
+      + pairCount(positions.hitMaster)
+    ), 0);
   }
 
   return [first, second].reduce((score, positions) => {
@@ -198,13 +282,20 @@ export const evaluateRaidComposition = (
     2: evaluateParty(2, parties[2]),
   };
   const members = [...parties[1], ...parties[2]];
-  const unresolvedMemberIds = members
+  const unresolvedRoleOrPositionIds = members
     .filter((member) => (
       member.role === 'unknown'
       || (member.role === 'dealer' && member.position === 'unknown')
     ))
+    .map((member) => member.id);
+  const unresolvedCombatPowerMemberIds = members
+    .filter((member) => member.role === 'dealer' && (member.combatPower == null || member.combatPower <= 0))
     .map((member) => member.id)
     .sort();
+  const unresolvedMemberIds = Array.from(new Set([
+    ...unresolvedRoleOrPositionIds,
+    ...unresolvedCombatPowerMemberIds,
+  ])).sort();
   const warnings = [...partyEvaluations[1].warnings, ...partyEvaluations[2].warnings];
   const isValid = !warnings.some((warning) => (
     warning.type === 'party-size' || warning.type === 'support-count'
@@ -216,16 +307,39 @@ export const evaluateRaidComposition = (
     isValid,
     isConfirmed: isValid && unresolvedMemberIds.length === 0,
     unresolvedMemberIds,
+    unresolvedCombatPowerMemberIds,
     strategyScore: positionStrategyScore(partyEvaluations, strategy),
     effectiveSynergyCount: partyEvaluations[1].effectiveSynergyCount
       + partyEvaluations[2].effectiveSynergyCount,
-    armorReductionStackingScore: armorReductionPairCount(
+    armorReductionStackingScore: pairCount(
       partyEvaluations[1].armorReductionCount,
-    ) + armorReductionPairCount(partyEvaluations[2].armorReductionCount),
+    ) + pairCount(partyEvaluations[2].armorReductionCount),
     repeatedSynergyTypeCount: partyEvaluations[1].repeatedSynergyTypeCount
       + partyEvaluations[2].repeatedSynergyTypeCount,
     duplicateSynergyCount: partyEvaluations[1].duplicateSynergyCount
       + partyEvaluations[2].duplicateSynergyCount,
+    headBackConflictCount: partyEvaluations[1].headBackConflictCount
+      + partyEvaluations[2].headBackConflictCount,
+    directionalSynergyBenefit: partyEvaluations[1].directionalSynergyBenefit == null
+      || partyEvaluations[2].directionalSynergyBenefit == null
+      ? null
+      : partyEvaluations[1].directionalSynergyBenefit + partyEvaluations[2].directionalSynergyBenefit,
+    estimatedRaidPower: partyEvaluations[1].effectivePartyPower == null
+      || partyEvaluations[2].effectivePartyPower == null
+      ? null
+      : partyEvaluations[1].effectivePartyPower + partyEvaluations[2].effectivePartyPower,
+    partyPowerDifference: partyEvaluations[1].effectivePartyPower == null
+      || partyEvaluations[2].effectivePartyPower == null
+      ? null
+      : Math.abs(partyEvaluations[1].effectivePartyPower - partyEvaluations[2].effectivePartyPower),
+    estimatedSynergyNames: Array.from(new Set([
+      ...partyEvaluations[1].estimatedSynergyNames,
+      ...partyEvaluations[2].estimatedSynergyNames,
+    ])).sort(),
+    synergyEffectSourceIds: Array.from(new Set([
+      ...partyEvaluations[1].synergyEffectSourceIds,
+      ...partyEvaluations[2].synergyEffectSourceIds,
+    ])).sort(),
     movedMemberIds: members
       .filter((member) => !parties[member.currentParty].some(({ id }) => id === member.id))
       .map((member) => member.id)
@@ -234,24 +348,35 @@ export const evaluateRaidComposition = (
   };
 };
 
+const compareNullableDescending = (left: number | null, right: number | null): number => (
+  left == null || right == null ? 0 : right - left
+);
+
+const compareNullableAscending = (left: number | null, right: number | null): number => (
+  left == null || right == null ? 0 : left - right
+);
+
 const compareEvaluations = (
   left: CompositionEvaluation,
   right: CompositionEvaluation,
 ): number => {
-  if (left.repeatedSynergyTypeCount !== right.repeatedSynergyTypeCount) {
-    return left.repeatedSynergyTypeCount - right.repeatedSynergyTypeCount;
-  }
   if (left.duplicateSynergyCount !== right.duplicateSynergyCount) {
     return left.duplicateSynergyCount - right.duplicateSynergyCount;
   }
-  if (left.armorReductionStackingScore !== right.armorReductionStackingScore) {
-    return right.armorReductionStackingScore - left.armorReductionStackingScore;
+  if (left.headBackConflictCount !== right.headBackConflictCount) {
+    return left.headBackConflictCount - right.headBackConflictCount;
   }
+  const directionalDifference = compareNullableDescending(
+    left.directionalSynergyBenefit,
+    right.directionalSynergyBenefit,
+  );
+  if (directionalDifference !== 0) return directionalDifference;
+  const raidPowerDifference = compareNullableDescending(left.estimatedRaidPower, right.estimatedRaidPower);
+  if (raidPowerDifference !== 0) return raidPowerDifference;
+  const balanceDifference = compareNullableAscending(left.partyPowerDifference, right.partyPowerDifference);
+  if (balanceDifference !== 0) return balanceDifference;
   if (left.strategyScore !== right.strategyScore) {
     return right.strategyScore - left.strategyScore;
-  }
-  if (left.effectiveSynergyCount !== right.effectiveSynergyCount) {
-    return right.effectiveSynergyCount - left.effectiveSynergyCount;
   }
   if (left.movedMemberIds.length !== right.movedMemberIds.length) {
     return left.movedMemberIds.length - right.movedMemberIds.length;
@@ -260,7 +385,7 @@ const compareEvaluations = (
     .localeCompare(right.parties[1].map(({ id }) => id).sort().join('\u0000'));
 };
 
-const combinationsOfFour = (
+export const combinationsOfFour = (
   members: readonly RaidCompositionMember[],
 ): RaidCompositionMember[][] => {
   const combinations: RaidCompositionMember[][] = [];
@@ -309,22 +434,30 @@ export const recommendRaidComposition = (
   candidates.sort(compareEvaluations);
   const best = candidates[0];
   const strategyReason = strategy === 'position-focused'
-    ? '헤드·백 중심 파티와 타대 중심 파티가 되도록 평가했습니다.'
-    : '각 파티가 타대 2명과 헤드·백 1명에 가까워지도록 평가했습니다.';
+    ? '헤드·백·타대 딜러가 같은 포지션끼리 모이도록 평가했습니다.'
+    : '헤드와 백은 분리하면서 각 파티의 전투력 차이를 줄이도록 평가했습니다.';
 
   return {
     ...best,
     dataVersion,
     reasons: [
       '각 파티에 서포터를 1명씩 배치했습니다.',
-      best.repeatedSynergyTypeCount === 0
-        ? '동일 유형 시너지를 두 파티에 분산했습니다.'
-        : `한 파티에 몰린 동일 유형 시너지를 ${best.repeatedSynergyTypeCount}건으로 최소화했습니다.`,
       best.duplicateSynergyCount === 0
-        ? '동일 stackingGroup 시너지 중복이 없습니다.'
+        ? '중첩되지 않는 동일 stackingGroup 시너지를 분리했습니다.'
         : `동일 stackingGroup 중복을 ${best.duplicateSynergyCount}건으로 최소화했습니다.`,
+      best.headBackConflictCount === 0
+        ? '헤드와 백 딜러를 분리해 포지션 충돌을 없앴습니다.'
+        : `헤드·백 혼합 충돌 점수를 ${best.headBackConflictCount}점으로 최소화했습니다.`,
+      ...(best.directionalSynergyBenefit != null && best.directionalSynergyBenefit > 0
+        ? ['전투력이 높은 헤드·백 딜러가 방향성 시너지를 받도록 평가했습니다.']
+        : best.directionalSynergyBenefit == null
+          ? ['전투력 미확인 인원이 있어 전투력 기반 시너지 평가는 확정하지 않았습니다.']
+          : []),
+      best.repeatedSynergyTypeCount === 0
+        ? '추천 편성에 동일 유형 시너지 집중이 없습니다.'
+        : `추천 편성의 동일 유형 시너지 집중은 ${best.repeatedSynergyTypeCount}건입니다.`,
       ...(best.armorReductionStackingScore > 0
-        ? ['방어력 감소 시너지를 같은 파티에 모아 중첩 효율을 높였습니다.']
+        ? ['방어력 감소 중첩 효과를 추정 효율 계산에 반영했습니다.']
         : []),
       strategyReason,
       `현재 편성에서 ${best.movedMemberIds.length}명이 이동합니다.`,

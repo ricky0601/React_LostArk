@@ -123,6 +123,7 @@ export const useRaidScreenCapture = () => {
               nickname: slot.nicknameSource === 'manual' ? slot.nickname : result.nickname,
               nicknameCandidates: slot.nicknameSource === 'manual' ? slot.nicknameCandidates : [result.nickname],
               arkPassiveTitle: result.title,
+              combatPower: result.combatPower,
               buildSource: 'recognition' as const,
               resolvedRole: result.role,
               resolvedPosition: result.position,

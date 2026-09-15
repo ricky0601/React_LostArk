@@ -4,6 +4,7 @@ import {
   clearRaidArkPassiveLookupCache,
   lookupRaidArkPassive,
   lookupRaidArkPassiveCandidates,
+  parseRaidCombatPower,
   RaidArkPassiveLookupError,
 } from './raidArkPassiveLookup';
 
@@ -22,7 +23,7 @@ describe('lookupRaidArkPassive', () => {
   });
 
   it('resolves the recognized class build from its ark passive title', async () => {
-    mockedFetchProfile.mockResolvedValue({ CharacterClassName: '가디언나이트' } as never);
+    mockedFetchProfile.mockResolvedValue({ CharacterClassName: '가디언나이트', CombatPower: '123,456.78' } as never);
     mockedFetchArkPassive.mockResolvedValue({ IsArkPassive: true, Title: '드레드 로어' } as never);
 
     await expect(lookupRaidArkPassive('비식별닉네임', '가디언나이트')).resolves.toMatchObject({
@@ -30,8 +31,16 @@ describe('lookupRaidArkPassive', () => {
       title: '드레드 로어',
       role: 'dealer',
       position: 'entropy-head',
+      combatPower: 123456.78,
       needsReview: false,
     });
+  });
+
+  it('parses combat power without turning missing or invalid values into zero', () => {
+    expect(parseRaidCombatPower('123,456.78')).toBe(123456.78);
+    expect(parseRaidCombatPower(null)).toBeNull();
+    expect(parseRaidCombatPower('invalid')).toBeNull();
+    expect(parseRaidCombatPower('0')).toBeNull();
   });
 
   it('reports an invalid OCR nickname when the profile API returns null', async () => {

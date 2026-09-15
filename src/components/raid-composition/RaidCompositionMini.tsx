@@ -134,17 +134,24 @@ const RaidCompositionMini: React.FC<RaidCompositionMiniProps> = ({
             <option value="position-focused">포지션 집중형</option>
           </select>
         </div>
+        {recommendation && !recommendation.isConfirmed && (
+          <p role="status" aria-live="polite" className="mt-2 rounded bg-amber-100 p-1.5 text-xs text-amber-700 dark:bg-amber-500/20 dark:text-amber-300">
+            아직 확인이 필요한 인원 {recommendation.unresolvedMemberIds.length}명
+            {recommendation.unresolvedCombatPowerMemberIds.length > 0
+              && ` · 전투력 미확인 ${recommendation.unresolvedCombatPowerMemberIds.length}명`}
+          </p>
+        )}
+        {recommendation && (
+          <p className="mt-2 text-[11px] text-gray-500 dark:text-gray-400">
+            헤드·백 충돌 {recommendation.headBackConflictCount} · 추정 공격대 효율 {recommendation.estimatedRaidPower == null ? '미확인' : Math.round(recommendation.estimatedRaidPower).toLocaleString('ko-KR')}
+          </p>
+        )}
         {!recommendation ? (
           <p className="mt-2 rounded bg-white/60 p-2 text-xs text-gray-500 dark:bg-white/5 dark:text-gray-400">8명의 직업과 서포터 배치를 확인하면 추천이 표시됩니다.</p>
         ) : exchanges.length === 0 ? (
           <p className="mt-2 rounded bg-emerald-50 p-2 text-xs font-semibold text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">현재 파티가 추천 편성과 일치합니다.</p>
         ) : (
           <div className="mt-2 flex flex-col gap-2 text-xs">
-            {!recommendation.isConfirmed && (
-              <p className="rounded bg-amber-100 p-1.5 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300">
-                아직 확인이 필요한 인원 {recommendation.unresolvedMemberIds.length}명
-              </p>
-            )}
             {exchanges.map(({ toFirstParty, toSecondParty }) => {
               const firstName = toFirstParty && (roster.find(({ id }) => id === toFirstParty.id)?.nickname || toFirstParty.className);
               const secondName = toSecondParty && (roster.find(({ id }) => id === toSecondParty.id)?.nickname || toSecondParty.className);

@@ -235,6 +235,15 @@ describe('applyRecognitionToRoster', () => {
 });
 
 describe('updateRosterSlot and toCompositionMembers', () => {
+  it('passes combat power to evaluation and clears it when identity changes', () => {
+    const withPower = updateRosterSlot(createInitialRoster(), 'slot-0', {
+      className: '기상술사', nickname: '기상닉', combatPower: 123456,
+    });
+
+    expect(toCompositionMembers(withPower)[0].combatPower).toBe(123456);
+    expect(updateRosterSlot(withPower, 'slot-0', { nickname: '다른닉' })[0].combatPower).toBeNull();
+  });
+
   it('clears the review flag once a position-stable class is selected manually', () => {
     const roster = updateRosterSlot(createInitialRoster(), 'slot-0', { className: '기상술사' });
 

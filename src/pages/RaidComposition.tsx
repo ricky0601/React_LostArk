@@ -31,8 +31,8 @@ const STRATEGY_LABEL: Record<CompositionStrategy, string> = {
 };
 
 const STRATEGY_DESCRIPTION: Record<CompositionStrategy, string> = {
-  balanced: '두 파티의 포지션과 시너지를 고르게 분배',
-  'position-focused': '헤드·백 파티와 타대 파티를 구분',
+  balanced: '헤드·백을 분리하고 시너지 적용 전투력과 파티 균형을 함께 평가',
+  'position-focused': '헤드·백·타대 딜러를 같은 포지션끼리 집중 배치',
 };
 
 const PARTY_LABEL: Record<PartyNumber, string> = { 1: '1파티', 2: '2파티' };
@@ -53,7 +53,7 @@ export const SlotRow: React.FC<{
   slot: RaidRosterSlot;
   party: PartyNumber;
   dragging: boolean;
-  onChange: (id: string, patch: Partial<Pick<RaidRosterSlot, 'className' | 'nickname' | 'currentParty' | 'fixed'>>) => void;
+  onChange: (id: string, patch: Partial<Pick<RaidRosterSlot, 'className' | 'nickname' | 'combatPower' | 'currentParty' | 'fixed'>>) => void;
   onDragStart: (id: string) => void;
   onDragEnd: () => void;
   onMoveParty: (id: string, party: PartyNumber) => void;
@@ -137,6 +137,23 @@ export const SlotRow: React.FC<{
         </select>
       )}
       <RaidClassBadges slot={slot} />
+      <label className="flex items-center gap-1 text-[11px] text-gray-500 dark:text-gray-400">
+        전투력
+        <input
+          type="number"
+          inputMode="decimal"
+          min="1"
+          step="1"
+          aria-label={`${slotLabel} 전투력`}
+          value={slot.combatPower ?? ''}
+          onChange={(event) => {
+            const value = event.target.value === '' ? null : Number(event.target.value);
+            onChange(slot.id, { combatPower: Number.isFinite(value) && value != null && value > 0 ? value : null });
+          }}
+          placeholder="API 확인"
+          className="h-7 w-24 rounded border border-gray-300 bg-white px-1.5 text-[11px] dark:border-white/10 dark:bg-white/5"
+        />
+      </label>
       {(slot.classNameSource === 'manual' || slot.nicknameSource === 'manual') && (
         <button
           type="button"
@@ -244,7 +261,7 @@ const RaidCompositionPage: React.FC = () => {
         <p className="text-xs font-bold text-la-gold-dark dark:text-la-gold">8인 레이드</p>
         <h1 className="mt-1 text-2xl font-bold text-gray-900 dark:text-white">공대 편성 도우미</h1>
         <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-600 dark:text-gray-300">
-          공대에 참여한 게임 화면을 공유하면 파티원을 자동으로 읽고, 겹치는 시너지를 분산한 추천 편성을 만들어 드립니다.
+          공대에 참여한 게임 화면을 공유하면 파티원을 자동으로 읽고, 전투력·시너지·헤드·백 포지션을 함께 고려한 추천 편성을 만들어 드립니다.
         </p>
       </header>
 

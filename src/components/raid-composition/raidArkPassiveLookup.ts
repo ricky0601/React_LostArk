@@ -4,9 +4,16 @@ import { fetchArkPassive, fetchProfile } from '../../utils/api';
 export interface RaidArkPassiveLookupResult extends RaidBuildResolution {
   readonly nickname: string;
   readonly className: string;
+  readonly combatPower: number | null;
 }
 
 export class RaidArkPassiveLookupError extends Error {}
+
+export const parseRaidCombatPower = (value: string | null | undefined): number | null => {
+  if (!value) return null;
+  const parsed = Number(value.replace(/,/g, '').trim());
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+};
 
 const lookupCache = new Map<string, Promise<RaidArkPassiveLookupResult>>();
 const MAX_OCR_CANDIDATE_LOOKUPS = 72;
@@ -41,6 +48,7 @@ export const lookupRaidArkPassive = (
       return {
         nickname,
         className: recognizedClassName,
+        combatPower: parseRaidCombatPower(profile.CombatPower),
         ...resolveRaidBuild(recognizedClassName, arkPassive.Title),
       };
     })

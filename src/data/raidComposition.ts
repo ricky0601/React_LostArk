@@ -24,7 +24,7 @@ export interface RaidClassData {
 }
 
 export const RAID_COMPOSITION_DATA_METADATA = {
-  version: 'kr-2026-09-09-review-3',
+  version: 'kr-2026-09-09-review-4',
   gameVersion: '2026-09-04 KR live',
   lastCheckedAt: '2026-09-09',
   verificationStatus: 'partially-verified',
@@ -33,6 +33,8 @@ export const RAID_COMPOSITION_DATA_METADATA = {
     '동일 효과의 다른 직업 시너지는 중첩될 수 있으므로 stackingGroup은 효과 이름이 아닌 직업별 중첩 단위를 나타낸다.',
     '커뮤니티 자료만 확인된 항목은 needsReview로 표시하며 UI에서 확정 자료처럼 노출하지 않는다.',
     '아크패시브 타이틀별 헤드·백·타대는 2025-12-20 커뮤니티 분류를 사용하며 미등록 타이틀은 unknown으로 유지한다.',
+    '추천 전투력은 프로필 CombatPower를 딜 기여도의 대리값으로 사용하며 실제 DPS를 보장하지 않는다.',
+    '치적·치피·방깎은 캐릭터별 세부 스탯이 없어 보수적인 6% 피해 기댓값으로 환산한다.',
   ],
   sources: [
     {
@@ -49,6 +51,11 @@ export const RAID_COMPOSITION_DATA_METADATA = {
       id: 'community-synergy-2026-01-26',
       label: '로스트아크 인벤 — 2026년 기준 전 직업 시너지 정리',
       url: 'https://www.inven.co.kr/board/lostark/4821/109381',
+    },
+    {
+      id: 'community-synergy-efficiency',
+      label: '로스트아크 인벤 — 파티 시너지 효율 및 중첩 방식',
+      url: 'https://www.inven.co.kr/board/lostark/4821/90743',
     },
     {
       id: 'community-position-reference',

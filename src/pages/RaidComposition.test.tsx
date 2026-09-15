@@ -12,6 +12,7 @@ describe('raid composition slot controls', () => {
       className: '바드',
       nickname: '수동닉',
     })[0];
+    const onChange = vi.fn();
     const onBuildChange = vi.fn();
     const onEnableAutoRecognition = vi.fn();
 
@@ -19,7 +20,7 @@ describe('raid composition slot controls', () => {
       slot={slot}
       party={1}
       dragging={false}
-      onChange={noop}
+      onChange={onChange}
       onDragStart={noop}
       onDragEnd={noop}
       onMoveParty={noop}
@@ -32,6 +33,10 @@ describe('raid composition slot controls', () => {
       target: { value: '진실된 용맹' },
     });
     expect(onBuildChange).toHaveBeenCalledWith('slot-0', '진실된 용맹');
+    fireEvent.change(screen.getByRole('spinbutton', { name: '1파티 · 인식 1 전투력' }), {
+      target: { value: '123456' },
+    });
+    expect(onChange).toHaveBeenCalledWith('slot-0', { combatPower: 123456 });
     fireEvent.click(screen.getByRole('button', { name: '자동 인식으로 전환' }));
     expect(onEnableAutoRecognition).toHaveBeenCalledWith('slot-0');
   });

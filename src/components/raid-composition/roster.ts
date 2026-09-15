@@ -18,6 +18,7 @@ export interface RaidRosterSlot {
   readonly nicknameSource: RaidValueProvenance;
   readonly nicknameCandidates: readonly string[];
   readonly confidence: number;
+  readonly combatPower: number | null;
   readonly vacancyFrames: number;
   readonly needsReview: boolean;
   readonly arkPassiveTitle: string;
@@ -128,6 +129,7 @@ export const createInitialRoster = (): readonly RaidRosterSlot[] => (
     nicknameSource: 'recognition' as const,
     nicknameCandidates: [],
     confidence: 0,
+    combatPower: null,
     vacancyFrames: 0,
     needsReview: true,
     arkPassiveTitle: '',
@@ -169,6 +171,7 @@ export const applyRecognitionToRoster = (
         ...(clearNickname ? { nickname: '', nicknameCandidates: [] } : {}),
         ...(clearBuild ? {
           arkPassiveTitle: '',
+          combatPower: null,
           buildSource: 'recognition' as const,
           resolvedRole: null,
           resolvedPosition: null,
@@ -215,6 +218,7 @@ export const applyRecognitionToRoster = (
           ? slot.nicknameCandidates
           : observation.nicknameCandidates ?? [],
         arkPassiveTitle: '',
+        combatPower: null,
         buildSource: 'recognition' as const,
         resolvedRole: null,
         resolvedPosition: null,
@@ -228,7 +232,7 @@ export const applyRecognitionToRoster = (
 export const updateRosterSlot = (
   roster: readonly RaidRosterSlot[],
   id: string,
-  patch: Partial<Pick<RaidRosterSlot, 'className' | 'nickname' | 'currentParty' | 'fixed'>>,
+  patch: Partial<Pick<RaidRosterSlot, 'className' | 'nickname' | 'combatPower' | 'currentParty' | 'fixed'>>,
 ): readonly RaidRosterSlot[] => roster.map((slot) => {
   if (slot.id !== id) return slot;
   const identityChanged = (patch.className !== undefined && patch.className !== slot.className)
@@ -241,6 +245,7 @@ export const updateRosterSlot = (
     ...(identityChanged ? {
       nicknameCandidates: patch.nickname !== undefined ? [patch.nickname] : slot.nicknameCandidates,
       arkPassiveTitle: '',
+      combatPower: patch.combatPower !== undefined ? patch.combatPower : null,
       buildSource: 'recognition' as const,
       resolvedRole: null,
       resolvedPosition: null,
@@ -319,6 +324,7 @@ export const toCompositionMembers = (
       role: slot.resolvedRole ?? classData?.role ?? UNKNOWN_MEMBER.role,
       position: slot.resolvedPosition ?? classData?.position ?? UNKNOWN_MEMBER.position,
       synergies: buildSynergies ?? classData?.synergies ?? UNKNOWN_MEMBER.synergies,
+      combatPower: slot.combatPower,
       currentParty: slot.currentParty,
       fixed: slot.fixed,
     };
