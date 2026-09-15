@@ -57,6 +57,25 @@ describe('useDocumentPictureInPicture', () => {
     hook.unmount();
   });
 
+  it('supports feature-specific title, size, and portal root options', async () => {
+    const pip = createPictureInPictureWindow();
+    const requestWindow = vi.fn().mockResolvedValue(pip.window);
+    setDocumentPictureInPicture({ window: null, requestWindow });
+    const hook = renderHook(() => useDocumentPictureInPicture({
+      width: 460,
+      height: 700,
+      title: '신청자 사사게 조회',
+      rootId: 'raid-applicants-mini-root',
+    }));
+
+    await act(() => hook.result.current.open());
+
+    expect(requestWindow).toHaveBeenCalledWith({ width: 460, height: 700 });
+    expect(hook.result.current.portalRoot?.id).toBe('raid-applicants-mini-root');
+    expect(pip.window.document.title).toBe('신청자 사사게 조회');
+    hook.unmount();
+  });
+
   it('reports unsupported browsers without requesting a window', async () => {
     setDocumentPictureInPicture(undefined);
     const hook = renderHook(() => useDocumentPictureInPicture());

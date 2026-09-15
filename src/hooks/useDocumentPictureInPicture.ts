@@ -5,6 +5,11 @@ interface DocumentPictureInPictureOptions {
   height?: number;
 }
 
+interface UseDocumentPictureInPictureOptions extends DocumentPictureInPictureOptions {
+  title?: string;
+  rootId?: string;
+}
+
 interface DocumentPictureInPictureApi {
   readonly window: Window | null;
   requestWindow(options?: DocumentPictureInPictureOptions): Promise<Window>;
@@ -43,7 +48,12 @@ export interface DocumentPictureInPictureState {
   readonly close: () => void;
 }
 
-export const useDocumentPictureInPicture = (): DocumentPictureInPictureState => {
+export const useDocumentPictureInPicture = ({
+  width = 430,
+  height = 720,
+  title = '공대 편성 도우미',
+  rootId = 'raid-composition-mini-root',
+}: UseDocumentPictureInPictureOptions = {}): DocumentPictureInPictureState => {
   const [pictureInPictureWindow, setPictureInPictureWindow] = useState<Window | null>(null);
   const [portalRoot, setPortalRoot] = useState<HTMLElement | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -71,15 +81,15 @@ export const useDocumentPictureInPicture = (): DocumentPictureInPictureState => 
 
     setError(null);
     try {
-      const pipWindow = await api.requestWindow({ width: 430, height: 720 });
-      pipWindow.document.title = '공대 편성 도우미';
+      const pipWindow = await api.requestWindow({ width, height });
+      pipWindow.document.title = title;
       pipWindow.document.documentElement.lang = document.documentElement.lang || 'ko';
       pipWindow.document.documentElement.className = document.documentElement.className;
       pipWindow.document.body.className = 'm-0 bg-gray-50 font-[Pretendard,sans-serif] text-gray-900 dark:bg-la-dark dark:text-white';
       copyStyles(pipWindow.document);
 
       const root = pipWindow.document.createElement('div');
-      root.id = 'raid-composition-mini-root';
+      root.id = rootId;
       pipWindow.document.body.appendChild(root);
 
       classObserverRef.current?.disconnect();
@@ -104,7 +114,7 @@ export const useDocumentPictureInPicture = (): DocumentPictureInPictureState => 
         ? '사용자 동작으로 미니 창을 열어 주세요.'
         : '미니 창을 열지 못했습니다. 다시 시도해 주세요.');
     }
-  }, []);
+  }, [height, rootId, title, width]);
 
   useEffect(() => () => {
     classObserverRef.current?.disconnect();

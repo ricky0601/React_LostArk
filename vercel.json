@@ -14,6 +14,7 @@
   ],
   "rewrites": [
     { "source": "/api/lostark/:path*", "destination": "/api/lostark/[...]" },
+    { "source": "/api/inven-incidents", "destination": "/api/inven-incidents/index" },
     { "source": "/api/material-icon/:path(.*\\.png)", "destination": "https://cdn-lostark.game.onstove.com/:path" },
     { "source": "/character", "destination": "/character/index.html" },
     { "source": "/simulation", "destination": "/simulation/index.html" },
@@ -22,6 +23,7 @@
     { "source": "/compare", "destination": "/compare/index.html" },
     { "source": "/enhancement", "destination": "/enhancement/index.html" },
     { "source": "/raid-composition", "destination": "/raid-composition/index.html" },
+    { "source": "/raid-composition/applicants", "destination": "/raid-composition/applicants/index.html" },
     { "source": "/market", "destination": "/market/index.html" },
     { "source": "/spending", "destination": "/spending/index.html" },
     { "source": "/changelog", "destination": "/changelog/index.html" },
