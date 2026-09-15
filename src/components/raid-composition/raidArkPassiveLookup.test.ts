@@ -108,16 +108,34 @@ describe('lookupRaidArkPassive', () => {
     expect(mockedFetchArkPassive).toHaveBeenCalledWith('비식별닉네임', { signal: controller.signal });
   });
 
-  it('deduplicates concurrent requests for the same character', async () => {
+  it('deduplicates concurrent production requests that include abort signals', async () => {
     mockedFetchProfile.mockResolvedValue({ CharacterClassName: '바드' } as never);
     mockedFetchArkPassive.mockResolvedValue({ IsArkPassive: true, Title: '절실한 구원' } as never);
+    const firstController = new AbortController();
+    const secondController = new AbortController();
 
     await Promise.all([
-      lookupRaidArkPassive('비식별닉네임', '바드'),
-      lookupRaidArkPassive('비식별닉네임', '바드'),
+      lookupRaidArkPassive('비식별닉네임', '바드', firstController.signal),
+      lookupRaidArkPassive('비식별닉네임', '바드', secondController.signal),
     ]);
+    await lookupRaidArkPassive('비식별닉네임', '바드', new AbortController().signal);
 
     expect(mockedFetchProfile).toHaveBeenCalledTimes(1);
+    expect(mockedFetchArkPassive).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not cache an aborted request', async () => {
+    mockedFetchProfile
+      .mockRejectedValueOnce(new DOMException('Aborted', 'AbortError'))
+      .mockResolvedValueOnce({ CharacterClassName: '바드' } as never);
+    mockedFetchArkPassive.mockResolvedValue({ IsArkPassive: true, Title: '절실한 구원' } as never);
+
+    await expect(lookupRaidArkPassive('비식별닉네임', '바드', new AbortController().signal))
+      .rejects.toMatchObject({ name: 'AbortError' });
+    await expect(lookupRaidArkPassive('비식별닉네임', '바드', new AbortController().signal))
+      .resolves.toMatchObject({ title: '절실한 구원' });
+
+    expect(mockedFetchProfile).toHaveBeenCalledTimes(2);
     expect(mockedFetchArkPassive).toHaveBeenCalledTimes(1);
   });
 });

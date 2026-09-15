@@ -15,7 +15,9 @@ export const parseRaidCombatPower = (value: string | null | undefined): number |
   return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
 };
 
-const lookupCache = new Map<string, Promise<RaidArkPassiveLookupResult>>();
+const lookupCache = new Map<string, RaidArkPassiveLookupResult>();
+const inFlightLookups = new Map<string, Promise<RaidArkPassiveLookupResult>>();
+let lookupCacheGeneration = 0;
 const MAX_OCR_CANDIDATE_LOOKUPS = 72;
 
 export const lookupRaidArkPassive = (
@@ -24,11 +26,13 @@ export const lookupRaidArkPassive = (
   signal?: AbortSignal,
 ): Promise<RaidArkPassiveLookupResult> => {
   const key = `${nickname}:${recognizedClassName}`;
-  const cached = signal ? undefined : lookupCache.get(key);
-  if (cached) return cached;
+  const cached = lookupCache.get(key);
+  if (cached) return Promise.resolve(cached);
+  const inFlight = inFlightLookups.get(key);
+  if (inFlight) return inFlight;
+  const cacheGeneration = lookupCacheGeneration;
 
-  let request!: Promise<RaidArkPassiveLookupResult>;
-  request = fetchProfile(nickname, { signal })
+  const request = fetchProfile(nickname, { signal })
     .then(async (profile) => {
       if (!profile) {
         throw new RaidArkPassiveLookupError('캐릭터를 찾을 수 없습니다. 닉네임을 확인해 주세요.');
@@ -45,18 +49,19 @@ export const lookupRaidArkPassive = (
       if (!arkPassive.IsArkPassive || !arkPassive.Title?.trim()) {
         throw new RaidArkPassiveLookupError('아크패시브 타이틀을 확인할 수 없습니다.');
       }
-      return {
+      const result = {
         nickname,
         className: recognizedClassName,
         combatPower: parseRaidCombatPower(profile.CombatPower),
         ...resolveRaidBuild(recognizedClassName, arkPassive.Title),
       };
+      if (cacheGeneration === lookupCacheGeneration) lookupCache.set(key, result);
+      return result;
     })
-    .catch((error: unknown) => {
-      if (lookupCache.get(key) === request) lookupCache.delete(key);
-      throw error;
+    .finally(() => {
+      if (inFlightLookups.get(key) === request) inFlightLookups.delete(key);
     });
-  if (!signal) lookupCache.set(key, request);
+  inFlightLookups.set(key, request);
   return request;
 };
 
@@ -77,4 +82,8 @@ export const lookupRaidArkPassiveCandidates = async (
   throw lastError;
 };
 
-export const clearRaidArkPassiveLookupCache = (): void => lookupCache.clear();
+export const clearRaidArkPassiveLookupCache = (): void => {
+  lookupCacheGeneration += 1;
+  lookupCache.clear();
+  inFlightLookups.clear();
+};

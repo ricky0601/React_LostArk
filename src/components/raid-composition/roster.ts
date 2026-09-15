@@ -254,10 +254,10 @@ export const updateRosterSlot = (
       vacancyFrames: 0,
     } : {}),
   };
-  if (patch.className !== undefined) {
-    next.needsReview = patch.className === ''
-      || !RAID_CLASS_DATA_BY_NAME.has(patch.className)
-      || classNeedsBuildResolution(patch.className);
+  if (identityChanged) {
+    next.needsReview = next.className === ''
+      || !RAID_CLASS_DATA_BY_NAME.has(next.className)
+      || classNeedsBuildResolution(next.className);
   }
   return next;
 });

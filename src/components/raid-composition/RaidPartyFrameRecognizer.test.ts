@@ -1,5 +1,11 @@
-import { describe, expect, it } from 'vitest';
+import { createHash } from 'crypto';
+import { readFileSync } from 'fs';
+import { join } from 'path';
+import { PNG } from 'pngjs';
+import { describe, expect, it, vi } from 'vitest';
+import { mapMatchesToSlots, type ClassIconMatch } from './recognition';
 import {
+  createRaidIconPanel,
   detectRaidViewportTransform,
   expandRaidOcrCandidates,
   getRaidOcrEditDistance,
@@ -188,6 +194,124 @@ describe('detectRaidViewportTransform', () => {
       height,
       viewport,
     )).toEqual({ x: 1517, y: 404, width: 68, height: 63 });
+  });
+});
+
+interface MemoryCanvas extends HTMLCanvasElement {
+  readonly pixels: Uint8ClampedArray;
+}
+
+const createMemoryCanvas = (
+  initialWidth = 0,
+  initialHeight = 0,
+  initialPixels?: Uint8ClampedArray,
+): MemoryCanvas => {
+  let width = initialWidth;
+  let height = initialHeight;
+  let pixels = initialPixels ?? new Uint8ClampedArray(width * height * 4);
+  const resize = () => { pixels = new Uint8ClampedArray(width * height * 4); };
+  const canvas = {
+    get width() { return width; },
+    set width(value: number) { width = value; resize(); },
+    get height() { return height; },
+    set height(value: number) { height = value; resize(); },
+    get pixels() { return pixels; },
+    getContext: () => ({
+      fillStyle: '#000',
+      fillRect: (x: number, y: number, fillWidth: number, fillHeight: number) => {
+        for (let targetY = y; targetY < y + fillHeight; targetY += 1) {
+          for (let targetX = x; targetX < x + fillWidth; targetX += 1) {
+            const index = (targetY * width + targetX) * 4;
+            pixels[index + 3] = 255;
+          }
+        }
+      },
+      drawImage: (
+        source: MemoryCanvas,
+        sourceX: number,
+        sourceY: number,
+        sourceWidth: number,
+        sourceHeight: number,
+        targetX: number,
+        targetY: number,
+        targetWidth: number,
+        targetHeight: number,
+      ) => {
+        for (let y = 0; y < targetHeight; y += 1) {
+          for (let x = 0; x < targetWidth; x += 1) {
+            const sourcePixelX = sourceX + Math.floor(x * sourceWidth / targetWidth);
+            const sourcePixelY = sourceY + Math.floor(y * sourceHeight / targetHeight);
+            const sourceIndex = (sourcePixelY * source.width + sourcePixelX) * 4;
+            const targetIndex = ((targetY + y) * width + targetX + x) * 4;
+            pixels.set(source.pixels.subarray(sourceIndex, sourceIndex + 4), targetIndex);
+          }
+        }
+      },
+      getImageData: (x: number, y: number, imageWidth: number, imageHeight: number) => {
+        const data = new Uint8ClampedArray(imageWidth * imageHeight * 4);
+        for (let row = 0; row < imageHeight; row += 1) {
+          const sourceStart = ((y + row) * width + x) * 4;
+          data.set(pixels.subarray(sourceStart, sourceStart + imageWidth * 4), row * imageWidth * 4);
+        }
+        return { data, width: imageWidth, height: imageHeight } as ImageData;
+      },
+      putImageData: (image: ImageData, x: number, y: number) => {
+        for (let row = 0; row < image.height; row += 1) {
+          const targetStart = ((y + row) * width + x) * 4;
+          pixels.set(image.data.subarray(row * image.width * 4, (row + 1) * image.width * 4), targetStart);
+        }
+      },
+    }),
+  };
+  return canvas as MemoryCanvas;
+};
+
+const FIXTURE_ICON_HASHES: Readonly<Record<string, string>> = {
+  c700ec797cf82370: '차원술사',
+  d9b70e020d1bcb88: '가디언나이트',
+  d143c2271502c790: '데모닉',
+  '50078abde92efaf1': '홀리나이트',
+  '8ad9d61213815e43': '슬레이어',
+  '839ba7e259241a61': '호크아이',
+  e088b9edaa958f63: '기상술사',
+};
+
+interface RaidFixtureManifest {
+  readonly cases: readonly { readonly file: string; readonly expectedClasses: readonly (string | null)[] }[];
+}
+
+describe('raid capture fixture regression', () => {
+  it('reproduces the manifest classes from the real cropped capture', () => {
+    const fixtureDirectory = join(process.cwd(), 'src', 'components', 'raid-composition', '__fixtures__');
+    const manifest = JSON.parse(readFileSync(join(fixtureDirectory, 'manifest.json'), 'utf8')) as RaidFixtureManifest;
+    const fixture = manifest.cases[0];
+    const png = PNG.sync.read(readFileSync(join(fixtureDirectory, fixture.file)));
+    const frame = createMemoryCanvas(png.width, png.height, new Uint8ClampedArray(png.data));
+    const originalCreateElement = document.createElement.bind(document);
+    const createElement = vi.spyOn(document, 'createElement').mockImplementation(((tagName: string) => (
+      tagName === 'canvas' ? createMemoryCanvas() : originalCreateElement(tagName)
+    )) as typeof document.createElement);
+
+    try {
+      const panel = createRaidIconPanel(frame);
+      const context = panel.canvas.getContext('2d');
+      const matches = panel.cells.flatMap((cell): ClassIconMatch[] => {
+        if (!cell.hasIcon || !context) return [];
+        const pixels = context.getImageData(cell.x, cell.y, cell.width, cell.height).data;
+        const hash = createHash('sha256').update(pixels).digest('hex').slice(0, 16);
+        const className = FIXTURE_ICON_HASHES[hash];
+        return className ? [{
+          className,
+          x: cell.normalizedCenterX,
+          y: cell.normalizedCenterY,
+          confidence: 0.9,
+        }] : [];
+      });
+
+      expect(mapMatchesToSlots(matches).map(({ className }) => className)).toEqual(fixture.expectedClasses);
+    } finally {
+      createElement.mockRestore();
+    }
   });
 });
 

@@ -250,6 +250,16 @@ describe('updateRosterSlot and toCompositionMembers', () => {
     expect(roster[0]).toMatchObject({ needsReview: false });
   });
 
+  it('restores the review flag when only the nickname of a resolved build changes', () => {
+    const withClass = updateRosterSlot(createInitialRoster(), 'slot-0', { className: '바드' });
+    const resolved = updateRosterBuild(withClass, 'slot-0', '절실한 구원');
+    const renamed = updateRosterSlot(resolved, 'slot-0', { nickname: '수정닉' });
+
+    expect(renamed[0]).toMatchObject({
+      nickname: '수정닉', arkPassiveStatus: 'idle', resolvedRole: null, needsReview: true,
+    });
+  });
+
   it('resolves a manually selected build into role, position, and synergy', () => {
     const withClass = updateRosterSlot(createInitialRoster(), 'slot-0', { className: '바드' });
     const roster = updateRosterBuild(withClass, 'slot-0', '진실된 용맹');
