@@ -24,7 +24,7 @@ export const PRIMARY_NAV_LINKS = [
 export const MORE_NAV_LINKS = [
   { path: '/expedition', label: '원정대' },
   { path: '/spending', label: '결제 내역' },
-  { path: '/raid-composition', label: '공대편성' },
+  { path: '/raid-composition', label: '공대 도우미' },
 ] as const;
 
 export const getNavItemClass = (isActive: boolean): string =>
@@ -36,10 +36,19 @@ export const getNavItemClass = (isActive: boolean): string =>
 
 export const NavLinks: React.FC<NavLinksProps> = ({ links, pathname }) => (
   <>
-    {links.map((link) => (
-      <Link key={link.path} to={link.path} className={getNavItemClass(pathname === link.path)}>
-        {link.label}
-      </Link>
-    ))}
+    {links.map((link) => {
+      const isActive = pathname === link.path
+        || (link.path === '/raid-composition' && pathname.startsWith(`${link.path}/`));
+      return (
+        <Link
+          key={link.path}
+          to={link.path}
+          aria-current={isActive ? 'page' : undefined}
+          className={getNavItemClass(isActive)}
+        >
+          {link.label}
+        </Link>
+      );
+    })}
   </>
 );

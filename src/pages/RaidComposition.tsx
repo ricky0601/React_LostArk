@@ -4,6 +4,7 @@ import NavBar from '../components/NavBar';
 import RaidClassBadges from '../components/raid-composition/RaidClassBadges';
 import RaidCompositionMini from '../components/raid-composition/RaidCompositionMini';
 import RaidCompositionRecommendation from '../components/raid-composition/RaidCompositionRecommendation';
+import RaidCompositionTabs from '../components/raid-composition/RaidCompositionTabs';
 import { RAID_COMPOSITION_DATA_METADATA } from '../data/raidComposition';
 import { getRaidBuildOptions } from '../data/raidBuildPositions';
 import {
@@ -256,6 +257,7 @@ const RaidCompositionPage: React.FC = () => {
   return (
     <>
       <NavBar />
+      <RaidCompositionTabs />
       <main className="mx-auto flex w-full max-w-5xl flex-col gap-4 px-4 py-6">
       <header className="rounded-xl bg-gradient-to-br from-la-gold/15 via-transparent to-transparent p-4 sm:p-5">
         <p className="text-xs font-bold text-la-gold-dark dark:text-la-gold">8인 레이드</p>
