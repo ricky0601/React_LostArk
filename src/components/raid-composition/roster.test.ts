@@ -66,6 +66,7 @@ describe('createInitialRoster', () => {
     expect(roster.slice(0, 4).every((slot) => slot.currentParty === 1)).toBe(true);
     expect(roster.slice(4).every((slot) => slot.currentParty === 2)).toBe(true);
     expect(roster.every((slot) => slot.needsReview)).toBe(true);
+    expect(roster.every((slot) => slot.combatPowerSource === 'recognition')).toBe(true);
   });
 });
 
@@ -110,6 +111,42 @@ describe('applyRecognitionToRoster', () => {
       arkPassiveStatus: 'confirmed',
       arkPassiveMessage: '아크패시브 확인됨',
       needsReview: false,
+    });
+  });
+
+  it('preserves a confirmed fallback nickname while it remains in repeated OCR candidates', () => {
+    const roster = createInitialRoster().map((slot) => (slot.slot === 0 ? {
+      ...slot,
+      className: '기공사',
+      nickname: '정확한닉',
+      nicknameCandidates: ['정확한닉'],
+      combatPower: 123456,
+      arkPassiveTitle: '세맥타통',
+      resolvedRole: 'dealer' as const,
+      resolvedPosition: 'hit-master' as const,
+      arkPassiveStatus: 'confirmed' as const,
+      arkPassiveMessage: '아크패시브 확인됨',
+      needsReview: false,
+    } : slot));
+    const repeatedObservation = {
+      ...observation(0, '기공사', false, '오인식닉'),
+      nicknameCandidates: ['오인식닉', '정확한닉'],
+    };
+
+    const once = applyRecognitionToRoster(
+      roster,
+      [repeatedObservation],
+      { preserveConfirmedNicknames: true },
+    );
+    const twice = applyRecognitionToRoster(
+      once,
+      [repeatedObservation],
+      { preserveConfirmedNicknames: true },
+    );
+
+    expect(twice[0]).toMatchObject({
+      nickname: '정확한닉', pendingNickname: '', pendingNicknameFrames: 0,
+      arkPassiveTitle: '세맥타통', combatPower: 123456, arkPassiveStatus: 'confirmed',
     });
   });
 

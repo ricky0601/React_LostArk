@@ -2,7 +2,7 @@ import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { RaidArkPassiveLookupError } from './raidArkPassiveLookup';
 import type { RaidFrameObservation } from './recognition';
-import { updateRosterBuild } from './roster';
+import { updateRosterBuild, updateRosterSlot } from './roster';
 import { useRaidScreenCapture } from './useRaidScreenCapture';
 
 const mocks = vi.hoisted(() => ({
@@ -127,6 +127,32 @@ describe('useRaidScreenCapture', () => {
 
     expect(result.current.roster[0]).toMatchObject({
       arkPassiveTitle: '절실한 구원', buildSource: 'manual', arkPassiveStatus: 'confirmed', arkPassiveMessage: '수동 빌드 선택',
+    });
+  });
+
+  it('preserves manually entered combat power when an active lookup completes', async () => {
+    let resolveLookup!: (value: {
+      nickname: string; className: string; title: string; role: 'support'; position: 'unknown'; combatPower: number; needsReview: false;
+    }) => void;
+    mocks.lookup.mockImplementationOnce(() => new Promise((resolve) => { resolveLookup = resolve; }));
+    const { result } = renderHook(() => useRaidScreenCapture());
+    act(() => mocks.options?.onResult(frame()));
+    act(() => result.current.setAutoArkPassiveLookup(true));
+    await act(async () => { await vi.advanceTimersByTimeAsync(400); });
+
+    act(() => result.current.setRoster((current) => updateRosterSlot(current, 'slot-0', { combatPower: 999999 })));
+    await act(async () => {
+      resolveLookup({
+        nickname: '인식닉', className: '바드', title: '절실한 구원', role: 'support', position: 'unknown', combatPower: 123456, needsReview: false,
+      });
+      await Promise.resolve();
+    });
+
+    expect(result.current.roster[0]).toMatchObject({
+      combatPower: 999999,
+      combatPowerSource: 'manual',
+      arkPassiveTitle: '절실한 구원',
+      arkPassiveStatus: 'confirmed',
     });
   });
 

@@ -19,6 +19,7 @@ export interface RaidRosterSlot {
   readonly nicknameCandidates: readonly string[];
   readonly confidence: number;
   readonly combatPower: number | null;
+  readonly combatPowerSource: RaidValueProvenance;
   readonly vacancyFrames: number;
   readonly pendingNickname: string;
   readonly pendingNicknameFrames: number;
@@ -132,6 +133,7 @@ export const createInitialRoster = (): readonly RaidRosterSlot[] => (
     nicknameCandidates: [],
     confidence: 0,
     combatPower: null,
+    combatPowerSource: 'recognition' as const,
     vacancyFrames: 0,
     pendingNickname: '',
     pendingNicknameFrames: 0,
@@ -275,6 +277,7 @@ export const applyRecognitionToRoster = (
         ...(clearBuild ? {
           arkPassiveTitle: '',
           combatPower: null,
+          combatPowerSource: 'recognition' as const,
           buildSource: 'recognition' as const,
           resolvedRole: null,
           resolvedPosition: null,
@@ -292,12 +295,16 @@ export const applyRecognitionToRoster = (
     const nextClassName = slot.classNameSource === 'manual'
       ? slot.className
       : observation.className ?? slot.className;
+    const confirmedNicknameStillObserved = observation.nicknameCandidates?.some(
+      (candidate) => normalizeRaidNickname(candidate) === normalizeRaidNickname(slot.nickname),
+    ) === true;
     const confirmedNicknameMismatch = options.preserveConfirmedNicknames === true
       && slot.nicknameSource === 'recognition'
       && slot.arkPassiveStatus === 'confirmed'
       && nextClassName === slot.className
       && observation.nickname != null
-      && observation.nickname !== slot.nickname;
+      && observation.nickname !== slot.nickname
+      && !confirmedNicknameStillObserved;
     const pendingNicknameFrames = confirmedNicknameMismatch
       ? (slot.pendingNickname === observation.nickname ? slot.pendingNicknameFrames + 1 : 1)
       : 0;
@@ -338,6 +345,7 @@ export const applyRecognitionToRoster = (
           : observation.nicknameCandidates ?? [],
         arkPassiveTitle: '',
         combatPower: null,
+        combatPowerSource: 'recognition' as const,
         buildSource: 'recognition' as const,
         resolvedRole: null,
         resolvedPosition: null,
@@ -361,10 +369,12 @@ export const updateRosterSlot = (
     ...patch,
     ...(patch.className !== undefined ? { classNameSource: 'manual' as const } : {}),
     ...(patch.nickname !== undefined ? { nicknameSource: 'manual' as const } : {}),
+    ...(patch.combatPower !== undefined ? { combatPowerSource: 'manual' as const } : {}),
     ...(identityChanged ? {
       nicknameCandidates: patch.nickname !== undefined ? [patch.nickname] : slot.nicknameCandidates,
       arkPassiveTitle: '',
       combatPower: patch.combatPower !== undefined ? patch.combatPower : null,
+      combatPowerSource: patch.combatPower !== undefined ? 'manual' as const : 'recognition' as const,
       buildSource: 'recognition' as const,
       resolvedRole: null,
       resolvedPosition: null,
