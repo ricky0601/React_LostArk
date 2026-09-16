@@ -123,8 +123,12 @@ describe('rankRaidOcrCandidates', () => {
       { text: '옹예나아기진규', confidence: 91 },
     ]);
 
-    expect(longNicknameCandidates.indexOf('낫으로사람패여')).toBeLessThan(72);
-    expect(shortNicknameCandidates.indexOf('응애나아기진규')).toBeLessThan(72);
+    const longCorrectionIndex = longNicknameCandidates.indexOf('낫으로사람패여');
+    const shortCorrectionIndex = shortNicknameCandidates.indexOf('응애나아기진규');
+    expect(longCorrectionIndex).toBeGreaterThanOrEqual(0);
+    expect(longCorrectionIndex).toBeLessThan(8);
+    expect(shortCorrectionIndex).toBeGreaterThanOrEqual(0);
+    expect(shortCorrectionIndex).toBeLessThan(8);
   });
 });
 

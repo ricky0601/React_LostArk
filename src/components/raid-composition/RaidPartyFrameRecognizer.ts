@@ -15,6 +15,7 @@ import {
   type NicknameObservation,
   type NormalizedBox,
   type RaidFrameObservation,
+  type RaidSlotOccupancy,
 } from './recognition';
 
 const TEMPLATE_CANVAS_SIZE = 100;
@@ -463,6 +464,21 @@ const NICKNAME_SEQUENCE_ALTERNATIVES: readonly (readonly [string, string])[] = [
   ['잇', '이깟'],
 ];
 
+/** 자주 한쪽으로 오인식되는 음절은 원문 다음의 API 조회 후보로 우선 배치한다. */
+const NICKNAME_PREFERRED_CORRECTIONS: Readonly<Record<string, string>> = {
+  낮: '낫',
+  며: '여',
+  옹: '응',
+  예: '애',
+};
+
+const getPreferredRaidOcrCorrection = (text: string): string | null => {
+  const corrected = Array.from(text)
+    .map((character) => NICKNAME_PREFERRED_CORRECTIONS[character] ?? character)
+    .join('');
+  return corrected !== text && normalizeRaidNickname(corrected) != null ? corrected : null;
+};
+
 export const expandRaidOcrCandidates = (text: string): readonly string[] => {
   let expanded = [{ text: '', substitutions: 0 }];
   Array.from(text).forEach((character) => {
@@ -637,10 +653,17 @@ export const rankRaidOcrCandidates = (
   buildCharacterConsensusCandidates(independentObservations).forEach(({ text, score }) => {
     scores.set(text, (scores.get(text) ?? 0) + score * 4);
   });
-  return Array.from(scores.entries())
+  const ranked = Array.from(scores.entries())
     .sort((left, right) => right[1] - left[1])
-    .slice(0, NICKNAME_MAX_RANKED_CANDIDATES)
     .map(([candidate]) => candidate);
+  const preferredCorrections = independentObservations
+    .map(({ text }) => getPreferredRaidOcrCorrection(text))
+    .filter((candidate): candidate is string => candidate != null);
+  return Array.from(new Set([
+    ...(ranked.slice(0, 1)),
+    ...preferredCorrections,
+    ...ranked,
+  ])).slice(0, NICKNAME_MAX_RANKED_CANDIDATES);
 };
 
 export const prioritizeSpecializedRaidOcrCandidate = (
@@ -910,7 +933,10 @@ export class RaidPartyFrameRecognizer implements FrameRecognizer<RaidFrameObserv
       sourceRgb = new cv.Mat();
       cv.cvtColor(sourceRgba, sourceRgb, cv.COLOR_RGBA2RGB);
       const matches = await recognizeClasses(cv, sourceRgb, frame, panel, viewport);
-      const classObservations = mapMatchesToSlots(matches);
+      const slotOccupancies: readonly RaidSlotOccupancy[] = panel.cells.map(
+        ({ hasIcon }) => (hasIcon ? 'occupied' : 'vacant'),
+      );
+      const classObservations = mapMatchesToSlots(matches, [], slotOccupancies);
       let nicknames: readonly NicknameObservation[] = [];
       try {
         nicknames = await this.recognizeNicknames(frame, classObservations, viewport);
@@ -918,7 +944,7 @@ export class RaidPartyFrameRecognizer implements FrameRecognizer<RaidFrameObserv
         // OCR은 보조 기능이다. 언어 데이터 로드나 판독 실패가 직업·파티 인식을 막지 않는다.
       }
       return {
-        observations: mapMatchesToSlots(matches, nicknames),
+        observations: mapMatchesToSlots(matches, nicknames, slotOccupancies),
         scannedAt: Date.now(),
       };
     } finally {

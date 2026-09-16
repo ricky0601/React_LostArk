@@ -181,9 +181,7 @@ const moveIdentifiedParticipants = (
   const confirmedVacancySlots = new Set(roster
     .filter((slot) => {
       const observation = observationByPhysicalPosition.get(slot.slot);
-      return observation != null
-        && observation.className == null
-        && observation.confidence === 0
+      return observation?.occupancy === 'vacant'
         && slot.vacancyFrames + 1 >= 2;
     })
     .map(({ slot }) => slot));
@@ -264,7 +262,7 @@ export const applyRecognitionToRoster = (
   return positionedRoster.map((slot) => {
     const observation = observationBySlot.get(slot.slot);
     if (!observation) return slot;
-    const isVacancy = observation.className == null && observation.confidence === 0;
+    const isVacancy = observation.occupancy === 'vacant';
     const vacancyFrames = isVacancy ? slot.vacancyFrames + 1 : 0;
     if (isVacancy && vacancyFrames >= 2) {
       const clearClass = slot.classNameSource === 'recognition';

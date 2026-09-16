@@ -19,6 +19,7 @@ const observation = (
 ): RaidSlotObservation => ({
   slot,
   party: slot < 4 ? 1 : 2,
+  occupancy: className == null ? 'vacant' : 'occupied',
   className,
   confidence: className == null ? 0 : 0.92,
   needsReview,
@@ -315,8 +316,17 @@ describe('applyRecognitionToRoster', () => {
     const once = applyRecognitionToRoster(withBuild, [observation(0, null, true)]);
     expect(once[0]).toMatchObject({ className: '바드', nickname: '자동닉', vacancyFrames: 1 });
 
-    const lowConfidence = applyRecognitionToRoster(once, [{ ...observation(0, null, true), confidence: 0.3 }]);
+    const lowConfidence = applyRecognitionToRoster(once, [{
+      ...observation(0, null, true), occupancy: 'occupied', confidence: 0.3,
+    }]);
     expect(lowConfidence[0]).toMatchObject({ className: '바드', nickname: '자동닉', vacancyFrames: 0 });
+
+    const templateMiss = applyRecognitionToRoster(lowConfidence, [{
+      ...observation(0, null, true), occupancy: 'occupied',
+    }]);
+    expect(templateMiss[0]).toMatchObject({
+      className: '바드', nickname: '자동닉', arkPassiveTitle: '절실한 구원', vacancyFrames: 0,
+    });
 
     const twice = applyRecognitionToRoster(
       applyRecognitionToRoster(lowConfidence, [observation(0, null, true)]),

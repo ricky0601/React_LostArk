@@ -75,10 +75,14 @@ export interface NicknameObservation {
   readonly confidence: number;
 }
 
+export type RaidSlotOccupancy = 'occupied' | 'vacant' | 'unknown';
+
 export interface RaidSlotObservation {
   readonly slot: number;
   readonly party: PartyNumber;
-  /** 인식된 직업이 없거나(빈 슬롯) threshold 미만이면 null. */
+  /** 아이콘 픽셀 유무로 판정한 슬롯 점유 상태. 템플릿 miss와 실제 빈 슬롯을 구분한다. */
+  readonly occupancy: RaidSlotOccupancy;
+  /** 인식된 직업이 없거나 threshold 미만이면 null. */
   readonly className: string | null;
   readonly confidence: number;
   readonly needsReview: boolean;
@@ -110,6 +114,7 @@ const partyForSlot = (slot: number): PartyNumber => (slot < 4 ? 1 : 2);
 export const mapMatchesToSlots = (
   matches: readonly ClassIconMatch[],
   nicknames: readonly NicknameObservation[] = [],
+  slotOccupancies: readonly RaidSlotOccupancy[] = [],
 ): readonly RaidSlotObservation[] => {
   const nicknameBySlot = new Map(nicknames.map((nickname) => [nickname.slot, nickname]));
 
@@ -129,6 +134,7 @@ export const mapMatchesToSlots = (
     return {
       slot,
       party: partyForSlot(slot),
+      occupancy: slotOccupancies[slot] ?? (best == null ? 'unknown' : 'occupied'),
       className: recognized && best != null ? best.className : null,
       confidence: best?.confidence ?? 0,
       needsReview: !recognized,

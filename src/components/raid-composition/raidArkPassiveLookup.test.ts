@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fetchArkPassive, fetchProfile } from '../../utils/api';
+import { rankRaidOcrCandidates } from './RaidPartyFrameRecognizer';
 import {
   clearRaidArkPassiveLookupCache,
   lookupRaidArkPassive,
@@ -108,6 +109,31 @@ describe('lookupRaidArkPassive', () => {
     )).rejects.toThrow('캐릭터를 찾을 수 없습니다.');
     expect(mockedFetchProfile).toHaveBeenCalledTimes(8);
     expect(mockedFetchArkPassive).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    {
+      observations: [
+        { text: '깃으도사양패여', confidence: 70 },
+        { text: '낮으로사람패며', confidence: 62 },
+      ],
+      expected: '낫으로사람패여',
+    },
+    {
+      observations: [{ text: '옹예나아기진규', confidence: 91 }],
+      expected: '응애나아기진규',
+    },
+  ])('passes the prioritized $expected correction through the bounded lookup', async ({ observations, expected }) => {
+    mockedFetchProfile.mockImplementation(async (nickname) => (
+      nickname === expected ? { CharacterClassName: '디스트로이어' } as never : null as never
+    ));
+    mockedFetchArkPassive.mockResolvedValue({ IsArkPassive: true, Title: '분노의 망치' } as never);
+
+    const candidates = rankRaidOcrCandidates(observations);
+    await expect(lookupRaidArkPassiveCandidates(candidates, '디스트로이어'))
+      .resolves.toMatchObject({ nickname: expected });
+    expect(mockedFetchProfile).toHaveBeenCalledWith(expected, expect.any(Object));
+    expect(mockedFetchProfile.mock.calls.length).toBeLessThanOrEqual(8);
   });
 
   it('stops candidate retries when the API itself fails', async () => {

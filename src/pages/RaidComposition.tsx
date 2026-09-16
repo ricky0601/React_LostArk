@@ -205,6 +205,7 @@ const RaidCompositionPage: React.FC = () => {
     () => countRecognizedSlots(roster.map((slot, index) => ({
       slot: index,
       party: slot.currentParty,
+      occupancy: slot.className === '' ? 'vacant' as const : 'occupied' as const,
       className: slot.className === '' ? null : slot.className,
       confidence: slot.confidence,
       needsReview: slot.needsReview,

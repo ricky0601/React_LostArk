@@ -4,6 +4,7 @@ import {
   mapMatchesToSlots,
   normalizeRaidNickname,
   slotIndexForPoint,
+  type RaidSlotOccupancy,
 } from './recognition';
 
 describe('normalizeRaidNickname', () => {
@@ -79,13 +80,17 @@ describe('mapMatchesToSlots', () => {
     expect(observations[0]).toMatchObject({ className: null, confidence: 0.82, needsReview: true });
   });
 
-  it('marks empty slots for review without failing other slots', () => {
+  it('distinguishes a template miss in an occupied slot from a true vacancy', () => {
+    const occupancies: RaidSlotOccupancy[] = Array.from({ length: 8 }, () => 'vacant');
+    occupancies[0] = 'occupied';
+    occupancies[1] = 'occupied';
     const observations = mapMatchesToSlots([
       { className: '바드', x: 0.7, y: 0.31, confidence: 0.9 },
-    ]);
+    ], [], occupancies);
 
-    expect(observations[4]).toMatchObject({ className: null, needsReview: true, confidence: 0 });
-    expect(observations[0].className).toBe('바드');
+    expect(observations[0]).toMatchObject({ className: '바드', occupancy: 'occupied' });
+    expect(observations[1]).toMatchObject({ className: null, occupancy: 'occupied', confidence: 0 });
+    expect(observations[4]).toMatchObject({ className: null, occupancy: 'vacant', needsReview: true, confidence: 0 });
   });
 
   it('attaches nicknames as auxiliary results without affecting class recognition', () => {
