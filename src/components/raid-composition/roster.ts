@@ -175,6 +175,16 @@ const moveIdentifiedParticipants = (
     .filter(({ nickname }) => rosterNicknameCounts.get(nickname) === 1)
     .map((slot) => [slot.nickname, slot]));
   const rosterByPhysicalPosition = new Map(roster.map((slot) => [slot.slot, slot]));
+  const observationByPhysicalPosition = new Map(observations.map((observation) => [observation.slot, observation]));
+  const confirmedVacancySlots = new Set(roster
+    .filter((slot) => {
+      const observation = observationByPhysicalPosition.get(slot.slot);
+      return observation != null
+        && observation.className == null
+        && observation.confidence === 0
+        && slot.vacancyFrames + 1 >= 2;
+    })
+    .map(({ slot }) => slot));
   const proposals = new Map<string, { participant: RaidRosterSlot; observation: RaidSlotObservation }>();
   observations.forEach((observation) => {
     if (observation.nickname == null || observationNicknameCounts.get(observation.nickname) !== 1) return;
@@ -189,7 +199,11 @@ const moveIdentifiedParticipants = (
     if (proposal.participant.slot === proposal.observation.slot) return true;
     const displaced = rosterByPhysicalPosition.get(proposal.observation.slot);
     if (!displaced || (displaced.className === '' && displaced.nickname === '')) return true;
-    if (!proposals.has(displaced.id)) return false;
+    if (!proposals.has(displaced.id)) {
+      return confirmedVacancySlots.has(proposal.participant.slot)
+        && displaced.classNameSource === 'recognition'
+        && displaced.nicknameSource === 'recognition';
+    }
     const nextVisited = new Set(visited);
     nextVisited.add(participantId);
     return canApplyProposal(displaced.id, nextVisited);
@@ -215,11 +229,20 @@ const moveIdentifiedParticipants = (
     if (slotsByPhysicalPosition[slot.slot] == null) slotsByPhysicalPosition[slot.slot] = slot;
   });
   const displaced = remaining.filter((slot) => slotsByPhysicalPosition[slot.slot]?.id !== slot.id);
-  slotsByPhysicalPosition.forEach((slot, physicalPosition) => {
-    if (slot != null) return;
+  for (let physicalPosition = 0; physicalPosition < RAID_SLOT_COUNT; physicalPosition += 1) {
+    if (slotsByPhysicalPosition[physicalPosition] != null) continue;
     const participant = displaced.shift();
-    if (participant) slotsByPhysicalPosition[physicalPosition] = { ...participant, slot: physicalPosition };
-  });
+    if (!participant) continue;
+    const vacancyFrames = confirmedVacancySlots.has(physicalPosition)
+      ? rosterByPhysicalPosition.get(physicalPosition)?.vacancyFrames ?? participant.vacancyFrames
+      : participant.vacancyFrames;
+    slotsByPhysicalPosition[physicalPosition] = {
+      ...participant,
+      slot: physicalPosition,
+      currentParty: observationByPhysicalPosition.get(physicalPosition)?.party ?? participant.currentParty,
+      vacancyFrames,
+    };
+  }
 
   return {
     roster: slotsByPhysicalPosition.filter((slot): slot is RaidRosterSlot => slot != null),
@@ -263,6 +286,7 @@ export const applyRecognitionToRoster = (
         pendingNickname: '',
         pendingNicknameFrames: 0,
         needsReview: clearClass || (clearBuild ? classNeedsBuildResolution(slot.className) : slot.needsReview),
+        fixed: clearClass || clearNickname ? false : slot.fixed,
       };
     }
     const nextClassName = slot.classNameSource === 'manual'

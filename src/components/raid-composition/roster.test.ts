@@ -230,6 +230,42 @@ describe('applyRecognitionToRoster', () => {
     });
   });
 
+  it('moves participant state when its source becomes vacant as the destination participant leaves', () => {
+    const recognized = applyRecognitionToRoster(createInitialRoster(), [
+      observation(0, '바드', false, '이동참가자'),
+      observation(4, '기상술사', false, '퇴장참가자'),
+    ]);
+    const withParticipantState = recognized.map((slot) => (slot.slot === 0 ? {
+      ...slot,
+      fixed: true,
+      arkPassiveTitle: '절실한 구원',
+      combatPower: 111111,
+      resolvedRole: 'support' as const,
+      resolvedPosition: 'unknown' as const,
+      arkPassiveStatus: 'confirmed' as const,
+      arkPassiveMessage: '아크패시브 확인됨',
+      needsReview: false,
+    } : slot));
+    const transition = [
+      observation(0, null, true),
+      observation(4, '바드', false, '이동참가자'),
+    ];
+
+    const once = applyRecognitionToRoster(withParticipantState, transition, { preserveConfirmedNicknames: true });
+    const twice = applyRecognitionToRoster(once, transition, { preserveConfirmedNicknames: true });
+
+    expect(twice[4]).toMatchObject({
+      id: 'slot-0', slot: 4, currentParty: 2, className: '바드', nickname: '이동참가자', fixed: true,
+      arkPassiveTitle: '절실한 구원', combatPower: 111111, resolvedRole: 'support',
+      resolvedPosition: 'unknown', arkPassiveStatus: 'confirmed', needsReview: false,
+    });
+    expect(twice[0]).toMatchObject({
+      id: 'slot-4', slot: 0, currentParty: 1, className: '', nickname: '', fixed: false,
+      arkPassiveTitle: '', combatPower: null, resolvedRole: null, resolvedPosition: null,
+      arkPassiveStatus: 'idle', vacancyFrames: 2,
+    });
+  });
+
   it('clears recognition identity and build only after two consecutive true vacancies', () => {
     const recognized = applyRecognitionToRoster(createInitialRoster(), [observation(0, '바드', false, '자동닉')]);
     const withBuild = recognized.map((slot) => (slot.slot === 0 ? {
