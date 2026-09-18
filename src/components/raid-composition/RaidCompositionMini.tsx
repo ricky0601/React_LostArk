@@ -105,7 +105,7 @@ const RaidCompositionMini: React.FC<RaidCompositionMiniProps> = ({
             <button
               type="button"
               onClick={startFromThisWindow}
-              className="min-h-9 flex-1 rounded-md bg-la-gold px-3 font-semibold text-white"
+              className="min-h-9 flex-1 rounded-md bg-la-gold px-3 font-semibold text-gray-900"
             >
               화면 공유 시작
             </button>
@@ -159,7 +159,7 @@ const RaidCompositionMini: React.FC<RaidCompositionMiniProps> = ({
               return (
                 <div key={`${toFirstParty?.id ?? 'empty'}-${toSecondParty?.id ?? 'empty'}`} className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 rounded bg-white p-2 shadow-sm dark:bg-white/5">
                   <span className="min-w-0 truncate"><small className="block text-blue-600 dark:text-blue-300">1파티로</small><strong>{firstName || '-'}</strong></span>
-                  <span className="font-bold text-la-gold">↔</span>
+                  <span className="font-bold text-la-gold-deep dark:text-la-gold">↔</span>
                   <span className="min-w-0 truncate text-right"><small className="block text-violet-600 dark:text-violet-300">2파티로</small><strong>{secondName || '-'}</strong></span>
                 </div>
               );
@@ -167,7 +167,7 @@ const RaidCompositionMini: React.FC<RaidCompositionMiniProps> = ({
             <button
               type="button"
               onClick={applyRecommendation}
-              className="min-h-9 rounded bg-la-gold px-3 py-1.5 font-bold text-white"
+              className="min-h-9 rounded bg-la-gold px-3 py-1.5 font-bold text-gray-900"
             >
               추천 교환 적용
             </button>

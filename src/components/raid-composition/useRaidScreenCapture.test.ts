@@ -31,6 +31,7 @@ vi.mock('./raidArkPassiveLookup', async (importOriginal) => ({
 }));
 
 const frame = (className = '바드', nickname = '인식닉', scannedAt = 123): RaidFrameObservation => ({
+  panelDetected: true,
   scannedAt,
   observations: [{
     slot: 0,
@@ -54,6 +55,7 @@ describe('useRaidScreenCapture', () => {
   it('does not look up duplicate normalized nicknames as separate members', async () => {
     const { result } = renderHook(() => useRaidScreenCapture());
     act(() => mocks.options?.onResult({
+      panelDetected: true,
       scannedAt: 123,
       observations: [
         frame('기상술사', '같은닉').observations[0],
@@ -264,12 +266,10 @@ describe('useRaidScreenCapture', () => {
     expect(unmountSignal.aborted).toBe(true);
   });
 
-  it('preserves recognized members while the shared screen does not show the raid panel', () => {
+  it('preserves members without the panel and clears them after two detected vacant frames', () => {
     const { result } = renderHook(() => useRaidScreenCapture());
     act(() => mocks.options?.onResult(frame()));
-    const missingPanelFrame: RaidFrameObservation = {
-      scannedAt: 456,
-      observations: Array.from({ length: 8 }, (_, slot) => ({
+    const vacantObservations = Array.from({ length: 8 }, (_, slot) => ({
         slot,
         party: slot < 4 ? 1 : 2,
         occupancy: 'vacant' as const,
@@ -278,15 +278,23 @@ describe('useRaidScreenCapture', () => {
         needsReview: true,
         nickname: null,
         nicknameCandidates: [],
-      })),
+      }));
+    const missingPanelFrame: RaidFrameObservation = {
+      panelDetected: false,
+      scannedAt: 456,
+      observations: vacantObservations,
     };
 
     act(() => mocks.options?.onResult(missingPanelFrame));
     act(() => mocks.options?.onResult({ ...missingPanelFrame, scannedAt: 789 }));
-
-    expect(result.current.framesScanned).toBe(3);
-    expect(result.current.lastScanAt).toBe(789);
     expect(result.current.roster[0]).toMatchObject({ className: '바드', nickname: '인식닉' });
+
+    act(() => mocks.options?.onResult({ ...missingPanelFrame, panelDetected: true, scannedAt: 900 }));
+    act(() => mocks.options?.onResult({ ...missingPanelFrame, panelDetected: true, scannedAt: 1000 }));
+
+    expect(result.current.framesScanned).toBe(5);
+    expect(result.current.lastScanAt).toBe(1000);
+    expect(result.current.roster[0]).toMatchObject({ className: '', nickname: '' });
   });
 
   it('reset clears roster, scan metadata, and lookup state', async () => {

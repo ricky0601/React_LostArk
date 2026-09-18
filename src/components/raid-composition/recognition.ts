@@ -92,6 +92,8 @@ export interface RaidSlotObservation {
 }
 
 export interface RaidFrameObservation {
+  /** 참가자 패널 자체가 감지되었는지 여부. 빈 패널과 패널 미노출을 구분한다. */
+  readonly panelDetected: boolean;
   readonly observations: readonly RaidSlotObservation[];
   readonly scannedAt: number;
 }

@@ -19,6 +19,7 @@ import {
   getRaidOcrTransformationCost,
   getRaidPixelBox,
   hasRaidClassIconPixels,
+  hasRaidParticipantPanel,
   invertMonochromePixels,
   mergeRaidOcrCandidates,
   normalizeClassIconPixels,
@@ -184,6 +185,22 @@ describe('getRaidOcrStableSignature', () => {
 });
 
 describe('detectRaidViewportTransform', () => {
+  it('right-aligns the 16:9 recognition reference on native ultrawide and 16:10 frames', () => {
+    const ultrawide = detectRaidViewportTransform({
+      data: new Uint8ClampedArray(3440 * 1440 * 4),
+      width: 3440,
+      height: 1440,
+    } as ImageData);
+    const sixteenTen = detectRaidViewportTransform({
+      data: new Uint8ClampedArray(1920 * 1200 * 4),
+      width: 1920,
+      height: 1200,
+    } as ImageData);
+
+    expect(ultrawide).toEqual({ x: 880, y: 0, width: 2560, height: 1440 });
+    expect(sixteenTen).toEqual({ x: expect.closeTo(-213.33, 1), y: 0, width: expect.closeTo(2133.33, 1), height: 1200 });
+  });
+
   it('finds a 1920x1080 game viewport placed at (200, 100) in a 2560x1440 frame', () => {
     const width = 2560;
     const height = 1440;
@@ -312,13 +329,49 @@ describe('confirmed nickname OCR', () => {
       await recognizeNicknames([{ slot: 0, className: '기상술사' }]);
       expect(recognize).toHaveBeenCalledTimes(initialCalls);
 
-      await recognizeNicknames([{ slot: 0, className: '소서리스' }]);
+      await recognizeNicknames([{ slot: 0, className: '기상술사' }]);
+      await recognizeNicknames([{ slot: 0, className: '기상술사' }]);
+      await recognizeNicknames([{ slot: 0, className: '기상술사' }]);
+      await recognizeNicknames([{ slot: 0, className: '기상술사' }]);
       expect(recognize.mock.calls.length).toBeGreaterThan(initialCalls);
+      const periodicRecheckCalls = recognize.mock.calls.length;
+
+      await recognizeNicknames([{ slot: 0, className: '소서리스' }]);
+      expect(recognize.mock.calls.length).toBeGreaterThan(periodicRecheckCalls);
       const changedClassCalls = recognize.mock.calls.length;
 
       await recognizeNicknames([{ slot: 0, className: null }]);
       await recognizeNicknames([{ slot: 0, className: '기상술사' }]);
       expect(recognize.mock.calls.length).toBeGreaterThan(changedClassCalls);
+    } finally {
+      createElement.mockRestore();
+      await recognizer.dispose();
+    }
+  });
+
+  it('keeps successful OCR variants when another variant rejects', async () => {
+    const recognize = vi.fn()
+      .mockRejectedValueOnce(new Error('variant failed'))
+      .mockResolvedValue({ data: { text: '부분성공닉', confidence: 95 } });
+    const worker = { recognize, setParameters: vi.fn(), terminate: vi.fn() } as unknown as OcrWorker;
+    const recognizer = new RaidPartyFrameRecognizer(new OcrWorkerPool(async () => worker));
+    const frame = createMemoryCanvas(200, 100);
+    const viewport: RaidViewportTransform = { x: 0, y: 0, width: 200, height: 100 };
+    const recognizeNicknames = () => (recognizer as unknown as {
+      recognizeNicknames: (
+        input: HTMLCanvasElement,
+        occupied: readonly { slot: number; className: string | null }[],
+        transform: RaidViewportTransform,
+      ) => Promise<readonly unknown[]>;
+    }).recognizeNicknames(frame, [{ slot: 0, className: '기상술사' }], viewport);
+    const originalCreateElement = document.createElement.bind(document);
+    const createElement = vi.spyOn(document, 'createElement').mockImplementation(((tagName: string) => (
+      tagName === 'canvas' ? createMemoryCanvas() : originalCreateElement(tagName)
+    )) as typeof document.createElement);
+
+    try {
+      await expect(recognizeNicknames()).resolves.toEqual([]);
+      await expect(recognizeNicknames()).resolves.toHaveLength(1);
     } finally {
       createElement.mockRestore();
       await recognizer.dispose();
@@ -357,6 +410,15 @@ describe('raid capture fixture regression', () => {
     )) as typeof document.createElement);
 
     try {
+      expect(hasRaidParticipantPanel(
+        createMemoryCanvas(png.width, png.height),
+        { x: 0, y: 0, width: png.width, height: png.height },
+      )).toBe(false);
+      expect(hasRaidParticipantPanel(
+        frame,
+        { x: 0, y: 0, width: frame.width, height: frame.height },
+      )).toBe(true);
+
       const cv = await nodeRequire('@techstark/opencv-js') as OpenCv;
       const panel = createRaidIconPanel(frame);
       const sourceRgba = cv.imread(panel.canvas);

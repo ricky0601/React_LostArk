@@ -50,8 +50,7 @@ export const useRaidScreenCapture = () => {
   const handleResult = useCallback((result: RaidFrameObservation) => {
     setFramesScanned((count) => count + 1);
     setLastScanAt(result.scannedAt);
-    const hasRecognizedRaidPanel = result.observations.some(({ className }) => className != null);
-    if (!hasRecognizedRaidPanel) return;
+    if (!result.panelDetected) return;
     setRoster((current) => applyRecognitionToRoster(current, result.observations, {
       preserveConfirmedNicknames: true,
     }));

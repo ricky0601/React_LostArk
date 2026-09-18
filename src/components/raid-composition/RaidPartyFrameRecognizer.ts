@@ -10,6 +10,7 @@ import {
   mapMatchesToSlots,
   normalizeRaidNickname,
   RAID_RECOGNITION_REFERENCE,
+  RAID_SLOT_BOXES,
   RAID_SLOT_ICON_BOXES,
   RAID_SLOT_NICKNAME_BOXES,
   type ClassIconMatch,
@@ -136,6 +137,17 @@ export interface RaidViewportTransform {
 
 const fullViewport = (width: number, height: number): RaidViewportTransform => ({ x: 0, y: 0, width, height });
 
+const rightAlignedReferenceViewport = (viewport: RaidViewportTransform): RaidViewportTransform => {
+  const referenceAspect = RAID_RECOGNITION_REFERENCE.width / RAID_RECOGNITION_REFERENCE.height;
+  const referenceWidth = viewport.height * referenceAspect;
+  return {
+    x: viewport.x + viewport.width - referenceWidth,
+    y: viewport.y,
+    width: referenceWidth,
+    height: viewport.height,
+  };
+};
+
 /** 검은색/투명 여백 안에 게임 화면이 포함된 캡처의 실제 viewport를 찾는다. */
 export const detectRaidViewportTransform = (
   pixels: ImageData,
@@ -165,15 +177,15 @@ export const detectRaidViewportTransform = (
   let bottom = height - 1;
   while (right >= 0 && columns[right] < minColumnPixels) right -= 1;
   while (bottom >= 0 && rows[bottom] < minRowPixels) bottom -= 1;
-  if (left < 0 || top < 0 || right <= left || bottom <= top) return fullViewport(width, height);
+  if (left < 0 || top < 0 || right <= left || bottom <= top) {
+    return rightAlignedReferenceViewport(fullViewport(width, height));
+  }
   const candidate = { x: left, y: top, width: right - left + 1, height: bottom - top + 1 };
-  const referenceAspect = RAID_RECOGNITION_REFERENCE.width / RAID_RECOGNITION_REFERENCE.height;
-  const candidateAspect = candidate.width / candidate.height;
   const substantiallyInset = candidate.width < width * 0.98 || candidate.height < height * 0.98;
   const plausibleSize = candidate.width >= width * 0.6 && candidate.height >= height * 0.6;
-  return substantiallyInset && plausibleSize && Math.abs(candidateAspect / referenceAspect - 1) <= 0.03
+  return rightAlignedReferenceViewport(substantiallyInset && plausibleSize
     ? candidate
-    : fullViewport(width, height);
+    : fullViewport(width, height));
 };
 
 export const getRaidPixelBox = (
@@ -213,6 +225,53 @@ export const hasRaidClassIconPixels = (pixels: ImageData): boolean => {
   }
   return brightPixels >= pixels.width * pixels.height * 0.03;
 };
+
+export const hasRaidParticipantPanel = (
+  frame: HTMLCanvasElement,
+  viewport: RaidViewportTransform,
+): boolean => {
+  const context = frame.getContext('2d', { willReadFrequently: true });
+  if (!context) return false;
+  const firstSlot = RAID_SLOT_BOXES[0];
+  const lastSlot = RAID_SLOT_BOXES[RAID_SLOT_BOXES.length - 1];
+  const headerBox = getRaidPixelBox({
+    x: firstSlot.x,
+    y: firstSlot.y - 0.038,
+    width: lastSlot.x + lastSlot.width - firstSlot.x,
+    height: 0.035,
+  }, frame.width, frame.height, viewport);
+  const headerPixels = context.getImageData(headerBox.x, headerBox.y, headerBox.width, headerBox.height);
+  let mutedHeaderPixels = 0;
+  for (let index = 0; index < headerPixels.data.length; index += 4) {
+    const brightness = Math.max(
+      headerPixels.data[index],
+      headerPixels.data[index + 1],
+      headerPixels.data[index + 2],
+    );
+    if (brightness >= 25 && brightness <= 100) mutedHeaderPixels += 1;
+  }
+  const hasPanelHeader = mutedHeaderPixels >= headerPixels.width * headerPixels.height * 0.2;
+  if (!hasPanelHeader) return false;
+
+  const darkSlotCount = RAID_SLOT_BOXES.filter((box) => {
+    const pixelBox = getRaidPixelBox(box, frame.width, frame.height, viewport);
+    const pixels = context.getImageData(pixelBox.x, pixelBox.y, pixelBox.width, pixelBox.height);
+    let darkPixels = 0;
+    for (let index = 0; index < pixels.data.length; index += 4) {
+      if (Math.max(pixels.data[index], pixels.data[index + 1], pixels.data[index + 2]) < 55) {
+        darkPixels += 1;
+      }
+    }
+    return darkPixels >= pixels.width * pixels.height * 0.8;
+  }).length;
+  return darkSlotCount >= 6;
+};
+
+const fulfilledResults = async <T>(promises: readonly Promise<T>[]): Promise<T[]> => (
+  (await Promise.allSettled(promises)).flatMap((result) => (
+    result.status === 'fulfilled' ? [result.value] : []
+  ))
+);
 
 /**
  * 8개 직업 아이콘 ROI만 논리적인 파티 순서의 4x2 atlas로 모은다. 원본 화면의
@@ -754,6 +813,8 @@ export class RaidPartyFrameRecognizer implements FrameRecognizer<RaidFrameObserv
 
   private previousObservedClasses = new Map<number, string>();
 
+  private readonly nicknameRecheckFrames = new Map<number, number>();
+
   private readonly stableNicknames = new Map<number, {
     className: string;
     signature: string;
@@ -776,10 +837,14 @@ export class RaidPartyFrameRecognizer implements FrameRecognizer<RaidFrameObserv
     occupiedSlots: readonly { slot: number; className: string | null }[],
     viewport: RaidViewportTransform,
   ): Promise<readonly NicknameObservation[]> {
+    occupiedSlots.forEach(({ slot }) => {
+      this.nicknameRecheckFrames.set(slot, (this.nicknameRecheckFrames.get(slot) ?? 0) + 1);
+    });
     const slotsNeedingNickname = occupiedSlots.filter((occupied) => (
       occupied.className == null
       || this.confirmedClasses.get(occupied.slot) !== occupied.className
       || this.previousObservedClasses.get(occupied.slot) !== occupied.className
+      || (this.nicknameRecheckFrames.get(occupied.slot) ?? 0) >= 6
     ));
     this.previousObservedClasses = new Map(occupiedSlots
       .filter((occupied) => occupied.className != null)
@@ -794,7 +859,7 @@ export class RaidPartyFrameRecognizer implements FrameRecognizer<RaidFrameObserv
         continue;
       }
       const [results, lostArkResults] = await Promise.all([
-        Promise.all([
+        fulfilledResults([
           worker.recognize(createNicknameCanvas(frame, occupied.slot, NICKNAME_PRIMARY_THRESHOLD, 0, viewport)),
           worker.recognize(createNicknameCanvas(frame, occupied.slot, NICKNAME_FALLBACK_THRESHOLD, 0, viewport)),
           ...NICKNAME_PRIMARY_NATIVE_VARIANTS.map(({
@@ -811,12 +876,12 @@ export class RaidPartyFrameRecognizer implements FrameRecognizer<RaidFrameObserv
           ))),
         ]),
         lostArkWorker
-          ? Promise.all([
+          ? fulfilledResults([
             lostArkWorker.recognize(createNicknameCanvas(frame, occupied.slot, 90, 0, viewport, true)),
             lostArkWorker.recognize(createNicknameCanvas(frame, occupied.slot, 110, 0, viewport, true)),
             lostArkWorker.recognize(createNicknameCanvas(frame, occupied.slot, 150, 0, viewport, true)),
             lostArkWorker.recognize(createNicknameCanvas(frame, occupied.slot, 170, 0, viewport, true)),
-          ]).catch(() => [])
+          ])
           : Promise.resolve([]),
       ]);
       const specializedCandidateScores = lostArkResults.map((result) => ({
@@ -843,7 +908,7 @@ export class RaidPartyFrameRecognizer implements FrameRecognizer<RaidFrameObserv
         || candidateScores.every(({ text }) => /^[A-Za-z]+$/.test(text));
       if (shouldTryNativeFallback) {
         const initialCandidateScores = candidateScores;
-        const [shiftedResult, ...nativeResults] = await Promise.all([
+        const fallbackResults = await fulfilledResults([
           worker.recognize(createNicknameCanvas(
             frame,
             occupied.slot,
@@ -864,8 +929,7 @@ export class RaidPartyFrameRecognizer implements FrameRecognizer<RaidFrameObserv
             viewport,
           ))),
         ]);
-        const fallbackCandidateScores = [shiftedResult, ...nativeResults]
-          .map((result) => ({
+        const fallbackCandidateScores = fallbackResults.map((result) => ({
             text: result.data.confidence >= NICKNAME_CONFIDENCE_THRESHOLD
               ? normalizeRaidNickname(result.data.text)
               : null,
@@ -884,7 +948,7 @@ export class RaidPartyFrameRecognizer implements FrameRecognizer<RaidFrameObserv
         const {
           threshold, scale, trim, pixelOffsetX, pixelOffsetY,
         } = NICKNAME_SHORT_WORD_VARIANT;
-        const shortResult = await shortWorker.recognize(createNativeThresholdNicknameCanvas(
+        const [shortResult] = await fulfilledResults([shortWorker.recognize(createNativeThresholdNicknameCanvas(
           frame,
           occupied.slot,
           threshold,
@@ -893,11 +957,11 @@ export class RaidPartyFrameRecognizer implements FrameRecognizer<RaidFrameObserv
           pixelOffsetX,
           pixelOffsetY,
           viewport,
-        ));
-        const shortText = shortResult.data.confidence >= NICKNAME_CONFIDENCE_THRESHOLD
+        ))]);
+        const shortText = shortResult && shortResult.data.confidence >= NICKNAME_CONFIDENCE_THRESHOLD
           ? normalizeRaidNickname(shortResult.data.text)
           : null;
-        if (shortText) {
+        if (shortText && shortResult) {
           candidateScores = [...candidateScores, { text: shortText, confidence: shortResult.data.confidence }];
         }
       }
@@ -933,6 +997,7 @@ export class RaidPartyFrameRecognizer implements FrameRecognizer<RaidFrameObserv
         count,
       });
       if (count >= NICKNAME_STABLE_FRAME_COUNT) {
+        this.nicknameRecheckFrames.set(occupied.slot, 0);
         observations.push({
           slot: occupied.slot,
           text: stableCandidates[0],
@@ -969,6 +1034,7 @@ export class RaidPartyFrameRecognizer implements FrameRecognizer<RaidFrameObserv
         // OCR은 보조 기능이다. 언어 데이터 로드나 판독 실패가 직업·파티 인식을 막지 않는다.
       }
       return {
+        panelDetected: hasRaidParticipantPanel(frame, viewport),
         observations: mapMatchesToSlots(matches, nicknames, slotOccupancies),
         scannedAt: Date.now(),
       };
@@ -981,6 +1047,7 @@ export class RaidPartyFrameRecognizer implements FrameRecognizer<RaidFrameObserv
   async dispose(): Promise<void> {
     this.confirmedClasses.clear();
     this.previousObservedClasses.clear();
+    this.nicknameRecheckFrames.clear();
     this.stableNicknames.clear();
     await this.ocrWorkers.dispose();
   }
