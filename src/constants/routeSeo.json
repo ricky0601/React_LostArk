@@ -64,6 +64,16 @@
     "priority": "0.8"
   },
   {
+    "path": "/raid-composition",
+    "title": "로아 공대 편성 도우미 - 8인 레이드 시너지·포지션 추천 | 로아끼욧",
+    "description": "8인 레이드 모집 화면을 인식해 서포터 배치와 시너지 중복, 사멸·타대 분포를 분석하고 1·2파티 추천안을 확인하세요.",
+    "name": "로아 공대 편성 도우미",
+    "schemaType": "WebApplication",
+    "robots": "noindex, follow",
+    "lastmod": "2026-09-09",
+    "priority": "0.7"
+  },
+  {
     "path": "/market",
     "title": "로스트아크 거래소 검색 - 로아끼욧",
     "description": "로스트아크 거래소와 경매장 아이템 정보를 검색해 시세와 구매 판단에 필요한 정보를 확인하세요.",

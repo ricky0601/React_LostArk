@@ -1,0 +1,13 @@
+{
+  "sourceKind": "Lost Ark joined raid participant panel",
+  "width": 1920,
+  "height": 1080,
+  "privacy": "Only the participant slot panel is retained and every nickname region is masked. Original capture is not committed.",
+  "cases": [
+    {
+      "file": "raid-joined-7-members.png",
+      "occupiedSlots": 7,
+      "expectedClasses": ["차원술사", "가디언나이트", "데모닉", "홀리나이트", "슬레이어", "호크아이", "기상술사", null]
+    }
+  ]
+}

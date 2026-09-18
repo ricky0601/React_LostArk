@@ -24,6 +24,7 @@ export const PRIMARY_NAV_LINKS = [
 export const MORE_NAV_LINKS = [
   { path: '/expedition', label: '원정대' },
   { path: '/spending', label: '결제 내역' },
+  { path: '/raid-composition', label: '공대편성' },
 ] as const;
 
 export const getNavItemClass = (isActive: boolean): string =>
