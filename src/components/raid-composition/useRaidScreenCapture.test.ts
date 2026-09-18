@@ -264,6 +264,31 @@ describe('useRaidScreenCapture', () => {
     expect(unmountSignal.aborted).toBe(true);
   });
 
+  it('preserves recognized members while the shared screen does not show the raid panel', () => {
+    const { result } = renderHook(() => useRaidScreenCapture());
+    act(() => mocks.options?.onResult(frame()));
+    const missingPanelFrame: RaidFrameObservation = {
+      scannedAt: 456,
+      observations: Array.from({ length: 8 }, (_, slot) => ({
+        slot,
+        party: slot < 4 ? 1 : 2,
+        occupancy: 'vacant' as const,
+        className: null,
+        confidence: 0,
+        needsReview: true,
+        nickname: null,
+        nicknameCandidates: [],
+      })),
+    };
+
+    act(() => mocks.options?.onResult(missingPanelFrame));
+    act(() => mocks.options?.onResult({ ...missingPanelFrame, scannedAt: 789 }));
+
+    expect(result.current.framesScanned).toBe(3);
+    expect(result.current.lastScanAt).toBe(789);
+    expect(result.current.roster[0]).toMatchObject({ className: '바드', nickname: '인식닉' });
+  });
+
   it('reset clears roster, scan metadata, and lookup state', async () => {
     const { result } = renderHook(() => useRaidScreenCapture());
     act(() => mocks.options?.onResult(frame()));

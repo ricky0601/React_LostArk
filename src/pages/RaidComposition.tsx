@@ -202,6 +202,7 @@ const RaidCompositionPage: React.FC = () => {
   const members = useMemo(() => toCompositionMembers(roster), [roster]);
   const filledCount = roster.filter((slot) => slot.className !== '').length;
   const hasDuplicateNickname = roster.some((slot) => slot.duplicateNickname);
+  const hasUnresolvedRole = members.some((member) => member.role === 'unknown');
   const hasUnresolvedRoleOrBuild = members.some((member) => (
     member.role === 'unknown'
     || (member.role === 'dealer' && member.position === 'unknown')
@@ -233,10 +234,10 @@ const RaidCompositionPage: React.FC = () => {
     [currentAssignment, strategy],
   );
   const recommendation = useMemo(
-    () => (members.length === 8
+    () => (members.length === 8 && !hasUnresolvedRole
       ? recommendRaidComposition(members, strategy, RAID_COMPOSITION_DATA_METADATA.version)
       : null),
-    [members, strategy],
+    [hasUnresolvedRole, members, strategy],
   );
 
   const handleSlotChange: React.ComponentProps<typeof SlotRow>['onChange'] = (id, patch) => {

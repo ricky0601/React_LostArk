@@ -135,7 +135,7 @@ const RaidCompositionMini: React.FC<RaidCompositionMiniProps> = ({
             <option value="position-focused">포지션 집중형</option>
           </select>
         </div>
-        {recommendation && !recommendation.isConfirmed && (
+        {recommendation && recommendation.unresolvedMemberIds.length > 0 && (
           <p role="status" aria-live="polite" className="mt-2 rounded bg-amber-100 p-1.5 text-xs text-amber-700 dark:bg-amber-500/20 dark:text-amber-300">
             아직 확인이 필요한 인원 {recommendation.unresolvedMemberIds.length}명
             {recommendation.unresolvedCombatPowerMemberIds.length > 0

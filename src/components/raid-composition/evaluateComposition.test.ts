@@ -284,6 +284,28 @@ describe('recommendRaidComposition', () => {
     );
   });
 
+  it('recommends the best possible split when only one supporter is present', () => {
+    const roster = [
+      member('support-1', 1, 'support', 'unknown', []),
+      member('a', 1),
+      member('b', 1),
+      member('c', 1),
+      member('d', 2),
+      member('e', 2),
+      member('f', 2),
+      member('g', 2),
+    ];
+
+    const result = recommendRaidComposition(roster, 'balanced', 'test-version');
+
+    expect(result).not.toBeNull();
+    expect([
+      result?.partyEvaluations[1].supportCount,
+      result?.partyEvaluations[2].supportCount,
+    ].sort()).toEqual([0, 1]);
+    expect(result?.reasons).toContain('확인된 서포터 1명을 두 파티에 최대한 고르게 배치했습니다.');
+  });
+
   it('never moves a fixed member out of the current party', () => {
     const roster = [
       ...supporters,

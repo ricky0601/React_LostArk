@@ -154,6 +154,22 @@ describe('raid composition slot controls', () => {
     expect(secondClasses.filter((value) => ['바드', '도화가'].includes(value))).toHaveLength(1);
   });
 
+  it('shows a best-effort recommendation when manual builds leave only one supporter', () => {
+    let roster = createInitialRoster();
+    [
+      ['바드', '바드닉'], ['도화가', '도화가닉'], ['기상술사', '기상닉'], ['소서리스', '소서닉'],
+      ['워로드', '워로드닉'], ['블레이드', '블레이드닉'], ['데모닉', '데모닉닉'], ['호크아이', '호크닉'],
+    ].forEach(([className, nickname], slot) => { roster = withSlot(roster, slot, className, nickname); });
+    roster = updateRosterBuild(roster, 'slot-0', '절실한 구원');
+    roster = updateRosterBuild(roster, 'slot-1', '회귀');
+    boundaryState.roster = roster;
+
+    renderPage();
+
+    expect(screen.getByText('적용 후 파티 구성 보기')).toBeInTheDocument();
+    expect(screen.queryByText('각 파티에 서포터를 1명씩 배치해 주세요')).not.toBeInTheDocument();
+  });
+
   it('explains unresolved roles before suggesting supporter placement', () => {
     let roster = createInitialRoster();
     [

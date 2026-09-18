@@ -51,7 +51,7 @@ const RaidCompositionRecommendation: React.FC<{
 
   return (
     <div className="mt-2 flex flex-col gap-3 text-sm">
-      {!recommendation.isConfirmed && (
+      {recommendation.unresolvedMemberIds.length > 0 && (
         <p role="status" aria-live="polite" className="rounded-md bg-amber-100 p-2 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300">
           판정이 끝나지 않은 인원이 {recommendation.unresolvedMemberIds.length}명 있습니다.
           {recommendation.unresolvedCombatPowerMemberIds.length > 0

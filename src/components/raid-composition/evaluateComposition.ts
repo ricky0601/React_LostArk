@@ -428,6 +428,7 @@ export const recommendRaidComposition = (
   dataVersion: string,
 ): CompositionRecommendation | null => {
   assertValidRoster(members);
+  const totalSupporters = members.filter(({ role }) => role === 'support').length;
   const candidates = combinationsOfFour(members).flatMap((firstParty) => {
     const firstIds = new Set(firstParty.map(({ id }) => id));
     const parties: PartyAssignment = {
@@ -439,8 +440,12 @@ export const recommendRaidComposition = (
       .every((member) => parties[member.currentParty].some(({ id }) => id === member.id));
     if (!keepsFixedMembers) return [];
 
-    const evaluation = evaluateRaidComposition(parties, strategy);
-    return evaluation.isValid ? [evaluation] : [];
+    const firstPartySupporters = firstParty.filter(({ role }) => role === 'support').length;
+    const secondPartySupporters = totalSupporters - firstPartySupporters;
+    const hasBestPossibleSupportDistribution = Math.abs(firstPartySupporters - secondPartySupporters) <= 1;
+    if (!hasBestPossibleSupportDistribution) return [];
+
+    return [evaluateRaidComposition(parties, strategy)];
   });
 
   if (candidates.length === 0) return null;
@@ -454,7 +459,9 @@ export const recommendRaidComposition = (
     ...best,
     dataVersion,
     reasons: [
-      '각 파티에 서포터를 1명씩 배치했습니다.',
+      totalSupporters === 2
+        ? '각 파티에 서포터를 1명씩 배치했습니다.'
+        : `확인된 서포터 ${totalSupporters}명을 두 파티에 최대한 고르게 배치했습니다.`,
       best.duplicateSynergyCount === 0
         ? '중첩되지 않는 동일 stackingGroup 시너지를 분리했습니다.'
         : `동일 stackingGroup 중복을 ${best.duplicateSynergyCount}건으로 최소화했습니다.`,
