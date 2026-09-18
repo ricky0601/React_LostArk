@@ -84,7 +84,8 @@ const RaidCompositionMini: React.FC<RaidCompositionMiniProps> = ({
           <div>
             <h1 className="font-bold">8인 공대 편성</h1>
             <p className={`mt-0.5 text-xs ${status === 'sharing' ? 'font-semibold text-red-500' : 'text-gray-500 dark:text-gray-400'}`}>
-              {statusLabel[status]}{framesScanned > 0 && ` · ${framesScanned}회 분석`}
+              <span role="status">{statusLabel[status]}</span>
+              {framesScanned > 0 && <span>{` · ${framesScanned}회 분석`}</span>}
             </p>
           </div>
           <button type="button" onClick={close} className="min-h-9 rounded-md border border-gray-300 px-2 dark:border-white/10">
@@ -110,7 +111,7 @@ const RaidCompositionMini: React.FC<RaidCompositionMiniProps> = ({
             </button>
           )}
         </div>
-        {error && <p className="mt-2 text-xs text-red-500">{error}</p>}
+        {error && <p role="alert" className="mt-2 text-xs text-red-500">{error}</p>}
         <label className="mt-2 flex items-center gap-1.5 text-[11px] text-gray-600 dark:text-gray-300">
           <input
             type="checkbox"

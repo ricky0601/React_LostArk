@@ -483,6 +483,26 @@ describe('updateRosterSlot and toCompositionMembers', () => {
     });
   });
 
+  it('marks same-class duplicate nicknames for review and excludes both until resolved', () => {
+    const first = updateRosterSlot(createInitialRoster(), 'slot-0', { className: '기상술사', nickname: '중복닉' });
+    const duplicated = updateRosterSlot(first, 'slot-1', { className: '기상술사', nickname: ' 중복닉 ' });
+
+    expect(duplicated.slice(0, 2).map(({ duplicateNickname, needsReview }) => ({ duplicateNickname, needsReview })))
+      .toEqual([
+        { duplicateNickname: true, needsReview: true },
+        { duplicateNickname: true, needsReview: true },
+      ]);
+    expect(toCompositionMembers(duplicated)).toHaveLength(0);
+
+    const resolved = updateRosterSlot(duplicated, 'slot-1', { nickname: '다른닉' });
+    expect(resolved.slice(0, 2).map(({ duplicateNickname, needsReview }) => ({ duplicateNickname, needsReview })))
+      .toEqual([
+        { duplicateNickname: false, needsReview: false },
+        { duplicateNickname: false, needsReview: false },
+      ]);
+    expect(toCompositionMembers(resolved)).toHaveLength(2);
+  });
+
   it('excludes empty slots from composition members', () => {
     const roster = updateRosterSlot(createInitialRoster(), 'slot-0', { className: '바드' });
 

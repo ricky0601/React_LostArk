@@ -51,6 +51,22 @@ describe('useRaidScreenCapture', () => {
 
   afterEach(() => vi.useRealTimers());
 
+  it('does not look up duplicate normalized nicknames as separate members', async () => {
+    const { result } = renderHook(() => useRaidScreenCapture());
+    act(() => mocks.options?.onResult({
+      scannedAt: 123,
+      observations: [
+        frame('기상술사', '같은닉').observations[0],
+        { ...frame('기상술사', '같은닉').observations[0], slot: 1 },
+      ],
+    }));
+    act(() => result.current.setAutoArkPassiveLookup(true));
+    await act(async () => { await vi.advanceTimersByTimeAsync(800); });
+
+    expect(mocks.lookup).not.toHaveBeenCalled();
+    expect(result.current.roster.slice(0, 2).every((slot) => slot.needsReview && slot.duplicateNickname)).toBe(true);
+  });
+
   it('keeps ark passive lookup opt-in and aborts an active lookup when identity changes', async () => {
     let resolveLookup!: (value: {
       nickname: string; className: string; title: string; role: 'support'; position: 'unknown'; combatPower: number; needsReview: false;

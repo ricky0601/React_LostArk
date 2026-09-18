@@ -24,6 +24,7 @@ export interface RaidRosterSlot {
   readonly pendingNickname: string;
   readonly pendingNicknameFrames: number;
   readonly needsReview: boolean;
+  readonly duplicateNickname: boolean;
   readonly arkPassiveTitle: string;
   readonly buildSource: RaidValueProvenance;
   readonly resolvedRole: RaidRole | null;
@@ -138,6 +139,7 @@ export const createInitialRoster = (): readonly RaidRosterSlot[] => (
     pendingNickname: '',
     pendingNicknameFrames: 0,
     needsReview: true,
+    duplicateNickname: false,
     arkPassiveTitle: '',
     buildSource: 'recognition' as const,
     resolvedRole: null,
@@ -155,6 +157,42 @@ export const createInitialRoster = (): readonly RaidRosterSlot[] => (
 interface ApplyRecognitionOptions {
   readonly preserveConfirmedNicknames?: boolean;
 }
+
+export const getDuplicateRaidNicknameSlotIds = (
+  roster: readonly RaidRosterSlot[],
+): ReadonlySet<string> => {
+  const slotsByNickname = new Map<string, string[]>();
+  roster.forEach((slot) => {
+    const nickname = normalizeRaidNickname(slot.nickname);
+    if (nickname == null) return;
+    const ids = slotsByNickname.get(nickname) ?? [];
+    ids.push(slot.id);
+    slotsByNickname.set(nickname, ids);
+  });
+  return new Set(Array.from(slotsByNickname.values())
+    .filter((ids) => ids.length > 1)
+    .flat());
+};
+
+export const reconcileDuplicateRaidNicknames = (
+  roster: readonly RaidRosterSlot[],
+): readonly RaidRosterSlot[] => {
+  const duplicateIds = getDuplicateRaidNicknameSlotIds(roster);
+  return roster.map((slot) => {
+    const duplicateNickname = duplicateIds.has(slot.id);
+    if (duplicateNickname === slot.duplicateNickname) return slot;
+    return {
+      ...slot,
+      duplicateNickname,
+      needsReview: duplicateNickname ? true : (
+        slot.className === ''
+        || !RAID_CLASS_DATA_BY_NAME.has(slot.className)
+        || classNeedsBuildResolution(slot.className)
+        || ['loading', 'review', 'error'].includes(slot.arkPassiveStatus)
+      ),
+    };
+  });
+};
 
 const moveIdentifiedParticipants = (
   roster: readonly RaidRosterSlot[],
@@ -259,7 +297,7 @@ export const applyRecognitionToRoster = (
   const observationBySlot = new Map(observations
     .filter(({ slot }) => !ignoredObservationSlots.has(slot))
     .map((observation) => [observation.slot, observation]));
-  return positionedRoster.map((slot) => {
+  const nextRoster = positionedRoster.map((slot) => {
     const observation = observationBySlot.get(slot.slot);
     if (!observation) return slot;
     const isVacancy = observation.occupancy === 'vacant';
@@ -352,13 +390,14 @@ export const applyRecognitionToRoster = (
       } : {}),
     };
   });
+  return reconcileDuplicateRaidNicknames(nextRoster);
 };
 
 export const updateRosterSlot = (
   roster: readonly RaidRosterSlot[],
   id: string,
   patch: Partial<Pick<RaidRosterSlot, 'className' | 'nickname' | 'combatPower' | 'currentParty' | 'fixed'>>,
-): readonly RaidRosterSlot[] => roster.map((slot) => {
+): readonly RaidRosterSlot[] => reconcileDuplicateRaidNicknames(roster.map((slot) => {
   if (slot.id !== id) return slot;
   const identityChanged = (patch.className !== undefined && patch.className !== slot.className)
     || (patch.nickname !== undefined && patch.nickname !== slot.nickname);
@@ -389,12 +428,12 @@ export const updateRosterSlot = (
       || classNeedsBuildResolution(next.className);
   }
   return next;
-});
+}));
 
 export const enableRosterAutoRecognition = (
   roster: readonly RaidRosterSlot[],
   id: string,
-): readonly RaidRosterSlot[] => roster.map((slot) => (
+): readonly RaidRosterSlot[] => reconcileDuplicateRaidNicknames(roster.map((slot) => (
   slot.id === id
     ? {
       ...slot,
@@ -405,13 +444,13 @@ export const enableRosterAutoRecognition = (
       pendingNicknameFrames: 0,
     }
     : slot
-));
+)));
 
 export const updateRosterBuild = (
   roster: readonly RaidRosterSlot[],
   id: string,
   title: string,
-): readonly RaidRosterSlot[] => roster.map((slot) => {
+): readonly RaidRosterSlot[] => reconcileDuplicateRaidNicknames(roster.map((slot) => {
   if (slot.id !== id) return slot;
   if (title === '') {
     return {
@@ -436,7 +475,7 @@ export const updateRosterBuild = (
     arkPassiveMessage: resolution.needsReview ? '빌드 확인 필요' : '수동 빌드 선택',
     needsReview: resolution.needsReview,
   };
-});
+}));
 
 const UNKNOWN_MEMBER = {
   role: 'unknown',
@@ -448,7 +487,7 @@ const UNKNOWN_MEMBER = {
 export const toCompositionMembers = (
   roster: readonly RaidRosterSlot[],
 ): readonly RaidCompositionMember[] => roster
-  .filter((slot) => slot.className !== '')
+  .filter((slot) => slot.className !== '' && !slot.duplicateNickname)
   .map((slot) => {
     const classData = RAID_CLASS_DATA_BY_NAME.get(slot.className);
     const buildSynergies = slot.arkPassiveTitle

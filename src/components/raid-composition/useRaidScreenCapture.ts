@@ -7,7 +7,12 @@ import {
   lookupRaidArkPassiveCandidates,
 } from './raidArkPassiveLookup';
 import { normalizeRaidNickname, type RaidFrameObservation } from './recognition';
-import { applyRecognitionToRoster, createInitialRoster, type RaidRosterSlot } from './roster';
+import {
+  applyRecognitionToRoster,
+  createInitialRoster,
+  reconcileDuplicateRaidNicknames,
+  type RaidRosterSlot,
+} from './roster';
 
 const SCAN_INTERVAL_MS = 2500;
 const MAX_TRANSIENT_LOOKUP_RETRIES = 1;
@@ -39,6 +44,8 @@ export const useRaidScreenCapture = () => {
   const lookupRetryCounts = useRef(new Map<string, number>());
 
   const recognizer = useMemo(() => new RaidPartyFrameRecognizer(), []);
+
+  useEffect(() => recognizer.setConfirmedRoster(roster), [recognizer, roster]);
 
   const handleResult = useCallback((result: RaidFrameObservation) => {
     setFramesScanned((count) => count + 1);
@@ -79,7 +86,7 @@ export const useRaidScreenCapture = () => {
     activeLookups.current.forEach((active, id) => {
       const slot = roster.find((candidate) => candidate.id === id);
       const identity = slot ? `${slot.className}:${slot.nickname}` : '';
-      if (!autoArkPassiveLookup || identity !== active.identity || slot?.buildSource === 'manual') {
+      if (!autoArkPassiveLookup || identity !== active.identity || slot?.buildSource === 'manual' || slot?.duplicateNickname) {
         window.clearTimeout(active.timer);
         active.controller.abort();
         activeLookups.current.delete(id);
@@ -88,7 +95,9 @@ export const useRaidScreenCapture = () => {
     if (!autoArkPassiveLookup || activeLookups.current.size > 0) return;
     const target = roster.find((slot) => (
       slot.className !== ''
+      && slot.nickname !== ''
       && normalizeRaidNickname(slot.nickname) === slot.nickname
+      && !slot.duplicateNickname
       && slot.arkPassiveStatus === 'idle'
       && slot.buildSource !== 'manual'
     ));
@@ -102,6 +111,7 @@ export const useRaidScreenCapture = () => {
       return activeLookups.current.get(target.id)?.controller === controller
         && !controller.signal.aborted
         && currentSlot?.buildSource !== 'manual'
+        && !currentSlot?.duplicateNickname
         && `${currentSlot?.className}:${currentSlot?.nickname}` === identity;
     };
     const timer = window.setTimeout(() => {
@@ -125,7 +135,7 @@ export const useRaidScreenCapture = () => {
         .then((result) => {
           if (!ownsTarget()) return;
           lookupRetryCounts.current.delete(retryKey);
-          setRoster((current) => current.map((slot) => {
+          setRoster((current) => reconcileDuplicateRaidNicknames(current.map((slot) => {
             if (slot.id !== target.id || `${slot.className}:${slot.nickname}` !== identity || slot.buildSource === 'manual') return slot;
             return {
               ...slot,
@@ -141,7 +151,7 @@ export const useRaidScreenCapture = () => {
               arkPassiveMessage: result.needsReview ? '포지션 매핑 확인 필요' : '아크패시브 확인됨',
               needsReview: result.needsReview,
             };
-          }));
+          })));
         })
         .catch((lookupError: unknown) => {
           if (!ownsTarget()) return;

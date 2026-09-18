@@ -56,6 +56,13 @@ describe('OcrWorkerPool', () => {
     expect(await sameSettings).toBe(await first);
     expect(await korean).not.toBe(await first);
     expect(factory).toHaveBeenCalledTimes(2);
+    expect(factory).toHaveBeenCalledWith(expect.objectContaining({
+      options: {
+        workerPath: '/tesseract/worker.min.js',
+        corePath: '/tesseract-core/tesseract-core-simd-lstm.wasm.js',
+        langPath: '/tessdata',
+      },
+    }));
 
     await pool.dispose();
     expect(workers).toHaveLength(2);

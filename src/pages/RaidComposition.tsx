@@ -200,7 +200,12 @@ const RaidCompositionPage: React.FC = () => {
   const miniWindow = useDocumentPictureInPicture();
 
   const members = useMemo(() => toCompositionMembers(roster), [roster]);
-  const filledCount = members.length;
+  const filledCount = roster.filter((slot) => slot.className !== '').length;
+  const hasDuplicateNickname = roster.some((slot) => slot.duplicateNickname);
+  const hasUnresolvedRoleOrBuild = members.some((member) => (
+    member.role === 'unknown'
+    || (member.role === 'dealer' && member.position === 'unknown')
+  ));
   const recognizedCount = useMemo(
     () => countRecognizedSlots(roster.map((slot, index) => ({
       slot: index,
@@ -228,10 +233,10 @@ const RaidCompositionPage: React.FC = () => {
     [currentAssignment, strategy],
   );
   const recommendation = useMemo(
-    () => (filledCount === 8
+    () => (members.length === 8
       ? recommendRaidComposition(members, strategy, RAID_COMPOSITION_DATA_METADATA.version)
       : null),
-    [filledCount, members, strategy],
+    [members, strategy],
   );
 
   const handleSlotChange: React.ComponentProps<typeof SlotRow>['onChange'] = (id, patch) => {
@@ -282,7 +287,7 @@ const RaidCompositionPage: React.FC = () => {
             <h2 className="font-bold text-gray-900 dark:text-white"><span className="mr-2 text-la-gold-dark dark:text-la-gold">1</span>공대 화면 불러오기</h2>
             <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">공대에 참여한 뒤 파티 찾기의 참가자 패널이 보이는 Lost Ark 화면이나 창을 선택하세요.</p>
           </div>
-          <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${status === 'sharing' ? 'bg-red-100 text-red-600 dark:bg-red-500/20 dark:text-red-300' : status === 'error' ? 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300' : 'bg-gray-100 text-gray-600 dark:bg-white/10 dark:text-gray-300'}`} aria-live="polite">
+          <span role="status" className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${status === 'sharing' ? 'bg-red-100 text-red-600 dark:bg-red-500/20 dark:text-red-300' : status === 'error' ? 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300' : 'bg-gray-100 text-gray-600 dark:bg-white/10 dark:text-gray-300'}`}>
             {CAPTURE_STATUS_LABEL[status]}
           </span>
         </div>
@@ -321,8 +326,8 @@ const RaidCompositionPage: React.FC = () => {
           </button>
           <CaptureProgress recognizedCount={recognizedCount} framesScanned={framesScanned} />
         </div>
-        {error && <p className="mt-2 text-xs text-red-500">{error}</p>}
-        {miniWindow.error && <p className="mt-2 text-xs text-amber-600 dark:text-amber-300">{miniWindow.error}</p>}
+        {error && <p role="alert" className="mt-2 text-xs text-red-500">{error}</p>}
+        {miniWindow.error && <p role="alert" className="mt-2 text-xs text-amber-600 dark:text-amber-300">{miniWindow.error}</p>}
         {!miniWindow.isSupported && (
           <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
             미니 창은 데스크톱 Chrome 또는 Edge에서 지원됩니다.
@@ -409,9 +414,19 @@ const RaidCompositionPage: React.FC = () => {
         {recommendation == null ? (
           <div className="mt-3 rounded-lg bg-gray-50 p-4 text-center dark:bg-white/5">
             <p className="text-sm font-semibold text-gray-700 dark:text-gray-200">
-              {filledCount < 8 ? `${8 - filledCount}명의 직업을 더 확인해 주세요` : '각 파티에 서포터를 1명씩 배치해 주세요'}
+              {filledCount < 8
+                ? `${8 - filledCount}명의 직업을 더 확인해 주세요`
+                : hasDuplicateNickname
+                  ? '중복된 닉네임을 확인해 주세요'
+                  : hasUnresolvedRoleOrBuild
+                    ? '역할 또는 빌드가 아직 확정되지 않았습니다'
+                    : '각 파티에 서포터를 1명씩 배치해 주세요'}
             </p>
-            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">조건이 갖춰지면 교환할 인원을 자동으로 표시합니다.</p>
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              {filledCount === 8 && !hasDuplicateNickname && hasUnresolvedRoleOrBuild
+                ? '해당 슬롯에서 빌드를 선택하거나 아크패시브 자동 확인을 사용해 주세요.'
+                : '조건이 갖춰지면 교환할 인원을 자동으로 표시합니다.'}
+            </p>
           </div>
         ) : (
           <RaidCompositionRecommendation

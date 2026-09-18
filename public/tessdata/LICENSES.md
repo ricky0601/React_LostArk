@@ -1,4 +1,6 @@
-# Lost Ark nickname OCR model licenses
+# OCR language model licenses
+
+`eng.traineddata.gz` and `kor.traineddata.gz` come from `@tesseract.js-data/eng@1.0.0` and `@tesseract.js-data/kor@1.0.0` (`4.0.0_best_int`) and are distributed under Apache License 2.0.
 
 `lostark_kor.traineddata.gz` is fine-tuned from Tesseract's Korean model and is distributed under Apache License 2.0.
 

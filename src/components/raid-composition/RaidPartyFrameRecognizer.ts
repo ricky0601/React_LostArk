@@ -1,4 +1,5 @@
 import type { Mat } from '@techstark/opencv-js';
+import type { RaidRosterSlot } from './roster';
 import { RAID_CLASS_ICON_TEMPLATES, type RaidClassIconTemplate } from '../../data/raidClassIcons';
 import { validateRecognitionFrame } from '../screen-recognition/frame';
 import { getOpenCv, type OpenCv } from '../screen-recognition/openCvLoader';
@@ -45,8 +46,9 @@ const NICKNAME_PRIMARY_NATIVE_VARIANTS = [
   { threshold: 140, scale: 6, trim: false, pixelOffsetX: 0, pixelOffsetY: 0 },
 ] as const;
 const CLASS_MATCH_CONFIDENCE_ADJUSTMENTS: Readonly<Partial<Record<string, number>>> = {
-  // 참가자 패널의 축소된 원형 문양은 배틀마스터와 유사해 실제 캡처로 보정한다.
+  // 참가자 패널에서 비슷한 문양과 점수가 근접하는 직업은 대표 캡처로 보정한다.
   가디언나이트: 0.025,
+  기상술사: 0.035,
 };
 const NICKNAME_FALLBACK_NATIVE_VARIANTS = [
   { threshold: 150, scale: 4, trim: false, pixelOffsetX: 0, pixelOffsetY: 0 },
@@ -704,18 +706,19 @@ export const mergeRaidOcrCandidates = (
   return merged.slice(0, NICKNAME_MAX_RANKED_CANDIDATES);
 };
 
-const recognizeClasses = async (
+export const recognizeClasses = async (
   cv: OpenCv,
   source: Mat,
   frame: HTMLCanvasElement,
   panel: IconPanel,
   viewport: RaidViewportTransform,
+  templateLoader: (template: RaidClassIconTemplate) => Promise<HTMLCanvasElement> = loadTemplateCanvas,
 ): Promise<ClassIconMatch[]> => {
   const sizes = scaledTemplateSizes(viewport.width);
   const matches: ClassIconMatch[] = [];
 
   for (const template of RAID_CLASS_ICON_TEMPLATES) {
-    const templateCanvas = await loadTemplateCanvas(template);
+    const templateCanvas = await templateLoader(template);
     const classMatches = matchMultiScaleTemplate(cv, source, templateCanvas, {
       sizes,
       threshold: MATCH_THRESHOLD,
@@ -745,7 +748,11 @@ const recognizeClasses = async (
 };
 
 export class RaidPartyFrameRecognizer implements FrameRecognizer<RaidFrameObservation> {
-  private readonly ocrWorkers = new OcrWorkerPool();
+  constructor(private readonly ocrWorkers = new OcrWorkerPool()) {}
+
+  private confirmedClasses = new Map<number, string>();
+
+  private previousObservedClasses = new Map<number, string>();
 
   private readonly stableNicknames = new Map<number, {
     className: string;
@@ -754,16 +761,34 @@ export class RaidPartyFrameRecognizer implements FrameRecognizer<RaidFrameObserv
     count: number;
   }>();
 
+  setConfirmedRoster(roster: readonly RaidRosterSlot[]): void {
+    this.confirmedClasses = new Map(roster
+      .filter((slot) => (
+        !slot.duplicateNickname
+        && slot.nickname !== ''
+        && (slot.arkPassiveStatus === 'confirmed' || !slot.needsReview)
+      ))
+      .map((slot) => [slot.slot, slot.className]));
+  }
+
   private async recognizeNicknames(
     frame: HTMLCanvasElement,
     occupiedSlots: readonly { slot: number; className: string | null }[],
     viewport: RaidViewportTransform,
   ): Promise<readonly NicknameObservation[]> {
-    if (occupiedSlots.length === 0) return [];
+    const slotsNeedingNickname = occupiedSlots.filter((occupied) => (
+      occupied.className == null
+      || this.confirmedClasses.get(occupied.slot) !== occupied.className
+      || this.previousObservedClasses.get(occupied.slot) !== occupied.className
+    ));
+    this.previousObservedClasses = new Map(occupiedSlots
+      .filter((occupied) => occupied.className != null)
+      .map((occupied) => [occupied.slot, occupied.className as string]));
+    if (slotsNeedingNickname.length === 0) return [];
     const worker = await getNicknameOcrWorker(this.ocrWorkers);
     const lostArkWorker = await getLostArkNicknameOcrWorker(this.ocrWorkers).catch(() => null);
     const observations: NicknameObservation[] = [];
-    for (const occupied of occupiedSlots) {
+    for (const occupied of slotsNeedingNickname) {
       if (!occupied.className) {
         this.stableNicknames.delete(occupied.slot);
         continue;
@@ -954,6 +979,8 @@ export class RaidPartyFrameRecognizer implements FrameRecognizer<RaidFrameObserv
   }
 
   async dispose(): Promise<void> {
+    this.confirmedClasses.clear();
+    this.previousObservedClasses.clear();
     this.stableNicknames.clear();
     await this.ocrWorkers.dispose();
   }

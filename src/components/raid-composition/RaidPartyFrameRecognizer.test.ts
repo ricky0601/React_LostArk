@@ -1,8 +1,13 @@
 import { createHash } from 'crypto';
+import { createRequire } from 'module';
 import { readFileSync } from 'fs';
 import { join } from 'path';
+import { createCanvas, loadImage } from '@napi-rs/canvas';
 import { PNG } from 'pngjs';
 import { describe, expect, it, vi } from 'vitest';
+import type { OpenCv } from '../screen-recognition/openCvLoader';
+import { OcrWorkerPool, type OcrWorker } from '../screen-recognition/ocrWorkerPool';
+import { createInitialRoster } from './roster';
 import { mapMatchesToSlots, type ClassIconMatch } from './recognition';
 import {
   createRaidIconPanel,
@@ -20,6 +25,9 @@ import {
   normalizeClassIconSourcePixels,
   prioritizeSpecializedRaidOcrCandidate,
   rankRaidOcrCandidates,
+  recognizeClasses,
+  RaidPartyFrameRecognizer,
+  type RaidViewportTransform,
 } from './RaidPartyFrameRecognizer';
 
 describe('expandRaidOcrCandidates', () => {
@@ -201,6 +209,8 @@ describe('detectRaidViewportTransform', () => {
   });
 });
 
+const nodeRequire = createRequire(import.meta.url);
+
 interface MemoryCanvas extends HTMLCanvasElement {
   readonly pixels: Uint8ClampedArray;
 }
@@ -267,8 +277,54 @@ const createMemoryCanvas = (
       },
     }),
   };
+  if (typeof OffscreenCanvas !== 'undefined') Object.setPrototypeOf(canvas, OffscreenCanvas.prototype);
   return canvas as MemoryCanvas;
 };
+
+describe('confirmed nickname OCR', () => {
+  it('skips every OCR pass while class identity is stable and retries after identity changes', async () => {
+    const recognize = vi.fn().mockResolvedValue({ data: { text: '안정닉네임', confidence: 95 } });
+    const worker = { recognize, setParameters: vi.fn(), terminate: vi.fn() } as unknown as OcrWorker;
+    const recognizer = new RaidPartyFrameRecognizer(new OcrWorkerPool(async () => worker));
+    const frame = createMemoryCanvas(200, 100);
+    const viewport: RaidViewportTransform = { x: 0, y: 0, width: 200, height: 100 };
+    const recognizeNicknames = (slots: readonly { slot: number; className: string | null }[]) => (
+      (recognizer as unknown as {
+        recognizeNicknames: (
+          input: HTMLCanvasElement,
+          occupied: readonly { slot: number; className: string | null }[],
+          transform: RaidViewportTransform,
+        ) => Promise<unknown>;
+      }).recognizeNicknames(frame, slots, viewport)
+    );
+    const originalCreateElement = document.createElement.bind(document);
+    const createElement = vi.spyOn(document, 'createElement').mockImplementation(((tagName: string) => (
+      tagName === 'canvas' ? createMemoryCanvas() : originalCreateElement(tagName)
+    )) as typeof document.createElement);
+
+    try {
+      await recognizeNicknames([{ slot: 0, className: '기상술사' }]);
+      const initialCalls = recognize.mock.calls.length;
+      recognizer.setConfirmedRoster([{
+        ...createInitialRoster()[0], className: '기상술사', nickname: '안정닉네임', needsReview: false,
+      }]);
+
+      await recognizeNicknames([{ slot: 0, className: '기상술사' }]);
+      expect(recognize).toHaveBeenCalledTimes(initialCalls);
+
+      await recognizeNicknames([{ slot: 0, className: '소서리스' }]);
+      expect(recognize.mock.calls.length).toBeGreaterThan(initialCalls);
+      const changedClassCalls = recognize.mock.calls.length;
+
+      await recognizeNicknames([{ slot: 0, className: null }]);
+      await recognizeNicknames([{ slot: 0, className: '기상술사' }]);
+      expect(recognize.mock.calls.length).toBeGreaterThan(changedClassCalls);
+    } finally {
+      createElement.mockRestore();
+      await recognizer.dispose();
+    }
+  });
+});
 
 const FIXTURE_ICON_HASHES: Readonly<Record<string, string>> = {
   c700ec797cf82370: '차원술사',
@@ -285,6 +341,64 @@ interface RaidFixtureManifest {
 }
 
 describe('raid capture fixture regression', () => {
+  it('classifies a representative fixture through production OpenCV matching and slot mapping', async () => {
+    const originalOffscreenCanvas = globalThis.OffscreenCanvas;
+    if (typeof OffscreenCanvas === 'undefined') {
+      Object.assign(globalThis, { OffscreenCanvas: class TestOffscreenCanvas {} });
+    }
+    const fixtureDirectory = join(process.cwd(), 'src', 'components', 'raid-composition', '__fixtures__');
+    const manifest = JSON.parse(readFileSync(join(fixtureDirectory, 'manifest.json'), 'utf8')) as RaidFixtureManifest;
+    const fixture = manifest.cases[0];
+    const png = PNG.sync.read(readFileSync(join(fixtureDirectory, fixture.file)));
+    const frame = createMemoryCanvas(png.width, png.height, new Uint8ClampedArray(png.data));
+    const originalCreateElement = document.createElement.bind(document);
+    const createElement = vi.spyOn(document, 'createElement').mockImplementation(((tagName: string) => (
+      tagName === 'canvas' ? createMemoryCanvas() : originalCreateElement(tagName)
+    )) as typeof document.createElement);
+
+    try {
+      const cv = await nodeRequire('@techstark/opencv-js') as OpenCv;
+      const panel = createRaidIconPanel(frame);
+      const sourceRgba = cv.imread(panel.canvas);
+      const sourceRgb = new cv.Mat();
+      cv.cvtColor(sourceRgba, sourceRgb, cv.COLOR_RGBA2RGB);
+      const templateLoads: string[] = [];
+      try {
+        const matches = await recognizeClasses(
+          cv,
+          sourceRgb,
+          frame,
+          panel,
+          { x: 0, y: 0, width: frame.width, height: frame.height },
+          async (template) => {
+            templateLoads.push(template.url);
+            const image = await loadImage(readFileSync(join(process.cwd(), 'public', template.url.slice(1))));
+            const nativeCanvas = createCanvas(100, 100);
+            const nativeContext = nativeCanvas.getContext('2d');
+            nativeContext.drawImage(image, 0, 0, 100, 100);
+            const nativePixels = nativeContext.getImageData(0, 0, 100, 100);
+            const canvas = createMemoryCanvas(100, 100);
+            canvas.getContext('2d')?.putImageData(normalizeClassIconPixels({
+              data: new Uint8ClampedArray(nativePixels.data),
+              width: 100,
+              height: 100,
+            } as ImageData), 0, 0);
+            return canvas;
+          },
+        );
+        expect(templateLoads).toHaveLength(30);
+        expect(mapMatchesToSlots(matches).map(({ className }) => className), JSON.stringify(matches))
+          .toEqual(fixture.expectedClasses);
+      } finally {
+        sourceRgba.delete();
+        sourceRgb.delete();
+      }
+    } finally {
+      createElement.mockRestore();
+      if (originalOffscreenCanvas === undefined) Reflect.deleteProperty(globalThis, 'OffscreenCanvas');
+    }
+  }, 20_000);
+
   it('reproduces the manifest classes from the real cropped capture', () => {
     const fixtureDirectory = join(process.cwd(), 'src', 'components', 'raid-composition', '__fixtures__');
     const manifest = JSON.parse(readFileSync(join(fixtureDirectory, 'manifest.json'), 'utf8')) as RaidFixtureManifest;

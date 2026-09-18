@@ -11,6 +11,18 @@ export interface OcrWorkerSettings {
 
 type OcrWorkerFactory = (settings: OcrWorkerSettings) => Promise<OcrWorker>;
 
+/** Tesseract.js 7.0.0 runtime assets vendored under public/ (see public/tesseract/README.md). */
+export const LOCAL_TESSERACT_OPTIONS: Partial<OcrWorkerOptions> = {
+  workerPath: '/tesseract/worker.min.js',
+  corePath: '/tesseract-core/tesseract-core-simd-lstm.wasm.js',
+  langPath: '/tessdata',
+};
+
+const withLocalRuntimeAssets = (settings: OcrWorkerSettings): OcrWorkerSettings => ({
+  ...settings,
+  options: { ...settings.options, ...LOCAL_TESSERACT_OPTIONS },
+});
+
 const settingsKey = ({ languages, parameters = {}, options = {} }: OcrWorkerSettings): string => JSON.stringify([
   languages,
   Object.entries(parameters).sort(([left], [right]) => left.localeCompare(right)),
@@ -35,12 +47,13 @@ export class OcrWorkerPool {
   constructor(private readonly factory: OcrWorkerFactory = createDefaultWorker) {}
 
   get(settings: OcrWorkerSettings): Promise<OcrWorker> {
-    const key = settingsKey(settings);
+    const localSettings = withLocalRuntimeAssets(settings);
+    const key = settingsKey(localSettings);
     const cached = this.workers.get(key);
     if (cached) return cached;
 
     let worker!: Promise<OcrWorker>;
-    worker = this.factory(settings).catch((error: unknown) => {
+    worker = this.factory(localSettings).catch((error: unknown) => {
       if (this.workers.get(key) === worker) this.workers.delete(key);
       throw error;
     });
