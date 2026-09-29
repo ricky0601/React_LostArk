@@ -98,9 +98,11 @@ test('generates route HTML with metadata matching routeSeo.json', () => {
     }
   }
 
-  const generatedRouteDirectories = readdirSync(fixtureBuild, { withFileTypes: true })
-    .filter((entry) => entry.isDirectory())
-    .map((entry) => `/${entry.name}`)
+  // 중첩 라우트(/raid-composition/applicants)도 index.html이 있는 하위 디렉터리로 생성된다.
+  const generatedRouteDirectories = readdirSync(fixtureBuild, { recursive: true })
+    .map((entryPath) => String(entryPath).replace(/\\/g, '/'))
+    .filter((entryPath) => entryPath.endsWith('/index.html'))
+    .map((entryPath) => `/${entryPath.slice(0, -'/index.html'.length)}`)
     .sort();
   const configuredRoutes = routeSeoEntries
     .filter((route) => route.path !== '/')
