@@ -112,13 +112,15 @@ const ChangelogBell: React.FC = () => {
       </button>
       {/* 버튼 기준(absolute right-0)으로 두면 벨 오른쪽에 테마·메뉴 버튼이 있어
           좁은 화면에서 패널이 왼쪽 화면 밖으로 밀려난다(320px에서 left: -72px).
-          sticky nav는 상단 전폭이므로 fixed의 기준 박스가 nav든 뷰포트든 결과가 같다. */}
+          sticky nav는 상단 전폭이므로 fixed의 기준 박스가 nav든 뷰포트든 결과가 같다.
+          sm 이상은 패널 폭만큼 왼쪽 여유가 있고, fixed면 max-w-7xl 중앙 정렬된 벨과
+          멀리 떨어지므로 버튼 기준 absolute로 붙인다. */}
       {isOpen && (
         <div
           id="navbar-changelog-panel"
           role="region"
           aria-label="최근 업데이트"
-          className="fixed right-2 top-16 z-50 max-h-[calc(100dvh-4.5rem)] w-72 max-w-[calc(100vw-1rem)] overflow-y-auto rounded-xl border border-gray-200/70 bg-white p-2 shadow-lg shadow-black/5 dark:border-white/10 dark:bg-la-dark dark:shadow-black/30"
+          className="fixed right-2 top-16 z-50 sm:absolute sm:right-0 sm:top-full sm:mt-4 max-h-[calc(100dvh-4.5rem)] w-72 max-w-[calc(100vw-1rem)] overflow-y-auto rounded-xl border border-gray-200/70 bg-white p-2 shadow-lg shadow-black/5 dark:border-white/10 dark:bg-la-dark dark:shadow-black/30"
         >
           <p className="px-2 pb-1 pt-1 text-xs font-bold uppercase tracking-wide text-gray-600 dark:text-gray-300">
             최근 업데이트
