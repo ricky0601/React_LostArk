@@ -80,6 +80,17 @@ describe('raidGold data integrity', () => {
         totalGold: 50000,
         isBound: false,
       },
+      {
+        difficulty: '매칭',
+        requiredLevel: 1750,
+        gates: [
+          { gate: 1, gold: 20000, bonusCost: 6400, coreReward: 3 },
+          { gate: 2, gold: 30000, bonusCost: 9600, coreReward: 3 },
+        ],
+        totalGold: 50000,
+        isBound: false,
+        boundGold: 25000,
+      },
     ]);
   });
 
@@ -87,6 +98,12 @@ describe('raidGold data integrity', () => {
     const nightmare = getRaidDataByKey('벨가르딘 (그림자)', '나이트메어');
     expect(nightmare?.isBound).toBe(false);
     expect(nightmare?.boundGold).toBe(0);
+  });
+
+  it('벨가르딘 그림자 매칭 모드는 골드 절반을 귀속으로 계산', () => {
+    const matching = getRaidDataByKey('벨가르딘 (그림자)', '매칭');
+    expect(matching?.totalGold).toBe(50000);
+    expect(matching?.boundGold).toBe(25000);
   });
 
   it('모든 레이드의 더보기 비용은 게이트 골드보다 작거나 같음 (데이터 무결성)', () => {

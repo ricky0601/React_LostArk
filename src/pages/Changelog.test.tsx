@@ -48,7 +48,9 @@ test('renders every changelog entry with its date and title', () => {
 
   const [newest] = realChangelog;
   if (!newest) throw new TypeError('Expected a changelog entry');
-  expect(screen.getByText(newest.date.split('-').join('.'))).toHaveAttribute('datetime', newest.date);
+  screen.getAllByText(newest.date.split('-').join('.')).forEach((time) => {
+    expect(time).toHaveAttribute('datetime', newest.date);
+  });
 });
 
 test('labels each item with its Korean tag', () => {
