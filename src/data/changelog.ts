@@ -32,6 +32,29 @@ export const CHANGELOG_TAG_LABEL: Readonly<Record<ChangelogTag, string>> = {
 
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
+    id: 'release-010',
+    date: '2026-09-29',
+    title: '벨가르딘 매칭 모드 추가',
+    items: [
+      { tag: 'added', text: '레이드 골드 계산에서 벨가르딘(그림자) 매칭 모드를 선택할 수 있습니다.' },
+      { tag: 'improved', text: '매칭 모드는 클리어 골드의 절반을 귀속 골드로 나누어 계산합니다.' },
+    ],
+  },
+  {
+    id: 'release-009',
+    date: '2026-09-29',
+    title: '공대 도우미와 신청자 사사게 조회',
+    items: [
+      { tag: 'added', text: '공대 도우미에서 8인 공격대 모집 화면을 공유하면 직업과 닉네임을 인식해 파티원 목록을 만듭니다.' },
+      { tag: 'added', text: '딜러·서포터 역할과 시너지를 고려해 1·2파티 구성을 추천하고, 작은 창(PiP)으로 띄워 볼 수 있습니다.' },
+      { tag: 'added', text: '신청자 사사게 조회 탭에서 신청자 닉네임을 인식해 원정대 전체 캐릭터의 인벤 사사게 기록을 확인할 수 있습니다.' },
+      { tag: 'improved', text: '같은 시너지가 겹치지 않게 하고, 방어력 감소 시너지는 한 파티에 모이도록 추천 기준을 다듬었습니다.' },
+      { tag: 'improved', text: '바드, 도화가, 홀리나이트, 발키리의 딜러 아크패시브 시너지를 추천에 반영합니다.' },
+      { tag: 'fixed', text: '인원이 다 차지 않은 공격대도 편성 추천을 받을 수 있습니다.' },
+      { tag: 'fixed', text: '파티원을 옮기거나 다시 인식해도 직접 확인한 정보가 유지됩니다.' },
+    ],
+  },
+  {
     id: 'release-008',
     date: '2026-09-04',
     title: '원정대 스펙 대시보드 개선',
