@@ -94,6 +94,26 @@ describe('useScreenRecognition', () => {
     capture.unmount();
   });
 
+  it('can start capture with mediaDevices from a Document PiP window', async () => {
+    const shared = createStream();
+    const openerGetDisplayMedia = vi.fn();
+    const pipGetDisplayMedia = vi.fn().mockResolvedValue(shared.stream);
+    Object.defineProperty(navigator, 'mediaDevices', {
+      configurable: true,
+      value: { getDisplayMedia: openerGetDisplayMedia },
+    });
+    const capture = renderRecognition();
+
+    await act(() => capture.result.current.start({
+      getDisplayMedia: pipGetDisplayMedia,
+    } as unknown as MediaDevices));
+
+    expect(pipGetDisplayMedia).toHaveBeenCalledOnce();
+    expect(openerGetDisplayMedia).not.toHaveBeenCalled();
+    expect(capture.result.current.status).toBe('sharing');
+    capture.unmount();
+  });
+
   it('reports unsupported browsers and permission denial without leaving resources', async () => {
     Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: undefined });
     const unsupported = renderRecognition();

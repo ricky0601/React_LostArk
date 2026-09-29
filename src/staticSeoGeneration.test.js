@@ -78,18 +78,23 @@ test('generates route HTML with metadata matching routeSeo.json', () => {
       }),
     ]));
     const page = structuredData['@graph'].find((entry) => entry['@id'] === `${canonical}#webpage`);
-    expect(page).toMatchObject({
-      '@type': route.schemaType === 'WebApplication' ? 'WebApplication' : 'WebPage',
-      url: canonical,
-      name: route.name || route.title.replace(/\s[-|]\s로아끼욧$/, ''),
-      description: route.description,
-      inLanguage: 'ko-KR',
-    });
+    if (route.robots === 'noindex, follow') {
+      expect(page).toBeUndefined();
+      expect(structuredData['@graph']).toHaveLength(1);
+    } else {
+      expect(page).toMatchObject({
+        '@type': route.schemaType === 'WebApplication' ? 'WebApplication' : 'WebPage',
+        url: canonical,
+        name: route.name || route.title.replace(/\s[-|]\s로아끼욧$/, ''),
+        description: route.description,
+        inLanguage: 'ko-KR',
+      });
 
-    if (route.path !== '/') {
-      expect(structuredData['@graph']).toEqual(expect.arrayContaining([
-        expect.objectContaining({ '@type': 'BreadcrumbList', '@id': `${canonical}#breadcrumb` }),
-      ]));
+      if (route.path !== '/') {
+        expect(structuredData['@graph']).toEqual(expect.arrayContaining([
+          expect.objectContaining({ '@type': 'BreadcrumbList', '@id': `${canonical}#breadcrumb` }),
+        ]));
+      }
     }
   }
 
@@ -167,8 +172,8 @@ test('keeps API, known routes, missing routes, and static assets distinct in Ver
   const materialIconHeaders = headers.find((rule) => rule.source === materialIconSource);
   const fallbackRewrite = rewrites[rewrites.length - 1];
   const pageRewrites = rewrites.filter((rewrite) => rewrite.destination.endsWith('/index.html'));
-  const indexablePageRoutes = routeSeoEntries
-    .filter((route) => route.path !== '/' && route.robots === 'index, follow')
+  const configuredPageRoutes = routeSeoEntries
+    .filter((route) => route.path !== '/')
     .map((route) => route.path)
     .sort();
 
@@ -191,7 +196,7 @@ test('keeps API, known routes, missing routes, and static assets distinct in Ver
       },
     ],
   });
-  expect(pageRewrites.map((rewrite) => rewrite.source).sort()).toEqual(indexablePageRoutes);
+  expect(pageRewrites.map((rewrite) => rewrite.source).sort()).toEqual(configuredPageRoutes);
   for (const rewrite of pageRewrites) {
     expect(rewrite.destination).toBe(`${rewrite.source}/index.html`);
   }

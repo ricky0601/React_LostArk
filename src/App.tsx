@@ -14,6 +14,7 @@ const SpecSimulator = React.lazy(() => import(/* webpackChunkName: "route-spec-s
 const Expedition = React.lazy(() => import(/* webpackChunkName: "route-expedition" */ './pages/Expedition'));
 const Compare = React.lazy(() => import(/* webpackChunkName: "route-compare" */ './pages/Compare'));
 const Enhancement = React.lazy(() => import(/* webpackChunkName: "route-enhancement" */ './pages/Enhancement'));
+const RaidComposition = React.lazy(() => import(/* webpackChunkName: "route-raid-composition" */ './pages/RaidComposition'));
 const Spending = React.lazy(() => import(/* webpackChunkName: "route-spending" */ './pages/Spending'));
 const Market = React.lazy(() => import(/* webpackChunkName: "route-market" */ './pages/Market'));
 const Changelog = React.lazy(() => import(/* webpackChunkName: "route-changelog" */ './pages/Changelog'));
@@ -68,6 +69,7 @@ const AppContent: React.FC = () => {
               <Route path="/expedition" element={<Expedition />} />
               <Route path="/compare" element={<Compare />} />
               <Route path="/enhancement" element={<Enhancement />} />
+              <Route path="/raid-composition" element={<RaidComposition />} />
               <Route path="/market" element={<Market />} />
               <Route path="/spending" element={<Spending />} />
               <Route path={ROUTES.changelog} element={<Changelog />} />

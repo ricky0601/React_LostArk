@@ -1,0 +1,1054 @@
+import type { Mat } from '@techstark/opencv-js';
+import type { RaidRosterSlot } from './roster';
+import { RAID_CLASS_ICON_TEMPLATES, type RaidClassIconTemplate } from '../../data/raidClassIcons';
+import { validateRecognitionFrame } from '../screen-recognition/frame';
+import { getOpenCv, type OpenCv } from '../screen-recognition/openCvLoader';
+import { OcrWorkerPool, type OcrWorker } from '../screen-recognition/ocrWorkerPool';
+import { matchMultiScaleTemplate } from '../screen-recognition/templateMatching';
+import type { FrameRecognizer } from '../screen-recognition/types';
+import {
+  mapMatchesToSlots,
+  normalizeRaidNickname,
+  RAID_RECOGNITION_REFERENCE,
+  RAID_SLOT_BOXES,
+  RAID_SLOT_ICON_BOXES,
+  RAID_SLOT_NICKNAME_BOXES,
+  type ClassIconMatch,
+  type NicknameObservation,
+  type NormalizedBox,
+  type RaidFrameObservation,
+  type RaidSlotOccupancy,
+} from './recognition';
+
+const TEMPLATE_CANVAS_SIZE = 100;
+const TEMPLATE_SIZES_AT_REFERENCE = [28, 29, 30, 31, 32, 33, 34];
+const MATCH_THRESHOLD = 0.52;
+const COARSE_THRESHOLD = 0.36;
+const NICKNAME_CONFIDENCE_THRESHOLD = 55;
+const LOSTARK_NICKNAME_CONFIDENCE_THRESHOLD = 45;
+const LOSTARK_OCR_CORE_PATH = '/tesseract-core/tesseract-core-simd-lstm.wasm.js';
+const NICKNAME_STABLE_FRAME_COUNT = 2;
+const NICKNAME_CANVAS_SCALE = 4;
+const NICKNAME_PRIMARY_THRESHOLD = 90;
+const NICKNAME_FALLBACK_THRESHOLD = 150;
+const NICKNAME_SHIFTED_THRESHOLD = 120;
+const NICKNAME_SHIFTED_Y = 0.003;
+const NICKNAME_NATIVE_PADDING = 2;
+const NICKNAME_SHORT_WORD_VARIANT = {
+  threshold: 170,
+  scale: 4,
+  trim: true,
+  pixelOffsetX: -3,
+  pixelOffsetY: -3,
+} as const;
+const NICKNAME_PRIMARY_NATIVE_VARIANTS = [
+  { threshold: 110, scale: 4, trim: false, pixelOffsetX: -2, pixelOffsetY: -2 },
+  { threshold: 110, scale: 6, trim: false, pixelOffsetX: 0, pixelOffsetY: 0 },
+  { threshold: 140, scale: 6, trim: false, pixelOffsetX: 0, pixelOffsetY: 0 },
+] as const;
+const CLASS_MATCH_CONFIDENCE_ADJUSTMENTS: Readonly<Partial<Record<string, number>>> = {
+  // 참가자 패널에서 비슷한 문양과 점수가 근접하는 직업은 대표 캡처로 보정한다.
+  가디언나이트: 0.025,
+  기상술사: 0.035,
+};
+const NICKNAME_FALLBACK_NATIVE_VARIANTS = [
+  { threshold: 150, scale: 4, trim: false, pixelOffsetX: 0, pixelOffsetY: 0 },
+  { threshold: 70, scale: 6, trim: false, pixelOffsetX: 0, pixelOffsetY: 0 },
+  { threshold: 140, scale: 6, trim: true, pixelOffsetX: 0, pixelOffsetY: 0 },
+] as const;
+
+const templateCanvasCache = new Map<string, Promise<HTMLCanvasElement>>();
+
+export const normalizeClassIconPixels = (imageData: ImageData): ImageData => {
+  const { data } = imageData;
+  for (let index = 0; index < data.length; index += 4) {
+    if (data[index + 3] <= 16) {
+      data[index] = 0;
+      data[index + 1] = 0;
+      data[index + 2] = 0;
+      data[index + 3] = 0;
+    } else {
+      data[index] = 255;
+      data[index + 1] = 255;
+      data[index + 2] = 255;
+      data[index + 3] = 255;
+    }
+  }
+  return imageData;
+};
+
+/** 금색과 흰색으로 표시되는 인게임 아이콘을 템플릿과 같은 무채색 밝기로 맞춘다. */
+export const normalizeClassIconSourcePixels = (imageData: ImageData): ImageData => {
+  const { data } = imageData;
+  for (let index = 0; index < data.length; index += 4) {
+    const brightness = Math.max(data[index], data[index + 1], data[index + 2]);
+    data[index] = brightness;
+    data[index + 1] = brightness;
+    data[index + 2] = brightness;
+    data[index + 3] = 255;
+  }
+  return imageData;
+};
+
+const loadTemplateCanvas = async (template: RaidClassIconTemplate): Promise<HTMLCanvasElement> => {
+  const cached = templateCanvasCache.get(template.url);
+  if (cached) return cached;
+
+  const loading = (async () => {
+    const response = await fetch(template.url, { credentials: 'same-origin' });
+    if (!response.ok) throw new Error(`${template.className} 직업 아이콘을 불러오지 못했습니다.`);
+    const objectUrl = URL.createObjectURL(await response.blob());
+    const image = new Image();
+    try {
+      await new Promise<void>((resolve, reject) => {
+        image.onload = () => resolve();
+        image.onerror = () => reject(new Error(`${template.className} 직업 아이콘을 해석하지 못했습니다.`));
+        image.src = objectUrl;
+      });
+      const canvas = document.createElement('canvas');
+      canvas.width = TEMPLATE_CANVAS_SIZE;
+      canvas.height = TEMPLATE_CANVAS_SIZE;
+      const context = canvas.getContext('2d', { willReadFrequently: true });
+      if (!context) throw new Error('직업 아이콘 템플릿을 준비할 수 없습니다.');
+      context.clearRect(0, 0, canvas.width, canvas.height);
+      context.drawImage(image, 0, 0, canvas.width, canvas.height);
+      const pixels = context.getImageData(0, 0, canvas.width, canvas.height);
+      context.putImageData(normalizeClassIconPixels(pixels), 0, 0);
+      return canvas;
+    } finally {
+      URL.revokeObjectURL(objectUrl);
+    }
+  })();
+  templateCanvasCache.set(template.url, loading);
+  try {
+    return await loading;
+  } catch (error) {
+    templateCanvasCache.delete(template.url);
+    throw error;
+  }
+};
+
+export interface RaidViewportTransform {
+  readonly x: number;
+  readonly y: number;
+  readonly width: number;
+  readonly height: number;
+}
+
+const fullViewport = (width: number, height: number): RaidViewportTransform => ({ x: 0, y: 0, width, height });
+
+const rightAlignedReferenceViewport = (viewport: RaidViewportTransform): RaidViewportTransform => {
+  const referenceAspect = RAID_RECOGNITION_REFERENCE.width / RAID_RECOGNITION_REFERENCE.height;
+  const referenceWidth = viewport.height * referenceAspect;
+  return {
+    x: viewport.x + viewport.width - referenceWidth,
+    y: viewport.y,
+    width: referenceWidth,
+    height: viewport.height,
+  };
+};
+
+/** 검은색/투명 여백 안에 게임 화면이 포함된 캡처의 실제 viewport를 찾는다. */
+export const detectRaidViewportTransform = (
+  pixels: ImageData,
+): RaidViewportTransform => {
+  const { width, height, data } = pixels;
+  const base = [data[0], data[1], data[2], data[3]];
+  const columns = new Uint32Array(width);
+  const rows = new Uint32Array(height);
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const index = (y * width + x) * 4;
+      const different = Math.abs(data[index] - base[0])
+        + Math.abs(data[index + 1] - base[1])
+        + Math.abs(data[index + 2] - base[2])
+        + Math.abs(data[index + 3] - base[3]) > 24;
+      if (different) {
+        columns[x] += 1;
+        rows[y] += 1;
+      }
+    }
+  }
+  const minColumnPixels = Math.max(1, Math.floor(height * 0.02));
+  const minRowPixels = Math.max(1, Math.floor(width * 0.02));
+  const left = columns.findIndex((count) => count >= minColumnPixels);
+  const top = rows.findIndex((count) => count >= minRowPixels);
+  let right = width - 1;
+  let bottom = height - 1;
+  while (right >= 0 && columns[right] < minColumnPixels) right -= 1;
+  while (bottom >= 0 && rows[bottom] < minRowPixels) bottom -= 1;
+  if (left < 0 || top < 0 || right <= left || bottom <= top) {
+    return rightAlignedReferenceViewport(fullViewport(width, height));
+  }
+  const candidate = { x: left, y: top, width: right - left + 1, height: bottom - top + 1 };
+  const substantiallyInset = candidate.width < width * 0.98 || candidate.height < height * 0.98;
+  const plausibleSize = candidate.width >= width * 0.6 && candidate.height >= height * 0.6;
+  return rightAlignedReferenceViewport(substantiallyInset && plausibleSize
+    ? candidate
+    : fullViewport(width, height));
+};
+
+export const getRaidPixelBox = (
+  box: NormalizedBox,
+  width: number,
+  height: number,
+  viewport: RaidViewportTransform = fullViewport(width, height),
+) => {
+  const x = Math.max(0, Math.floor(viewport.x + box.x * viewport.width));
+  const y = Math.max(0, Math.floor(viewport.y + box.y * viewport.height));
+  const right = Math.min(width, Math.ceil(viewport.x + (box.x + box.width) * viewport.width));
+  const bottom = Math.min(height, Math.ceil(viewport.y + (box.y + box.height) * viewport.height));
+  return { x, y, width: right - x, height: bottom - y };
+};
+
+interface PackedIconCell {
+  readonly x: number;
+  readonly y: number;
+  readonly width: number;
+  readonly height: number;
+  readonly normalizedCenterX: number;
+  readonly normalizedCenterY: number;
+  readonly hasIcon: boolean;
+}
+
+interface IconPanel {
+  readonly canvas: HTMLCanvasElement;
+  readonly cells: readonly PackedIconCell[];
+}
+
+export const hasRaidClassIconPixels = (pixels: ImageData): boolean => {
+  let brightPixels = 0;
+  for (let index = 0; index < pixels.data.length; index += 4) {
+    if (Math.max(pixels.data[index], pixels.data[index + 1], pixels.data[index + 2]) > 100) {
+      brightPixels += 1;
+    }
+  }
+  return brightPixels >= pixels.width * pixels.height * 0.03;
+};
+
+export const hasRaidParticipantPanel = (
+  frame: HTMLCanvasElement,
+  viewport: RaidViewportTransform,
+): boolean => {
+  const context = frame.getContext('2d', { willReadFrequently: true });
+  if (!context) return false;
+  const firstSlot = RAID_SLOT_BOXES[0];
+  const lastSlot = RAID_SLOT_BOXES[RAID_SLOT_BOXES.length - 1];
+  const headerBox = getRaidPixelBox({
+    x: firstSlot.x,
+    y: firstSlot.y - 0.038,
+    width: lastSlot.x + lastSlot.width - firstSlot.x,
+    height: 0.035,
+  }, frame.width, frame.height, viewport);
+  const headerPixels = context.getImageData(headerBox.x, headerBox.y, headerBox.width, headerBox.height);
+  let mutedHeaderPixels = 0;
+  for (let index = 0; index < headerPixels.data.length; index += 4) {
+    const brightness = Math.max(
+      headerPixels.data[index],
+      headerPixels.data[index + 1],
+      headerPixels.data[index + 2],
+    );
+    if (brightness >= 25 && brightness <= 100) mutedHeaderPixels += 1;
+  }
+  const hasPanelHeader = mutedHeaderPixels >= headerPixels.width * headerPixels.height * 0.2;
+  if (!hasPanelHeader) return false;
+
+  const darkSlotCount = RAID_SLOT_BOXES.filter((box) => {
+    const pixelBox = getRaidPixelBox(box, frame.width, frame.height, viewport);
+    const pixels = context.getImageData(pixelBox.x, pixelBox.y, pixelBox.width, pixelBox.height);
+    let darkPixels = 0;
+    for (let index = 0; index < pixels.data.length; index += 4) {
+      if (Math.max(pixels.data[index], pixels.data[index + 1], pixels.data[index + 2]) < 55) {
+        darkPixels += 1;
+      }
+    }
+    return darkPixels >= pixels.width * pixels.height * 0.8;
+  }).length;
+  return darkSlotCount >= 6;
+};
+
+const fulfilledResults = async <T>(promises: readonly Promise<T>[]): Promise<T[]> => (
+  (await Promise.allSettled(promises)).flatMap((result) => (
+    result.status === 'fulfilled' ? [result.value] : []
+  ))
+);
+
+/**
+ * 8개 직업 아이콘 ROI만 논리적인 파티 순서의 4x2 atlas로 모은다. 원본 화면의
+ * 두 파티 열 사이 여백을 제거해 템플릿 매칭할 픽셀 수를 줄이고 텍스트 오탐을 막는다.
+ */
+export const createRaidIconPanel = (
+  frame: HTMLCanvasElement,
+  viewport: RaidViewportTransform = fullViewport(frame.width, frame.height),
+): IconPanel => {
+  const boxes = RAID_SLOT_ICON_BOXES.map((box) => getRaidPixelBox(box, frame.width, frame.height, viewport));
+  const padding = Math.max(4, Math.round(viewport.width / RAID_RECOGNITION_REFERENCE.width * 4));
+  const cellWidth = Math.max(...boxes.map((box) => box.width)) + padding * 2;
+  const cellHeight = Math.max(...boxes.map((box) => box.height)) + padding * 2;
+  const canvas = document.createElement('canvas');
+  canvas.width = cellWidth * 4;
+  canvas.height = cellHeight * 2;
+  const context = canvas.getContext('2d', { willReadFrequently: true });
+  if (!context) throw new Error('공격대 슬롯을 분석할 수 없습니다.');
+  context.fillStyle = '#000';
+  context.fillRect(0, 0, canvas.width, canvas.height);
+
+  const cells = boxes.map((box, slot) => {
+    const x = (slot % 4) * cellWidth + padding;
+    const y = Math.floor(slot / 4) * cellHeight + padding;
+    context.drawImage(frame, box.x, box.y, box.width, box.height, x, y, box.width, box.height);
+    const normalizedBox = RAID_SLOT_ICON_BOXES[slot];
+    return {
+      x,
+      y,
+      width: box.width,
+      height: box.height,
+      normalizedCenterX: normalizedBox.x + normalizedBox.width / 2,
+      normalizedCenterY: normalizedBox.y + normalizedBox.height / 2,
+      hasIcon: hasRaidClassIconPixels(context.getImageData(x, y, box.width, box.height)),
+    };
+  });
+  const pixels = context.getImageData(0, 0, canvas.width, canvas.height);
+  context.putImageData(normalizeClassIconSourcePixels(pixels), 0, 0);
+  return { canvas, cells };
+};
+
+const scaledTemplateSizes = (frameWidth: number): number[] => {
+  const scale = frameWidth / RAID_RECOGNITION_REFERENCE.width;
+  return Array.from(new Set(TEMPLATE_SIZES_AT_REFERENCE.map((size) => Math.max(12, Math.round(size * scale)))));
+};
+
+const getNicknameOcrWorker = (pool: OcrWorkerPool): Promise<OcrWorker> => import('tesseract.js').then(({ PSM }) => (
+  pool.get({
+    languages: 'kor+eng',
+    parameters: {
+      tessedit_pageseg_mode: PSM.SINGLE_LINE,
+      preserve_interword_spaces: '0',
+    },
+  })
+));
+
+const getShortNicknameOcrWorker = (pool: OcrWorkerPool): Promise<OcrWorker> => import('tesseract.js').then(({ PSM }) => (
+  pool.get({
+    languages: 'kor+eng',
+    parameters: {
+      tessedit_pageseg_mode: PSM.SINGLE_WORD,
+      preserve_interword_spaces: '0',
+    },
+  })
+));
+
+const getLostArkNicknameOcrWorker = (pool: OcrWorkerPool): Promise<OcrWorker> => import('tesseract.js').then(({ PSM }) => (
+  pool.get({
+    languages: 'lostark_kor',
+    options: {
+      langPath: '/tessdata',
+      // Fine-tuned integer models require the SIMD core instead of the relaxed-SIMD build.
+      corePath: LOSTARK_OCR_CORE_PATH,
+    },
+    parameters: {
+      tessedit_pageseg_mode: PSM.SINGLE_LINE,
+      preserve_interword_spaces: '0',
+    },
+  })
+));
+
+const binarizeNicknamePixels = (pixels: ImageData, threshold: number): void => {
+  for (let index = 0; index < pixels.data.length; index += 4) {
+    const red = pixels.data[index];
+    const green = pixels.data[index + 1];
+    const blue = pixels.data[index + 2];
+    const brightness = Math.max(red, green, blue);
+    // 선택된 참가자의 닉네임은 노란색이므로 색상과 관계없이 밝은 글자를 보존한다.
+    const value = brightness >= threshold ? 255 : 0;
+    pixels.data[index] = value;
+    pixels.data[index + 1] = value;
+    pixels.data[index + 2] = value;
+    pixels.data[index + 3] = 255;
+  }
+};
+
+export const invertMonochromePixels = (pixels: ImageData): ImageData => {
+  for (let index = 0; index < pixels.data.length; index += 4) {
+    pixels.data[index] = 255 - pixels.data[index];
+    pixels.data[index + 1] = 255 - pixels.data[index + 1];
+    pixels.data[index + 2] = 255 - pixels.data[index + 2];
+    pixels.data[index + 3] = 255;
+  }
+  return pixels;
+};
+
+export const createNicknameCanvas = (
+  frame: HTMLCanvasElement,
+  slot: number,
+  threshold = NICKNAME_PRIMARY_THRESHOLD,
+  normalizedYOffset = 0,
+  viewport: RaidViewportTransform = fullViewport(frame.width, frame.height),
+  invert = false,
+): HTMLCanvasElement => {
+  const normalizedBox = RAID_SLOT_NICKNAME_BOXES[slot];
+  const box = getRaidPixelBox({
+    ...normalizedBox,
+    y: normalizedBox.y + normalizedYOffset,
+    height: normalizedBox.height - normalizedYOffset,
+  }, frame.width, frame.height, viewport);
+  const canvas = document.createElement('canvas');
+  canvas.width = box.width * NICKNAME_CANVAS_SCALE;
+  canvas.height = box.height * NICKNAME_CANVAS_SCALE;
+  const context = canvas.getContext('2d', { willReadFrequently: true });
+  if (!context) throw new Error('닉네임 영역을 분석할 수 없습니다.');
+  context.drawImage(frame, box.x, box.y, box.width, box.height, 0, 0, canvas.width, canvas.height);
+  const pixels = context.getImageData(0, 0, canvas.width, canvas.height);
+  binarizeNicknamePixels(pixels, threshold);
+  context.putImageData(invert ? invertMonochromePixels(pixels) : pixels, 0, 0);
+  return canvas;
+};
+
+const createNativeThresholdNicknameCanvas = (
+  frame: HTMLCanvasElement,
+  slot: number,
+  threshold: number,
+  scale: number,
+  trim: boolean,
+  pixelOffsetX: number,
+  pixelOffsetY: number,
+  viewport: RaidViewportTransform = fullViewport(frame.width, frame.height),
+): HTMLCanvasElement => {
+  const baseBox = getRaidPixelBox(RAID_SLOT_NICKNAME_BOXES[slot], frame.width, frame.height, viewport);
+  const box = {
+    ...baseBox,
+    x: baseBox.x + pixelOffsetX,
+    y: baseBox.y + pixelOffsetY,
+  };
+  const source = document.createElement('canvas');
+  source.width = box.width;
+  source.height = box.height;
+  const sourceContext = source.getContext('2d', { willReadFrequently: true });
+  if (!sourceContext) throw new Error('닉네임 영역을 분석할 수 없습니다.');
+  sourceContext.drawImage(frame, box.x, box.y, box.width, box.height, 0, 0, box.width, box.height);
+  const pixels = sourceContext.getImageData(0, 0, source.width, source.height);
+  binarizeNicknamePixels(pixels, threshold);
+  sourceContext.putImageData(pixels, 0, 0);
+
+  let sourceX = 0;
+  let sourceY = 0;
+  let sourceWidth = source.width;
+  let sourceHeight = source.height;
+  if (trim) {
+    let left = source.width;
+    let top = source.height;
+    let right = -1;
+    let bottom = -1;
+    for (let y = 0; y < source.height; y += 1) {
+      for (let x = 0; x < source.width; x += 1) {
+        if (pixels.data[(y * source.width + x) * 4] === 0) continue;
+        left = Math.min(left, x);
+        top = Math.min(top, y);
+        right = Math.max(right, x);
+        bottom = Math.max(bottom, y);
+      }
+    }
+    if (right >= left && bottom >= top) {
+      sourceX = left;
+      sourceY = top;
+      sourceWidth = right - left + 1;
+      sourceHeight = bottom - top + 1;
+    }
+  }
+
+  const canvas = document.createElement('canvas');
+  canvas.width = (sourceWidth + NICKNAME_NATIVE_PADDING * 2) * scale;
+  canvas.height = (sourceHeight + NICKNAME_NATIVE_PADDING * 2) * scale;
+  const context = canvas.getContext('2d');
+  if (!context) throw new Error('닉네임 영역을 확대할 수 없습니다.');
+  context.fillStyle = '#000';
+  context.fillRect(0, 0, canvas.width, canvas.height);
+  context.imageSmoothingEnabled = false;
+  context.drawImage(
+    source,
+    sourceX,
+    sourceY,
+    sourceWidth,
+    sourceHeight,
+    NICKNAME_NATIVE_PADDING * scale,
+    NICKNAME_NATIVE_PADDING * scale,
+    sourceWidth * scale,
+    sourceHeight * scale,
+  );
+  return canvas;
+};
+
+const NICKNAME_MAX_EXPANDED_CANDIDATES = 256;
+const NICKNAME_MAX_RANKED_CANDIDATES = 128;
+
+/** 작은 Lost Ark UI 글꼴에서 형태가 겹치는 음절군이다. 특정 닉네임이 아닌 글자 단위 후보만 만든다. */
+const NICKNAME_SYLLABLE_CONFUSION_GROUPS: readonly (readonly string[])[] = [
+  ['이', '미'],
+  ['회', '희'],
+  ['낭', '냥', '금'],
+  ['샘', '생'],
+  ['걷', '건', '펀', '껀', '껄', '면'],
+  ['형', '혔', '혓'],
+  ['퓨', '뉴', '듀', '류', '뜌'],
+  ['기', '귀', '긔'],
+  ['애', '예', '에', '매', '메', '배'],
+  ['일', '실'],
+  ['세', '계'],
+  ['것', '깃', '짓', '낮', '낫', '닛', '났', '지'],
+  ['양', '함', '람'],
+  ['며', '여'],
+  ['때', '패'],
+  ['책', '섹', '첵'],
+  ['슈', '츄'],
+  ['응', '웅', '옹'],
+  ['몸', '음'],
+  ['한', '환'],
+  ['내', '새'],
+  ['대', '데', '테', '레'],
+  ['도', '토', '트', '로'],
+  ['는', '픈'],
+  ['동', '둥'],
+  ['욧', '웃'],
+  ['쿠', '큐'],
+  ['앤', '맨'],
+  ['깡', '깟'],
+];
+
+const NICKNAME_SYLLABLE_ALTERNATIVES = new Map<string, readonly string[]>(
+  NICKNAME_SYLLABLE_CONFUSION_GROUPS.flatMap((group) => (
+    group.map((syllable) => [syllable, group.filter((candidate) => candidate !== syllable)] as const)
+  )),
+);
+
+/** 붙어 보이는 두 글자를 한 음절로 읽는 저해상도 OCR의 일반적인 합자 혼동이다. */
+const NICKNAME_SEQUENCE_ALTERNATIVES: readonly (readonly [string, string])[] = [
+  ['잇', '이깟'],
+];
+
+/** 자주 한쪽으로 오인식되는 음절은 원문 다음의 API 조회 후보로 우선 배치한다. */
+const NICKNAME_PREFERRED_CORRECTIONS: Readonly<Record<string, string>> = {
+  낮: '낫',
+  며: '여',
+  옹: '응',
+  예: '애',
+};
+
+const getPreferredRaidOcrCorrection = (text: string): string | null => {
+  const corrected = Array.from(text)
+    .map((character) => NICKNAME_PREFERRED_CORRECTIONS[character] ?? character)
+    .join('');
+  return corrected !== text && normalizeRaidNickname(corrected) != null ? corrected : null;
+};
+
+export const expandRaidOcrCandidates = (text: string): readonly string[] => {
+  let expanded = [{ text: '', substitutions: 0 }];
+  Array.from(text).forEach((character) => {
+    const alternatives = NICKNAME_SYLLABLE_ALTERNATIVES.get(character) ?? [];
+    const choices = [character, ...alternatives];
+    expanded = expanded
+      .flatMap((prefix) => choices.map((choice) => ({
+        text: `${prefix.text}${choice}`,
+        substitutions: prefix.substitutions + Number(choice !== character),
+      })))
+      .sort((left, right) => left.substitutions - right.substitutions)
+      .slice(0, NICKNAME_MAX_EXPANDED_CANDIDATES);
+  });
+  const candidates = expanded.map((candidate) => candidate.text)
+    .flatMap((candidate) => [
+      candidate,
+      ...NICKNAME_SEQUENCE_ALTERNATIVES.flatMap(([observed, alternative]) => (
+        candidate.includes(observed) ? [candidate.replace(observed, alternative)] : []
+      )),
+    ]);
+
+  if (/^[0-9OUDS]+$/i.test(text)) {
+    const alternatives: Readonly<Record<string, readonly string[]>> = {
+      '3': ['3', '8'],
+      '5': ['5', '8'],
+      O: ['O', '0'],
+      U: ['U', '0'],
+      D: ['D', '0'],
+      S: ['S', '5', '8'],
+    };
+    let numericCandidates = [''];
+    Array.from(text.toUpperCase()).forEach((character) => {
+      numericCandidates = numericCandidates.flatMap((prefix) => (
+        (alternatives[character] ?? [character]).map((alternative) => `${prefix}${alternative}`)
+      ));
+    });
+    candidates.push(...numericCandidates.filter((candidate) => /^\d+$/.test(candidate)));
+  }
+  return Array.from(new Set(candidates.filter((candidate) => normalizeRaidNickname(candidate) != null)));
+};
+
+interface NicknameCandidateScore {
+  readonly text: string;
+  readonly confidence: number;
+}
+
+export const getRaidOcrSequenceCandidates = (
+  observations: readonly NicknameCandidateScore[],
+): readonly string[] => Array.from(new Set(
+  [...observations]
+    .sort((left, right) => right.confidence - left.confidence)
+    .flatMap(({ text }) => NICKNAME_SEQUENCE_ALTERNATIVES.flatMap(([observed, alternative]) => {
+      if (text.includes(observed)) return [text.replace(observed, alternative)];
+      if (text.includes(alternative)) return [text.replace(alternative, observed)];
+      return [];
+    }))
+    .filter((candidate) => normalizeRaidNickname(candidate) != null),
+));
+
+export const getRaidOcrEditDistance = (left: string, right: string): number => {
+  const leftCharacters = Array.from(left);
+  const rightCharacters = Array.from(right);
+  const distances = Array.from({ length: rightCharacters.length + 1 }, (_, index) => index);
+  leftCharacters.forEach((leftCharacter, leftIndex) => {
+    let diagonal = distances[0];
+    distances[0] = leftIndex + 1;
+    rightCharacters.forEach((rightCharacter, rightIndex) => {
+      const above = distances[rightIndex + 1];
+      distances[rightIndex + 1] = Math.min(
+        above + 1,
+        distances[rightIndex] + 1,
+        diagonal + Number(leftCharacter !== rightCharacter),
+      );
+      diagonal = above;
+    });
+  });
+  return distances[rightCharacters.length];
+};
+
+export const getRaidOcrTransformationCost = (source: string, candidate: string): number => Math.min(
+  getRaidOcrEditDistance(source, candidate),
+  ...NICKNAME_SEQUENCE_ALTERNATIVES.flatMap(([observed, alternative]) => {
+    const transformed: number[] = [];
+    if (source.includes(observed)) {
+      transformed.push(1 + getRaidOcrEditDistance(source.replace(observed, alternative), candidate));
+    }
+    if (source.includes(alternative)) {
+      transformed.push(1 + getRaidOcrEditDistance(source.replace(alternative, observed), candidate));
+    }
+    return transformed;
+  }),
+);
+
+interface CharacterBeamCandidate {
+  readonly text: string;
+  readonly score: number;
+}
+
+const buildCharacterConsensusCandidates = (
+  observations: readonly NicknameCandidateScore[],
+): readonly CharacterBeamCandidate[] => {
+  const koreanByLength = new Map<number, NicknameCandidateScore[]>();
+  observations.forEach((observation) => {
+    if (!/^[가-힣]+$/.test(observation.text)) return;
+    const length = Array.from(observation.text).length;
+    koreanByLength.set(length, [...(koreanByLength.get(length) ?? []), observation]);
+  });
+
+  return Array.from(koreanByLength.values()).flatMap((group) => {
+    if (group.length < 2) return [];
+    const length = Array.from(group[0].text).length;
+    let beam: CharacterBeamCandidate[] = [{ text: '', score: 0 }];
+    for (let index = 0; index < length; index += 1) {
+      const characterScores = new Map<string, number>();
+      group.forEach(({ text, confidence }) => {
+        const character = Array.from(text)[index];
+        characterScores.set(character, (characterScores.get(character) ?? 0) + confidence);
+        (NICKNAME_SYLLABLE_ALTERNATIVES.get(character) ?? []).forEach((alternative) => {
+          characterScores.set(alternative, (characterScores.get(alternative) ?? 0) + confidence * 0.42);
+        });
+      });
+      const choices = Array.from(characterScores.entries())
+        .sort((left, right) => right[1] - left[1])
+        .slice(0, 10);
+      beam = beam
+        .flatMap((prefix) => choices.map(([character, score]) => ({
+          text: `${prefix.text}${character}`,
+          score: prefix.score + Math.log1p(score),
+        })))
+        .sort((left, right) => right.score - left.score)
+        .slice(0, NICKNAME_MAX_EXPANDED_CANDIDATES);
+    }
+    return beam;
+  });
+};
+
+export const rankRaidOcrCandidates = (
+  observations: readonly NicknameCandidateScore[],
+): readonly string[] => {
+  const bestObservationByText = new Map<string, NicknameCandidateScore>();
+  observations.forEach((observation) => {
+    const current = bestObservationByText.get(observation.text);
+    if (!current || observation.confidence > current.confidence) {
+      bestObservationByText.set(observation.text, observation);
+    }
+  });
+  const independentObservations = Array.from(bestObservationByText.values());
+  const scores = new Map<string, number>();
+  independentObservations.forEach(({ text, confidence }) => {
+    const observationScores = new Map<string, number>();
+    expandRaidOcrCandidates(text).forEach((candidate) => {
+      const transformationCost = getRaidOcrTransformationCost(text, candidate);
+      observationScores.set(candidate, confidence * (0.8 ** transformationCost));
+    });
+    NICKNAME_SEQUENCE_ALTERNATIVES.forEach(([observed, alternative]) => {
+      const directAlternative = text.includes(observed)
+        ? text.replace(observed, alternative)
+        : text.includes(alternative)
+          ? text.replace(alternative, observed)
+          : null;
+      if (directAlternative && normalizeRaidNickname(directAlternative)) {
+        observationScores.set(
+          directAlternative,
+          Math.max(observationScores.get(directAlternative) ?? 0, confidence * 0.95),
+        );
+      }
+    });
+    observationScores.forEach((score, candidate) => {
+      scores.set(candidate, (scores.get(candidate) ?? 0) + score);
+    });
+  });
+  buildCharacterConsensusCandidates(independentObservations).forEach(({ text, score }) => {
+    scores.set(text, (scores.get(text) ?? 0) + score * 4);
+  });
+  const ranked = Array.from(scores.entries())
+    .sort((left, right) => right[1] - left[1])
+    .map(([candidate]) => candidate);
+  const preferredCorrections = independentObservations
+    .map(({ text }) => getPreferredRaidOcrCorrection(text))
+    .filter((candidate): candidate is string => candidate != null);
+  return Array.from(new Set([
+    ...(ranked.slice(0, 1)),
+    ...preferredCorrections,
+    ...ranked,
+  ])).slice(0, NICKNAME_MAX_RANKED_CANDIDATES);
+};
+
+export const prioritizeSpecializedRaidOcrCandidate = (
+  observations: readonly NicknameCandidateScore[],
+): string | null => {
+  if (observations.length === 0) return null;
+  const byText = new Map<string, { count: number; confidence: number }>();
+  observations.forEach(({ text, confidence }) => {
+    const current = byText.get(text) ?? { count: 0, confidence: 0 };
+    byText.set(text, { count: current.count + 1, confidence: current.confidence + confidence });
+  });
+  const repeated = Array.from(byText.entries())
+    .filter(([, value]) => value.count >= 2)
+    .sort((left, right) => right[1].confidence - left[1].confidence)[0];
+  if (repeated) return repeated[0];
+
+  const ranked = [...observations].sort((left, right) => right.confidence - left.confidence);
+  return ranked.length === 1 || ranked[0].confidence - ranked[1].confidence >= 5
+    ? ranked[0].text
+    : null;
+};
+
+export const getRaidOcrStableSignature = (candidates: readonly string[]): string => candidates[0] ?? '';
+
+export const mergeRaidOcrCandidates = (
+  previous: readonly string[],
+  current: readonly string[],
+): readonly string[] => {
+  const head = current[0] ?? previous[0];
+  const merged = head ? [head] : [];
+  const alternatives = Math.max(previous.length, current.length);
+  for (let index = 1; index < alternatives && merged.length < NICKNAME_MAX_RANKED_CANDIDATES; index += 1) {
+    const currentCandidate = current[index];
+    const previousCandidate = previous[index];
+    if (currentCandidate && !merged.includes(currentCandidate)) merged.push(currentCandidate);
+    if (previousCandidate && !merged.includes(previousCandidate)) merged.push(previousCandidate);
+  }
+  return merged.slice(0, NICKNAME_MAX_RANKED_CANDIDATES);
+};
+
+export const recognizeClasses = async (
+  cv: OpenCv,
+  source: Mat,
+  frame: HTMLCanvasElement,
+  panel: IconPanel,
+  viewport: RaidViewportTransform,
+  templateLoader: (template: RaidClassIconTemplate) => Promise<HTMLCanvasElement> = loadTemplateCanvas,
+): Promise<ClassIconMatch[]> => {
+  const sizes = scaledTemplateSizes(viewport.width);
+  const matches: ClassIconMatch[] = [];
+
+  for (const template of RAID_CLASS_ICON_TEMPLATES) {
+    const templateCanvas = await templateLoader(template);
+    const classMatches = matchMultiScaleTemplate(cv, source, templateCanvas, {
+      sizes,
+      threshold: MATCH_THRESHOLD,
+      coarseThreshold: COARSE_THRESHOLD,
+      coarseScale: 0.5,
+      maxMatchesPerScale: 8,
+    });
+    classMatches.forEach((match) => {
+      const centerX = match.x + match.size / 2;
+      const centerY = match.y + match.size / 2;
+      const cell = panel.cells.find((candidate) => (
+        centerX >= candidate.x
+        && centerX <= candidate.x + candidate.width
+        && centerY >= candidate.y
+        && centerY <= candidate.y + candidate.height
+      ));
+      if (!cell || !cell.hasIcon) return;
+      matches.push({
+        className: template.className,
+        x: cell.normalizedCenterX,
+        y: cell.normalizedCenterY,
+        confidence: Math.min(1, match.confidence + (CLASS_MATCH_CONFIDENCE_ADJUSTMENTS[template.className] ?? 0)),
+      });
+    });
+  }
+  return matches;
+};
+
+export class RaidPartyFrameRecognizer implements FrameRecognizer<RaidFrameObservation> {
+  constructor(private readonly ocrWorkers = new OcrWorkerPool()) {}
+
+  private confirmedClasses = new Map<number, string>();
+
+  private previousObservedClasses = new Map<number, string>();
+
+  private readonly nicknameRecheckFrames = new Map<number, number>();
+
+  private readonly stableNicknames = new Map<number, {
+    className: string;
+    signature: string;
+    candidates: readonly string[];
+    count: number;
+  }>();
+
+  setConfirmedRoster(roster: readonly RaidRosterSlot[]): void {
+    this.confirmedClasses = new Map(roster
+      .filter((slot) => (
+        !slot.duplicateNickname
+        && slot.nickname !== ''
+        && (slot.arkPassiveStatus === 'confirmed' || !slot.needsReview)
+      ))
+      .map((slot) => [slot.slot, slot.className]));
+  }
+
+  private async recognizeNicknames(
+    frame: HTMLCanvasElement,
+    occupiedSlots: readonly { slot: number; className: string | null }[],
+    viewport: RaidViewportTransform,
+  ): Promise<readonly NicknameObservation[]> {
+    occupiedSlots.forEach(({ slot }) => {
+      this.nicknameRecheckFrames.set(slot, (this.nicknameRecheckFrames.get(slot) ?? 0) + 1);
+    });
+    const slotsNeedingNickname = occupiedSlots.filter((occupied) => (
+      occupied.className == null
+      || this.confirmedClasses.get(occupied.slot) !== occupied.className
+      || this.previousObservedClasses.get(occupied.slot) !== occupied.className
+      || (this.nicknameRecheckFrames.get(occupied.slot) ?? 0) >= 6
+    ));
+    this.previousObservedClasses = new Map(occupiedSlots
+      .filter((occupied) => occupied.className != null)
+      .map((occupied) => [occupied.slot, occupied.className as string]));
+    if (slotsNeedingNickname.length === 0) return [];
+    const worker = await getNicknameOcrWorker(this.ocrWorkers);
+    const lostArkWorker = await getLostArkNicknameOcrWorker(this.ocrWorkers).catch(() => null);
+    const observations: NicknameObservation[] = [];
+    for (const occupied of slotsNeedingNickname) {
+      if (!occupied.className) {
+        this.stableNicknames.delete(occupied.slot);
+        continue;
+      }
+      const [results, lostArkResults] = await Promise.all([
+        fulfilledResults([
+          worker.recognize(createNicknameCanvas(frame, occupied.slot, NICKNAME_PRIMARY_THRESHOLD, 0, viewport)),
+          worker.recognize(createNicknameCanvas(frame, occupied.slot, NICKNAME_FALLBACK_THRESHOLD, 0, viewport)),
+          ...NICKNAME_PRIMARY_NATIVE_VARIANTS.map(({
+            threshold, scale, trim, pixelOffsetX, pixelOffsetY,
+          }) => worker.recognize(createNativeThresholdNicknameCanvas(
+            frame,
+            occupied.slot,
+            threshold,
+            scale,
+            trim,
+            pixelOffsetX,
+            pixelOffsetY,
+            viewport,
+          ))),
+        ]),
+        lostArkWorker
+          ? fulfilledResults([
+            lostArkWorker.recognize(createNicknameCanvas(frame, occupied.slot, 90, 0, viewport, true)),
+            lostArkWorker.recognize(createNicknameCanvas(frame, occupied.slot, 110, 0, viewport, true)),
+            lostArkWorker.recognize(createNicknameCanvas(frame, occupied.slot, 150, 0, viewport, true)),
+            lostArkWorker.recognize(createNicknameCanvas(frame, occupied.slot, 170, 0, viewport, true)),
+          ])
+          : Promise.resolve([]),
+      ]);
+      const specializedCandidateScores = lostArkResults.map((result) => ({
+        text: result.data.confidence >= LOSTARK_NICKNAME_CONFIDENCE_THRESHOLD
+          ? normalizeRaidNickname(result.data.text)
+          : null,
+        confidence: result.data.confidence,
+      })).filter((candidate): candidate is { text: string; confidence: number } => candidate.text != null);
+      const specializedPriority = prioritizeSpecializedRaidOcrCandidate(specializedCandidateScores);
+      let candidateScores = [
+        ...results.map((result) => ({
+          text: result.data.confidence >= NICKNAME_CONFIDENCE_THRESHOLD
+            ? normalizeRaidNickname(result.data.text)
+            : null,
+          confidence: result.data.confidence,
+        })),
+        ...specializedCandidateScores.map((candidate) => ({
+          ...candidate,
+          // The fine-tuned worker is trained on the same low-resolution UI rendering used here.
+          confidence: candidate.confidence * 1.5,
+        })),
+      ].filter((candidate): candidate is { text: string; confidence: number } => candidate.text != null);
+      const shouldTryNativeFallback = candidateScores.length === 0
+        || candidateScores.every(({ text }) => /^[A-Za-z]+$/.test(text));
+      if (shouldTryNativeFallback) {
+        const initialCandidateScores = candidateScores;
+        const fallbackResults = await fulfilledResults([
+          worker.recognize(createNicknameCanvas(
+            frame,
+            occupied.slot,
+            NICKNAME_SHIFTED_THRESHOLD,
+            NICKNAME_SHIFTED_Y,
+            viewport,
+          )),
+          ...NICKNAME_FALLBACK_NATIVE_VARIANTS.map(({
+            threshold, scale, trim, pixelOffsetX, pixelOffsetY,
+          }) => worker.recognize(createNativeThresholdNicknameCanvas(
+            frame,
+            occupied.slot,
+            threshold,
+            scale,
+            trim,
+            pixelOffsetX,
+            pixelOffsetY,
+            viewport,
+          ))),
+        ]);
+        const fallbackCandidateScores = fallbackResults.map((result) => ({
+            text: result.data.confidence >= NICKNAME_CONFIDENCE_THRESHOLD
+              ? normalizeRaidNickname(result.data.text)
+              : null,
+            confidence: result.data.confidence,
+          }))
+          .filter((candidate): candidate is { text: string; confidence: number } => candidate.text != null);
+        const hasKoreanFallback = fallbackCandidateScores.some(({ text }) => /[가-힣]/.test(text));
+        candidateScores = initialCandidateScores.length === 0 || hasKoreanFallback
+          ? fallbackCandidateScores
+          : initialCandidateScores;
+      }
+      const shouldTryShortWord = candidateScores.length === 0
+        || candidateScores.every(({ text }) => Array.from(text).length <= 3);
+      if (shouldTryShortWord) {
+        const shortWorker = await getShortNicknameOcrWorker(this.ocrWorkers);
+        const {
+          threshold, scale, trim, pixelOffsetX, pixelOffsetY,
+        } = NICKNAME_SHORT_WORD_VARIANT;
+        const [shortResult] = await fulfilledResults([shortWorker.recognize(createNativeThresholdNicknameCanvas(
+          frame,
+          occupied.slot,
+          threshold,
+          scale,
+          trim,
+          pixelOffsetX,
+          pixelOffsetY,
+          viewport,
+        ))]);
+        const shortText = shortResult && shortResult.data.confidence >= NICKNAME_CONFIDENCE_THRESHOLD
+          ? normalizeRaidNickname(shortResult.data.text)
+          : null;
+        if (shortText && shortResult) {
+          candidateScores = [...candidateScores, { text: shortText, confidence: shortResult.data.confidence }];
+        }
+      }
+      candidateScores.sort((left, right) => right.confidence - left.confidence);
+      const rankedCandidates = rankRaidOcrCandidates(candidateScores.flatMap(({ text, confidence }) => {
+        const withoutLeaderMark = text.replace(/(?:[Ww]+|We|뽀|쁘)$/i, '');
+        return normalizeRaidNickname(withoutLeaderMark) && withoutLeaderMark !== text
+          ? [{ text, confidence }, { text: withoutLeaderMark, confidence }]
+          : [{ text, confidence }];
+      }));
+      const sequenceCandidates = getRaidOcrSequenceCandidates(specializedCandidateScores);
+      const candidates = Array.from(new Set([
+        ...(specializedPriority ? [specializedPriority] : []),
+        ...sequenceCandidates,
+        ...rankedCandidates,
+      ]));
+      if (candidates.length === 0) {
+        // 한 프레임의 OCR 실패 때문에 직전의 안정화 진행 상태를 초기화하지 않는다.
+        continue;
+      }
+      const signature = getRaidOcrStableSignature(candidates);
+      const previous = this.stableNicknames.get(occupied.slot);
+      const isStableContinuation = previous?.className === occupied.className
+        && previous.signature === signature;
+      const count = isStableContinuation ? previous.count + 1 : 1;
+      const stableCandidates = isStableContinuation
+        ? mergeRaidOcrCandidates(previous.candidates, candidates)
+        : candidates;
+      this.stableNicknames.set(occupied.slot, {
+        className: occupied.className,
+        signature,
+        candidates: stableCandidates,
+        count,
+      });
+      if (count >= NICKNAME_STABLE_FRAME_COUNT) {
+        this.nicknameRecheckFrames.set(occupied.slot, 0);
+        observations.push({
+          slot: occupied.slot,
+          text: stableCandidates[0],
+          candidates: stableCandidates,
+          confidence: (candidateScores[0]?.confidence ?? 0) / 100,
+        });
+      }
+    }
+    return observations;
+  }
+
+  async recognize(frame: HTMLCanvasElement): Promise<RaidFrameObservation> {
+    validateRecognitionFrame(frame);
+    const cv = await getOpenCv();
+    const frameContext = frame.getContext('2d', { willReadFrequently: true });
+    const viewport = frameContext
+      ? detectRaidViewportTransform(frameContext.getImageData(0, 0, frame.width, frame.height))
+      : fullViewport(frame.width, frame.height);
+    const panel = createRaidIconPanel(frame, viewport);
+    const sourceRgba = cv.imread(panel.canvas);
+    let sourceRgb!: Mat;
+    try {
+      sourceRgb = new cv.Mat();
+      cv.cvtColor(sourceRgba, sourceRgb, cv.COLOR_RGBA2RGB);
+      const matches = await recognizeClasses(cv, sourceRgb, frame, panel, viewport);
+      const slotOccupancies: readonly RaidSlotOccupancy[] = panel.cells.map(
+        ({ hasIcon }) => (hasIcon ? 'occupied' : 'vacant'),
+      );
+      const classObservations = mapMatchesToSlots(matches, [], slotOccupancies);
+      let nicknames: readonly NicknameObservation[] = [];
+      try {
+        nicknames = await this.recognizeNicknames(frame, classObservations, viewport);
+      } catch {
+        // OCR은 보조 기능이다. 언어 데이터 로드나 판독 실패가 직업·파티 인식을 막지 않는다.
+      }
+      return {
+        panelDetected: hasRaidParticipantPanel(frame, viewport),
+        observations: mapMatchesToSlots(matches, nicknames, slotOccupancies),
+        scannedAt: Date.now(),
+      };
+    } finally {
+      sourceRgba.delete();
+      sourceRgb?.delete();
+    }
+  }
+
+  async dispose(): Promise<void> {
+    this.confirmedClasses.clear();
+    this.previousObservedClasses.clear();
+    this.nicknameRecheckFrames.clear();
+    this.stableNicknames.clear();
+    await this.ocrWorkers.dispose();
+  }
+}
