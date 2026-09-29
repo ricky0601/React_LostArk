@@ -90,7 +90,7 @@ const RaidCompositionRecommendation: React.FC<{
           <button
             type="button"
             onClick={onApply}
-            className="min-h-11 rounded-md bg-la-gold px-4 py-2 font-bold text-white hover:brightness-110"
+            className="min-h-11 rounded-md bg-la-gold px-4 py-2 font-bold text-gray-900 hover:brightness-110"
           >
             위 교환을 파티에 적용
           </button>
