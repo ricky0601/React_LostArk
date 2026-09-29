@@ -60,7 +60,7 @@ const ApplicantIncidentMini: React.FC<ApplicantIncidentMiniProps> = ({
               화면 공유 중지
             </button>
           ) : (
-            <button type="button" onClick={startFromThisWindow} className="min-h-9 flex-1 rounded-md bg-la-gold px-3 font-semibold text-white">
+            <button type="button" onClick={startFromThisWindow} className="min-h-9 flex-1 rounded-md bg-la-gold px-3 font-semibold text-gray-900">
               화면 공유 시작
             </button>
           )}

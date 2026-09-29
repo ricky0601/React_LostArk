@@ -63,7 +63,7 @@ const RaidApplicantsPage: React.FC = () => {
             {isSharing ? (
               <button type="button" onClick={() => { void capture.stop(); }} className="min-h-10 rounded-md bg-red-500 px-4 py-2 text-sm font-semibold text-white">화면 공유 중지</button>
             ) : (
-              <button type="button" onClick={() => { void capture.start(); }} className="min-h-10 rounded-md bg-la-gold px-4 py-2 text-sm font-bold text-white">화면 공유 시작</button>
+              <button type="button" onClick={() => { void capture.start(); }} className="min-h-10 rounded-md bg-la-gold px-4 py-2 text-sm font-bold text-gray-900">화면 공유 시작</button>
             )}
             <button type="button" onClick={reset} className="min-h-10 rounded-md border border-gray-300 px-3 text-sm dark:border-white/10">초기화</button>
             <button
