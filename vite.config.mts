@@ -1,5 +1,15 @@
+import { createRequire } from 'node:module';
 import react from '@vitejs/plugin-react';
 import { defineConfig, loadEnv } from 'vite';
+
+const require = createRequire(import.meta.url);
+const { createInvenIncidentDevMiddleware } = require('./api/inven-incidents/devMiddleware.js') as {
+  createInvenIncidentDevMiddleware: () => (
+    req: unknown,
+    res: unknown,
+    next: (error?: unknown) => void,
+  ) => Promise<void>;
+};
 
 const LOST_ARK_API_ORIGIN = 'https://developer-lostark.game.onstove.com';
 const LOST_ARK_CDN_ORIGIN = 'https://cdn-lostark.game.onstove.com';
@@ -9,7 +19,15 @@ export default defineConfig(({ mode }) => {
   const apiKey = process.env.LOSTARK_API_KEY || env.LOSTARK_API_KEY;
 
   return {
-    plugins: [react()],
+    plugins: [
+      react(),
+      {
+        name: 'inven-incident-dev-api',
+        configureServer(server) {
+          server.middlewares.use(createInvenIncidentDevMiddleware());
+        },
+      },
+    ],
     server: {
       port: 3000,
       proxy: {

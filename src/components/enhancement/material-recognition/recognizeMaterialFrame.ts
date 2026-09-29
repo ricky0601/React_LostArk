@@ -1,5 +1,12 @@
 import type { Mat } from '@techstark/opencv-js';
 import type { MaterialType } from '../../../data/enhancement';
+import { validateRecognitionFrame } from '../../screen-recognition/frame';
+import { getOpenCv, type OpenCv } from '../../screen-recognition/openCvLoader';
+import { OcrWorkerPool, type OcrWorker } from '../../screen-recognition/ocrWorkerPool';
+import {
+  matchMultiScaleTemplate,
+  type TemplateMatchTiming,
+} from '../../screen-recognition/templateMatching';
 import type {
   MaterialIconMap,
   MaterialObservation,
@@ -7,61 +14,36 @@ import type {
   RecognitionMetrics,
 } from './types';
 
+export {
+  getTemplateCropCandidates,
+  getTemplateCropRatios,
+} from '../../screen-recognition/templateMatching';
+
 const TEMPLATE_SIZES = [38, 42, 46, 50, 64, 80, 96, 112, 128];
-const MATCH_THRESHOLD = 0.72;
-const COARSE_MATCH_THRESHOLD = 0.5;
-const COARSE_SCALE = 0.25;
-const MAX_MATCHES_PER_SCALE = 4;
 const MAX_OWNED_QUANTITY = 999_999_999;
 
-type OpenCv = typeof import('@techstark/opencv-js') & {
-  onRuntimeInitialized?: () => void;
-};
 type OpenCvMat = Mat;
-type OcrWorker = Awaited<ReturnType<typeof import('tesseract.js')['createWorker']>>;
 
-let openCvPromise: Promise<OpenCv> | null = null;
-let numericOcrWorkerPromise: Promise<OcrWorker> | null = null;
-let tooltipOcrWorkerPromise: Promise<OcrWorker> | null = null;
+const ocrWorkers = new OcrWorkerPool();
 const templateCanvasCache = new Map<string, HTMLCanvasElement>();
 
-const getOpenCv = (): Promise<OpenCv> => {
-  if (openCvPromise) return openCvPromise;
-  openCvPromise = import('./opencvModule').then(async ({ default: importedModule }) => {
-    const candidate: unknown = importedModule;
-    const cv = (candidate instanceof Promise ? await candidate : candidate) as OpenCv;
-    if (cv.Mat) return cv;
-    await new Promise<void>((resolve) => {
-      cv.onRuntimeInitialized = resolve;
-    });
-    return cv;
-  });
-  return openCvPromise;
-};
-
-const getNumericOcrWorker = (): Promise<OcrWorker> => {
-  if (numericOcrWorkerPromise) return numericOcrWorkerPromise;
-  numericOcrWorkerPromise = import('tesseract.js').then(async ({ createWorker, PSM }) => {
-    const worker = await createWorker('eng');
-    await worker.setParameters({
+const getNumericOcrWorker = (): Promise<OcrWorker> => import('tesseract.js').then(({ PSM }) => (
+  ocrWorkers.get({
+    languages: 'eng',
+    parameters: {
       tessedit_char_whitelist: '0123456789,/Xx[] ',
       tessedit_pageseg_mode: PSM.SINGLE_LINE,
       preserve_interword_spaces: '0',
-    });
-    return worker;
-  });
-  return numericOcrWorkerPromise;
-};
+    },
+  })
+));
 
-const getTooltipOcrWorker = (): Promise<OcrWorker> => {
-  if (tooltipOcrWorkerPromise) return tooltipOcrWorkerPromise;
-  tooltipOcrWorkerPromise = import('tesseract.js').then(async ({ createWorker, PSM }) => {
-    const worker = await createWorker('kor+eng');
-    await worker.setParameters({ tessedit_pageseg_mode: PSM.SINGLE_BLOCK });
-    return worker;
-  });
-  return tooltipOcrWorkerPromise;
-};
+const getTooltipOcrWorker = (): Promise<OcrWorker> => import('tesseract.js').then(({ PSM }) => (
+  ocrWorkers.get({
+    languages: 'kor+eng',
+    parameters: { tessedit_pageseg_mode: PSM.SINGLE_BLOCK },
+  })
+));
 
 export const materialIconRequestUrl = (url: string): string => {
   const parsed = new URL(url, window.location.origin);
@@ -101,213 +83,21 @@ interface Match {
   score: number;
 }
 
-interface TemplateMatchTiming {
-  coarseMs: number;
-  refineMs: number;
-}
-
-interface TemplateCropRatios {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-}
-
-const DEFAULT_TEMPLATE_CROP: TemplateCropRatios = {
-  x: 0.05,
-  y: 0.2,
-  width: 0.68,
-  height: 0.68,
-};
-
-const CENTER_TEMPLATE_CROPS: TemplateCropRatios[] = [
-  { x: 0.2, y: 0.15, width: 0.6, height: 0.7 },
-  { x: 0.25, y: 0.25, width: 0.5, height: 0.5 },
-];
-
-export const getTemplateCropRatios = (
-  rgba: ArrayLike<number>,
-  width: number,
-  height: number,
-): TemplateCropRatios => {
-  let minX = width;
-  let minY = height;
-  let maxX = -1;
-  let maxY = -1;
-
-  for (let y = 0; y < height; y += 1) {
-    for (let x = 0; x < width; x += 1) {
-      if (rgba[(y * width + x) * 4 + 3] <= 16) continue;
-      minX = Math.min(minX, x);
-      minY = Math.min(minY, y);
-      maxX = Math.max(maxX, x);
-      maxY = Math.max(maxY, y);
-    }
-  }
-
-  if (maxX < minX || maxY < minY) return DEFAULT_TEMPLATE_CROP;
-  const opaqueWidth = maxX - minX + 1;
-  const opaqueHeight = maxY - minY + 1;
-  if (opaqueWidth / width >= 0.75 && opaqueHeight / height >= 0.75) {
-    return DEFAULT_TEMPLATE_CROP;
-  }
-
-  return {
-    x: minX / width,
-    y: minY / height,
-    width: opaqueWidth / width,
-    height: opaqueHeight / height,
-  };
-};
-
-export const getTemplateCropCandidates = (
-  rgba: ArrayLike<number>,
-  width: number,
-  height: number,
-): TemplateCropRatios[] => {
-  const detectedCrop = getTemplateCropRatios(rgba, width, height);
-  return detectedCrop === DEFAULT_TEMPLATE_CROP
-    ? [detectedCrop, ...CENTER_TEMPLATE_CROPS]
-    : [detectedCrop, DEFAULT_TEMPLATE_CROP];
-};
-
 const findTemplateMatches = (
   cv: OpenCv,
   source: OpenCvMat,
   templateCanvas: HTMLCanvasElement,
   templateSizes = TEMPLATE_SIZES,
   timing?: TemplateMatchTiming,
-): Match[] => {
-  const templateSource = cv.imread(templateCanvas);
-  const templateRgb = new cv.Mat();
-  const coarseSource = new cv.Mat();
-  const mask = new cv.Mat();
-  const cropCandidates = getTemplateCropCandidates(
-    templateSource.data,
-    templateSource.cols,
-    templateSource.rows,
-  );
-  cv.cvtColor(templateSource, templateRgb, cv.COLOR_RGBA2RGB);
-  cv.resize(
-    source,
-    coarseSource,
-    new cv.Size(Math.round(source.cols * COARSE_SCALE), Math.round(source.rows * COARSE_SCALE)),
-    0,
-    0,
-    cv.INTER_AREA,
-  );
-  const matches: Match[] = [];
-
-  const findMatchesForCrop = (cropRatios: TemplateCropRatios): boolean => {
-    const previousMatchCount = matches.length;
-    for (const slotSize of templateSizes) {
-      const resized = new cv.Mat();
-      const coarseTemplate = new cv.Mat();
-      const coarseResult = new cv.Mat();
-      const cropX = Math.round(slotSize * cropRatios.x);
-      const cropY = Math.round(slotSize * cropRatios.y);
-      const cropWidth = Math.max(1, Math.round(slotSize * cropRatios.width));
-      const cropHeight = Math.max(1, Math.round(slotSize * cropRatios.height));
-      const coarseSlotSize = Math.max(10, Math.round(slotSize * COARSE_SCALE));
-      const coarseCropX = Math.round(coarseSlotSize * cropRatios.x);
-      const coarseCropY = Math.round(coarseSlotSize * cropRatios.y);
-      const coarseCropWidth = Math.max(1, Math.round(coarseSlotSize * cropRatios.width));
-      const coarseCropHeight = Math.max(1, Math.round(coarseSlotSize * cropRatios.height));
-      let templateCrop: OpenCvMat | null = null;
-      let coarseTemplateCrop: OpenCvMat | null = null;
-
-      try {
-        cv.resize(templateRgb, resized, new cv.Size(slotSize, slotSize), 0, 0, cv.INTER_AREA);
-        templateCrop = resized.roi(new cv.Rect(cropX, cropY, cropWidth, cropHeight));
-        cv.resize(
-          templateRgb,
-          coarseTemplate,
-          new cv.Size(coarseSlotSize, coarseSlotSize),
-          0,
-          0,
-          cv.INTER_AREA,
-        );
-        coarseTemplateCrop = coarseTemplate.roi(new cv.Rect(
-          coarseCropX,
-          coarseCropY,
-          coarseCropWidth,
-          coarseCropHeight,
-        ));
-        const coarseStarted = performance.now();
-        cv.matchTemplate(coarseSource, coarseTemplateCrop, coarseResult, cv.TM_CCOEFF_NORMED);
-        if (timing) timing.coarseMs += performance.now() - coarseStarted;
-
-        for (let count = 0; count < MAX_MATCHES_PER_SCALE; count += 1) {
-          const { maxVal: coarseScore, maxLoc: coarseLoc } = cv.minMaxLoc(coarseResult, mask);
-          if (coarseScore < COARSE_MATCH_THRESHOLD) break;
-
-          const expectedCropX = Math.round(coarseLoc.x / COARSE_SCALE);
-          const expectedCropY = Math.round(coarseLoc.y / COARSE_SCALE);
-          const margin = Math.round(slotSize * 0.4);
-          const left = Math.max(0, expectedCropX - margin);
-          const top = Math.max(0, expectedCropY - margin);
-          const right = Math.min(source.cols, expectedCropX + cropWidth + margin);
-          const bottom = Math.min(source.rows, expectedCropY + cropHeight + margin);
-          const sourceRoi = source.roi(new cv.Rect(left, top, right - left, bottom - top));
-          const refinedResult = new cv.Mat();
-
-          try {
-            const refineStarted = performance.now();
-            cv.matchTemplate(sourceRoi, templateCrop, refinedResult, cv.TM_CCOEFF_NORMED);
-            const { maxVal, maxLoc } = cv.minMaxLoc(refinedResult, mask);
-            if (timing) timing.refineMs += performance.now() - refineStarted;
-            if (maxVal >= MATCH_THRESHOLD) {
-              const x = left + maxLoc.x - cropX;
-              const y = top + maxLoc.y - cropY;
-              const duplicateIndex = matches.findIndex((match) => (
-                Math.hypot(match.x - x, match.y - y) < Math.min(match.slotSize, slotSize) * 0.55
-              ));
-              const candidate = { x, y, slotSize, score: maxVal };
-              if (duplicateIndex < 0) matches.push(candidate);
-              else if (maxVal > matches[duplicateIndex].score) matches[duplicateIndex] = candidate;
-            }
-          } finally {
-            sourceRoi.delete();
-            refinedResult.delete();
-          }
-
-          const suppressLeft = Math.max(0, coarseLoc.x - coarseSlotSize);
-          const suppressTop = Math.max(0, coarseLoc.y - coarseSlotSize);
-          const suppressWidth = Math.min(coarseResult.cols - suppressLeft, coarseSlotSize * 2);
-          const suppressHeight = Math.min(coarseResult.rows - suppressTop, coarseSlotSize * 2);
-          const suppressed = coarseResult.roi(new cv.Rect(
-            suppressLeft,
-            suppressTop,
-            suppressWidth,
-            suppressHeight,
-          ));
-          suppressed.setTo(new cv.Scalar(-1));
-          suppressed.delete();
-        }
-      } finally {
-        templateCrop?.delete();
-        coarseTemplateCrop?.delete();
-        resized.delete();
-        coarseTemplate.delete();
-        coarseResult.delete();
-      }
-    }
-    return matches.length > previousMatchCount;
-  };
-
-  try {
-    for (const cropRatios of cropCandidates) {
-      if (findMatchesForCrop(cropRatios)) break;
-    }
-  } finally {
-    templateSource.delete();
-    templateRgb.delete();
-    coarseSource.delete();
-    mask.delete();
-  }
-
-  return matches;
-};
+): Match[] => matchMultiScaleTemplate(cv, source, templateCanvas, {
+  sizes: templateSizes,
+  timing,
+}).map((match) => ({
+  x: match.x,
+  y: match.y,
+  slotSize: match.size,
+  score: match.confidence,
+}));
 
 interface OcrRegion {
   canvas: HTMLCanvasElement;
@@ -785,18 +575,12 @@ const recognizeFateShard = async (
   };
 };
 
-const validateFrame = (frame: HTMLCanvasElement): void => {
-  if (frame.width < 800 || frame.height < 450) {
-    throw new Error(`공유 화면 해상도가 너무 낮습니다. 감지된 화면: ${frame.width}×${frame.height}`);
-  }
-};
-
 export const recognizeMaterialFrame = async (
   frame: HTMLCanvasElement,
   icons: MaterialIconMap,
   targetMaterials: MaterialType[],
 ): Promise<RecognitionFrame> => {
-  validateFrame(frame);
+  validateRecognitionFrame(frame);
   const totalStarted = performance.now();
   const observations: MaterialObservation[] = [];
   const materialTargets = targetMaterials.filter((material) => material !== '운명의 파편');
@@ -872,13 +656,4 @@ export const recognizeMaterialFrame = async (
   return { observations, frameWidth: frame.width, frameHeight: frame.height, metrics };
 };
 
-export const disposeMaterialRecognizer = async (): Promise<void> => {
-  const workerPromises = [numericOcrWorkerPromise, tooltipOcrWorkerPromise];
-  numericOcrWorkerPromise = null;
-  tooltipOcrWorkerPromise = null;
-  await Promise.all(workerPromises.map(async (workerPromise) => {
-    if (!workerPromise) return;
-    const worker = await workerPromise;
-    await worker.terminate();
-  }));
-};
+export const disposeMaterialRecognizer = (): Promise<void> => ocrWorkers.dispose();

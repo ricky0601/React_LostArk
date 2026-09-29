@@ -25,6 +25,8 @@ vi.mock('./pages/SpecSimulator', () => ({ default: () => <div>Spec Simulator Pag
 vi.mock('./pages/Expedition', () => ({ default: () => <div>Expedition Page</div> }));
 vi.mock('./pages/Compare', () => ({ default: () => <div>Compare Page</div> }));
 vi.mock('./pages/Enhancement', () => ({ default: () => <div>Enhancement Page</div> }));
+vi.mock('./pages/RaidComposition', () => ({ default: () => <div>Raid Composition Page</div> }));
+vi.mock('./pages/RaidApplicants', () => ({ default: () => <div>Raid Applicants Page</div> }));
 vi.mock('./pages/Market', () => ({ default: () => <div>Market Page</div> }));
 vi.mock('./pages/Spending', () => ({ default: () => <div>Spending Page</div> }));
 vi.mock('./pages/Changelog', () => ({ default: () => <div>Changelog Page</div> }));
@@ -66,6 +68,24 @@ test('matches the changelog route to the changelog page', async () => {
 
   expect(await screen.findByText('Changelog Page')).toBeInTheDocument();
   expect(screen.queryByText('Home Page')).not.toBeInTheDocument();
+});
+
+test('matches the raid composition base route', async () => {
+  mockPathname = '/raid-composition';
+
+  render(<App />);
+
+  expect(await screen.findByText('Raid Composition Page')).toBeInTheDocument();
+  expect(screen.queryByText('Raid Applicants Page')).not.toBeInTheDocument();
+});
+
+test('matches the applicant incident tab route', async () => {
+  mockPathname = '/raid-composition/applicants';
+
+  render(<App />);
+
+  expect(await screen.findByText('Raid Applicants Page')).toBeInTheDocument();
+  expect(screen.queryByText('Raid Composition Page')).not.toBeInTheDocument();
 });
 
 test('matches the policy route and renders the common footer', async () => {
