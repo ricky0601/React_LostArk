@@ -104,7 +104,7 @@ describe('CharacterRaidCard raid simulation flow', () => {
     expect(screen.getByRole('button', { name: '참여 불가 레이드 0개' })).toHaveAttribute('aria-expanded', 'true');
 
     expect(screen.getAllByText('벨가르딘 (그림자)').length).toBeGreaterThan(1);
-    expect(screen.getAllByRole('img', { name: '벨가르딘 (그림자) 레이드' })).toHaveLength(4);
+    expect(screen.getAllByRole('img', { name: '벨가르딘 (그림자) 레이드' })).toHaveLength(5);
     expect(screen.getByText('62,000G')).toBeInTheDocument();
     expect(screen.getAllByText('50,000G').length).toBeGreaterThan(1);
 
