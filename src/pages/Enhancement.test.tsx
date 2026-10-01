@@ -115,6 +115,44 @@ describe('Enhancement armlet calculations', () => {
     expect(armletCard).not.toHaveTextContent('+0');
   });
 
+  it('names each looked-up slot once for assistive technology', async () => {
+    mockedFetchEquipment.mockResolvedValue([
+      { ...equipment('무기', 10), Icon: 'https://example.com/weapon.png' },
+    ]);
+    render(<Enhancement />);
+    fireEvent.change(screen.getByPlaceholderText('캐릭터명 입력'), { target: { value: '테스트캐릭터' } });
+    fireEvent.click(screen.getByRole('button', { name: '조회' }));
+    await screen.findByText('종합 아이템 레벨');
+
+    const weaponGroup = screen.getByRole('group', { name: '무기 재련 설정' });
+    expect(weaponGroup.querySelector('img[src="https://example.com/weapon.png"]')).toHaveAttribute('alt', '');
+    expect(within(weaponGroup).queryByRole('img', { name: '무기' })).not.toBeInTheDocument();
+    expect(within(weaponGroup).getAllByText('무기')).toHaveLength(1);
+  });
+
+  it('reserves icon and advanced-level rows so slot targets align across cards', async () => {
+    mockedFetchEquipment.mockResolvedValue([
+      { ...equipment('무기', 10), Icon: 'https://example.com/weapon.png' },
+      { ...equipment('완갑', 0), Icon: 'https://example.com/armlet.png' },
+    ]);
+    render(<Enhancement />);
+    fireEvent.change(screen.getByPlaceholderText('캐릭터명 입력'), { target: { value: '테스트캐릭터' } });
+    fireEvent.click(screen.getByRole('button', { name: '조회' }));
+    await screen.findByText('종합 아이템 레벨');
+
+    const armlet = screen.getByRole('group', { name: '완갑 재련 설정' });
+    expect(armlet.querySelector('[data-slot-spacer="advanced-level"]')).toHaveAttribute('aria-hidden', 'true');
+    const helmet = screen.getByRole('group', { name: '투구 재련 설정' });
+    expect(helmet.querySelector('[data-slot-spacer="icon"]')).toHaveAttribute('aria-hidden', 'true');
+    expect(helmet.querySelector('[data-slot-spacer="advanced-level"]')).toHaveAttribute('aria-hidden', 'true');
+    const weapon = screen.getByRole('group', { name: '무기 재련 설정' });
+    expect(weapon.querySelector('[data-slot-spacer]')).not.toBeInTheDocument();
+  });
+
+  it('does not reserve empty rows before any character lookup', () => {
+    render(<Enhancement />);
+    expect(document.querySelector('[data-slot-spacer]')).not.toBeInTheDocument();
+  });
 
   it('keeps bulk and slot target context in mobile panels', async () => {
     setViewportWidth(390);
@@ -135,7 +173,7 @@ describe('Enhancement armlet calculations', () => {
     fireEvent.click(within(weaponGroup).getByRole('button', { name: '무기 상급 재련 목표 선택' }));
     expect(screen.getByRole('dialog', { name: '무기 상급 재련 목표' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('option', { name: '20단계' }));
-    expect(within(weaponGroup).getByRole('button', { name: '무기 상급 재련 목표 선택' })).toHaveTextContent('20');
+    expect(within(weaponGroup).getByRole('button', { name: '무기 상급 재련 목표 선택' })).toHaveTextContent('20단계');
 
     fireEvent.click(screen.getByRole('button', { name: '일반 재련 일괄 목표 선택' }));
     expect(screen.getByRole('dialog', { name: '일반 재련 일괄 목표' })).toBeInTheDocument();

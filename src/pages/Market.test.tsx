@@ -143,4 +143,19 @@ describe('Market ranking states', () => {
     expect(mockedFetchMarketOptions).not.toHaveBeenCalled();
     expect(mockedFetchAuctionItems).not.toHaveBeenCalled();
   });
+
+  it('keeps the header row height when the refresh action is hidden', () => {
+    mockedFetchMarketItems.mockResolvedValue({ PageNo: 1, PageSize: 50, TotalCount: 0, Items: [] });
+    mockedFetchAuctionItems.mockResolvedValue({ PageNo: 0, PageSize: 1, TotalCount: 0, Items: [] });
+    render(<Market />);
+
+    const headerRow = screen.getByRole('heading', { level: 1, name: '시세' }).parentElement as HTMLElement;
+    expect(headerRow).toHaveClass('min-h-12');
+    expect(within(headerRow).getByRole('button', { name: '새로고침' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('tab', { name: '장신구' }));
+    expect(screen.getByRole('tab', { name: '장신구' })).toHaveAttribute('aria-selected', 'true');
+    expect(within(headerRow).queryByRole('button', { name: '새로고침' })).not.toBeInTheDocument();
+    expect(headerRow).toHaveClass('min-h-12');
+  });
 });

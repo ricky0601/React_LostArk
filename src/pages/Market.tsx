@@ -205,7 +205,7 @@ const Market: React.FC = () => {
       <NavBar />
       <main className="mx-auto max-w-7xl space-y-4 px-4 py-5 sm:py-6">
         <header>
-          <div className="flex items-center justify-between gap-3">
+          <div className="flex min-h-12 items-center justify-between gap-3">
             <h1 className="text-2xl font-bold tracking-tight text-gray-950 dark:text-white">시세</h1>
             {(activeTab === 'engraving' || activeTab === 'gem') && (
               <button

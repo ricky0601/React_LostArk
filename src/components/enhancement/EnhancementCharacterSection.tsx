@@ -7,6 +7,7 @@ import {
   ALL_SLOTS,
   NORMAL_BULK_TARGET_OPTIONS,
   supportsAdvancedHoning,
+  type SlotName,
 } from './enhancementModel';
 import type { EnhancementPageModel } from './useEnhancementPage';
 
@@ -32,6 +33,11 @@ const EnhancementCharacterSection: React.FC<{ model: EnhancementPageModel }> = (
     handleAdvTargetChange,
     hasAnyAdvSlotAvailable,
   } = model;
+  const showsAdvancedLevel = (slot: SlotName): boolean =>
+    supportsAdvancedHoning(slot) && !slotInheritedMap[slot] && slotHasData[slot];
+  // 조회 후 카드마다 아이콘/상급 단계 줄 유무가 달라 목표 선택 위치가 어긋나지 않도록 빈 줄을 예약한다.
+  const reserveIconRow = ALL_SLOTS.some((slot) => Boolean(slotIconMap[slot]));
+  const reserveAdvancedLevelRow = ALL_SLOTS.some(showsAdvancedLevel);
   return (
     <>
         {/* ── 헤더 ── */}
@@ -106,7 +112,7 @@ const EnhancementCharacterSection: React.FC<{ model: EnhancementPageModel }> = (
                   {slotIconMap[slot]
                     ? (
                       <div className="relative w-8 h-8">
-                        <img src={slotIconMap[slot]} alt={slot} className="w-8 h-8 rounded-lg" />
+                        <img src={slotIconMap[slot]} alt="" className="w-8 h-8 rounded-lg" />
                         {slotInheritedMap[slot] && (
                           <img
                             src="https://cdn-lostark.game.onstove.com/2018/obt/assets/images/common/game/bg_equipment_petBorder.png?cf40f871847e238f7644"
@@ -116,7 +122,9 @@ const EnhancementCharacterSection: React.FC<{ model: EnhancementPageModel }> = (
                         )}
                       </div>
                     )
-                    : null
+                    : reserveIconRow
+                      ? <div data-slot-spacer="icon" aria-hidden="true" className="w-8 h-8" />
+                      : null
                   }
                   <span className="text-xs text-gray-500 dark:text-gray-400">{slot}</span>
                   <span className={`text-sm font-bold leading-none ${
@@ -128,7 +136,7 @@ const EnhancementCharacterSection: React.FC<{ model: EnhancementPageModel }> = (
                   }`}>
                     {hasData ? `+${level}` : '—'}
                   </span>
-                  {supportsAdvancedHoning(slot) && !slotInheritedMap[slot] && hasData && (
+                  {showsAdvancedLevel(slot) ? (
                     <span className={`text-[10px] leading-none ${
                       advTargetMap[slot] != null
                         ? 'text-purple-500 dark:text-purple-400'
@@ -136,7 +144,9 @@ const EnhancementCharacterSection: React.FC<{ model: EnhancementPageModel }> = (
                     }`}>
                       {advLevelMap[slot] ? `상급 ${advLevelMap[slot]}` : '상급 —'}
                     </span>
-                  )}
+                  ) : reserveAdvancedLevelRow ? (
+                    <span data-slot-spacer="advanced-level" aria-hidden="true" className="h-2.5" />
+                  ) : null}
                   <div className="mt-1 w-full">
                     <SelectMenu
                       value={targetMap[slot]}
