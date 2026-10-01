@@ -80,6 +80,17 @@ describe('Enhancement armlet calculations', () => {
     mockedFetchProfile.mockResolvedValue(profile);
   });
 
+  it('groups each equipment label, current level and target before lookup', () => {
+    render(<Enhancement />);
+
+    for (const slot of ['무기', '완갑', '투구', '어깨', '상의', '하의', '장갑']) {
+      const group = screen.getByRole('group', { name: `${slot} 재련 설정` });
+      expect(within(group).getByText(slot)).toBeInTheDocument();
+      expect(within(group).getByText('—')).toBeInTheDocument();
+      expect(within(group).getByRole('button', { name: `${slot} 일반 재련 목표 선택` })).toBeEnabled();
+    }
+  });
+
   it('keeps a missing armlet unequipped after character lookup', async () => {
     mockedFetchEquipment.mockResolvedValue([equipment('무기', 10)]);
 
@@ -109,6 +120,14 @@ describe('Enhancement armlet calculations', () => {
     fireEvent.click(screen.getByRole('button', { name: '조회' }));
     await screen.findByText('종합 아이템 레벨');
 
+    const weaponGroup = screen.getByRole('group', { name: '무기 재련 설정' });
+    expect(within(weaponGroup).getByText('+10')).toBeInTheDocument();
+    expect(within(weaponGroup).getByRole('button', { name: '무기 일반 재련 목표 선택' })).toBeInTheDocument();
+    fireEvent.click(within(weaponGroup).getByRole('button', { name: '무기 상급 재련 목표 선택' }));
+    expect(screen.getByRole('dialog', { name: '무기 상급 재련 목표' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('option', { name: '20단계' }));
+    expect(within(weaponGroup).getByRole('button', { name: '무기 상급 재련 목표 선택' })).toHaveTextContent('20');
+
     fireEvent.click(screen.getByRole('button', { name: '일반 재련 일괄 목표 선택' }));
     expect(screen.getByRole('dialog', { name: '일반 재련 일괄 목표' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: '일반 재련 일괄 목표 닫기' }));
@@ -119,6 +138,31 @@ describe('Enhancement armlet calculations', () => {
 
     fireEvent.click(screen.getByRole('button', { name: '상급 재련 일괄 목표 선택' }));
     expect(screen.getByRole('dialog', { name: '상급 재련 일괄 목표' })).toBeInTheDocument();
+  });
+
+  it('applies bulk targets within equipment groups and keeps targets clearable', async () => {
+    mockedFetchEquipment.mockResolvedValue([equipment('무기', 10), equipment('완갑', 0)]);
+    render(<Enhancement />);
+    fireEvent.change(screen.getByPlaceholderText('캐릭터명 입력'), { target: { value: '테스트캐릭터' } });
+    fireEvent.click(screen.getByRole('button', { name: '조회' }));
+    await screen.findByText('종합 아이템 레벨');
+
+    fireEvent.click(screen.getByRole('button', { name: '일반 재련 일괄 목표 선택' }));
+    fireEvent.click(screen.getByRole('option', { name: '11강' }));
+    const weapon = within(screen.getByRole('group', { name: '무기 재련 설정' }));
+    const armlet = within(screen.getByRole('group', { name: '완갑 재련 설정' }));
+    expect(weapon.getByRole('button', { name: '무기 일반 재련 목표 선택' })).toHaveTextContent('11강');
+    expect(armlet.getByRole('button', { name: '완갑 일반 재련 목표 선택' })).toHaveTextContent('11강');
+
+    fireEvent.click(screen.getByRole('button', { name: '상급 재련 일괄 목표 선택' }));
+    fireEvent.click(screen.getByRole('option', { name: '20단계' }));
+    expect(weapon.getByRole('button', { name: '무기 상급 재련 목표 선택' })).toHaveTextContent('20단계');
+    expect(armlet.queryByRole('button', { name: '완갑 상급 재련 목표 선택' })).not.toBeInTheDocument();
+
+    fireEvent.click(weapon.getByRole('button', { name: '무기 일반 재련 목표 선택' }));
+    fireEvent.click(screen.getByRole('option', { name: '일반 목표' }));
+    expect(weapon.getByRole('button', { name: '무기 일반 재련 목표 선택' })).toHaveTextContent('일반 목표');
+    expect(weapon.getByRole('button', { name: '무기 상급 재련 목표 선택' })).toHaveTextContent('20단계');
   });
 
   it('offers a retry action when the character lookup fails', async () => {

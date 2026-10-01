@@ -134,7 +134,7 @@ export const EngravingRanking: React.FC<RankingProps<EngravingRankItem>> = ({ st
             <span>변동</span>
           </div>
           {state.items.map((item) => (
-            <div key={item.name} className="grid grid-cols-[72px_minmax(0,1fr)_150px_150px_150px] gap-4 border-b border-gray-200/40 px-5 py-4 last:border-b-0 dark:border-white/5">
+            <div key={item.name} className="grid grid-cols-[72px_minmax(0,1fr)_150px_150px_150px] gap-4 border-b border-gray-200/40 px-5 py-2 last:border-b-0 dark:border-white/5">
               <div className="flex items-center"><RankBadge rank={item.rank} /></div>
               <div className="flex min-w-0 items-center gap-3">
                 <img src={item.icon} alt="" className="h-11 w-11 flex-shrink-0 rounded-xl bg-gray-100 object-cover dark:bg-white/5" />
@@ -149,13 +149,13 @@ export const EngravingRanking: React.FC<RankingProps<EngravingRankItem>> = ({ st
 
         <div className="divide-y divide-gray-200/50 md:hidden dark:divide-white/10">
           {state.items.map((item) => (
-            <div key={`${item.name}-mobile`} role="group" aria-label={`${item.itemName} 모바일 시세`} className="p-3">
+            <div key={`${item.name}-mobile`} role="group" aria-label={`${item.itemName} 모바일 시세`} className="px-3 py-2.5">
               <div className="flex items-start gap-2.5">
                 <RankBadge rank={item.rank} />
                 <img src={item.icon} alt="" className="h-10 w-10 flex-shrink-0 rounded-lg bg-gray-100 object-cover dark:bg-white/5" />
                 <div className="min-w-0 flex-1">
                   <p className="line-clamp-2 text-sm font-bold leading-snug text-gray-900 dark:text-white">{item.itemName}</p>
-                  <div className="mt-2 grid grid-cols-[1fr_1fr_auto] gap-2 text-xs">
+                  <div className="mt-1.5 grid grid-cols-[1fr_1fr_auto] gap-2 text-xs">
                     <div className="min-w-0">
                       <p className="text-gray-500 dark:text-gray-500">최저가</p>
                       <p className="mt-0.5 whitespace-nowrap font-black tabular-nums text-la-gold-deep dark:text-la-gold">{formatGold(item.price)}</p>
@@ -212,7 +212,7 @@ export const GemRanking: React.FC<RankingProps<GemRankItem>> = ({ state, onRetry
             <span>최저가</span>
           </div>
           {state.items.map((item) => (
-            <div key={`${item.level}-${item.kind}`} className="grid grid-cols-[72px_minmax(0,1fr)_150px] gap-4 border-b border-gray-200/40 px-5 py-4 last:border-b-0 dark:border-white/5">
+            <div key={`${item.level}-${item.kind}`} className="grid grid-cols-[72px_minmax(0,1fr)_150px] gap-4 border-b border-gray-200/40 px-5 py-2 last:border-b-0 dark:border-white/5">
               <div className="flex items-center"><RankBadge rank={item.rank} /></div>
               <div className="flex min-w-0 items-center gap-3">
                 <img src={item.icon} alt="" className="h-11 w-11 flex-shrink-0 rounded-xl bg-gray-100 object-cover dark:bg-white/5" />
@@ -231,7 +231,7 @@ export const GemRanking: React.FC<RankingProps<GemRankItem>> = ({ state, onRetry
 
         <div className="divide-y divide-gray-200/50 md:hidden dark:divide-white/10">
           {state.items.map((item) => (
-            <div key={`${item.level}-${item.kind}-mobile`} className="p-3">
+            <div key={`${item.level}-${item.kind}-mobile`} className="px-3 py-2.5">
               <div className="flex items-start gap-2.5">
                 <RankBadge rank={item.rank} />
                 <img src={item.icon} alt="" className="h-10 w-10 flex-shrink-0 rounded-lg bg-gray-100 object-cover dark:bg-white/5" />

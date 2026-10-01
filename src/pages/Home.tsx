@@ -128,7 +128,7 @@ const Home: React.FC = () => {
     <div className="min-h-screen bg-gray-50 dark:bg-la-dark transition-colors duration-300">
       <NavBar />
       <PullToRefresh>
-      <main className="max-w-7xl mx-auto px-4 py-8 space-y-8">
+      <main className="max-w-7xl mx-auto px-4 py-5 space-y-5 sm:py-6 sm:space-y-6">
         <HomeDashboardIntro
           activeEventCount={activeEvents.length}
           calendarGroupCount={calendarGroups.size}
