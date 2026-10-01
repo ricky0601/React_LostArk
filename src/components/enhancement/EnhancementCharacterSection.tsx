@@ -80,7 +80,7 @@ const EnhancementCharacterSection: React.FC<{ model: EnhancementPageModel }> = (
           )}
 
           {/* 슬롯 카드 - 현재 강화 수치 표시 */}
-          <div className="grid grid-cols-2 sm:grid-cols-7 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
             {ALL_SLOTS.map((slot) => {
               const hasData = slotHasData[slot];
               const level = slotCurrentLevel[slot];
@@ -141,7 +141,7 @@ const EnhancementCharacterSection: React.FC<{ model: EnhancementPageModel }> = (
                     <SelectMenu
                       value={targetMap[slot]}
                       options={targetOptions}
-                      className="[&>button]:min-h-11 sm:[&>button]:min-h-0"
+                      className="[&>button]:min-h-11 lg:[&>button]:min-h-0"
                       placeholder="일반 목표"
                       ariaLabel={`${slot} 일반 재련 목표 선택`}
                       panelTitle={`${slot} 일반 재련 목표`}
@@ -157,7 +157,7 @@ const EnhancementCharacterSection: React.FC<{ model: EnhancementPageModel }> = (
                       <SelectMenu
                         value={advTargetMap[slot]}
                         options={ADV_TARGET_OPTIONS.filter((option) => option.value > (advLevelMap[slot] ?? 0))}
-                        className="[&>button]:min-h-11 sm:[&>button]:min-h-0"
+                        className="[&>button]:min-h-11 lg:[&>button]:min-h-0"
                         placeholder="상급 목표"
                         ariaLabel={`${slot} 상급 재련 목표 선택`}
                         panelTitle={`${slot} 상급 재련 목표`}
@@ -181,7 +181,7 @@ const EnhancementCharacterSection: React.FC<{ model: EnhancementPageModel }> = (
             <SelectMenu
               value={undefined}
               options={NORMAL_BULK_TARGET_OPTIONS}
-              className="[&>button]:min-h-11 sm:[&>button]:min-h-0"
+              className="[&>button]:min-h-11 lg:[&>button]:min-h-0"
               placeholder="일반 재련 일괄"
               ariaLabel="일반 재련 일괄 목표 선택"
               panelTitle="일반 재련 일괄 목표"
@@ -202,7 +202,7 @@ const EnhancementCharacterSection: React.FC<{ model: EnhancementPageModel }> = (
                 <SelectMenu
                   value={undefined}
                   options={ADV_TARGET_OPTIONS}
-                  className="[&>button]:min-h-11 sm:[&>button]:min-h-0"
+                  className="[&>button]:min-h-11 lg:[&>button]:min-h-0"
                   placeholder="상급 재련 일괄"
                   ariaLabel="상급 재련 일괄 목표 선택"
                   panelTitle="상급 재련 일괄 목표"

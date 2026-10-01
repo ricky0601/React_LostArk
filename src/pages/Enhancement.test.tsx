@@ -91,6 +91,15 @@ describe('Enhancement armlet calculations', () => {
     }
   });
 
+  it('reserves readable equipment columns and touch targets through tablet widths', () => {
+    render(<Enhancement />);
+
+    const group = screen.getByRole('group', { name: '무기 재련 설정' });
+    expect(group.parentElement).toHaveClass('grid-cols-2', 'sm:grid-cols-4', 'lg:grid-cols-7');
+    const trigger = within(group).getByRole('button', { name: '무기 일반 재련 목표 선택' });
+    expect(trigger.parentElement).toHaveClass('[&>button]:min-h-11', 'lg:[&>button]:min-h-0');
+  });
+
   it('keeps a missing armlet unequipped after character lookup', async () => {
     mockedFetchEquipment.mockResolvedValue([equipment('무기', 10)]);
 
