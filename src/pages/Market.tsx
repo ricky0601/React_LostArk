@@ -203,27 +203,22 @@ const Market: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50 transition-colors duration-300 dark:bg-la-dark">
       <NavBar />
-      <main className="mx-auto max-w-7xl space-y-6 px-4 py-8">
-        <GlassCard className="relative overflow-hidden p-6 sm:p-8">
-          <div className="relative flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <span className="inline-flex rounded-full border border-la-gold/20 bg-la-gold/10 px-3 py-1 text-xs font-bold text-la-gold-dark dark:text-la-gold">
-                Market Rank
-              </span>
-              <h1 className="mt-4 text-3xl font-black tracking-tight text-gray-950 dark:text-white sm:text-4xl">시세</h1>
-            </div>
+      <main className="mx-auto max-w-7xl space-y-4 px-4 py-5 sm:py-6">
+        <header>
+          <div className="flex min-h-12 items-center justify-between gap-3">
+            <h1 className="text-2xl font-bold tracking-tight text-gray-950 dark:text-white">시세</h1>
             {(activeTab === 'engraving' || activeTab === 'gem') && (
               <button
                 type="button"
                 onClick={() => void loadRanking(activeTab, true)}
-                className="btn-gold w-full sm:w-auto"
+                className="btn-gold min-h-11 shrink-0"
                 disabled={activeTab === 'engraving' ? engravingState.status === 'loading' : gemState.status === 'loading'}
               >
                 새로고침
               </button>
             )}
           </div>
-        </GlassCard>
+        </header>
 
         <GlassCard className="p-2">
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5" role="tablist" aria-label="시세 종류">

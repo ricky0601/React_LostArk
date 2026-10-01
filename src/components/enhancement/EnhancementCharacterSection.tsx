@@ -7,6 +7,7 @@ import {
   ALL_SLOTS,
   NORMAL_BULK_TARGET_OPTIONS,
   supportsAdvancedHoning,
+  type SlotName,
 } from './enhancementModel';
 import type { EnhancementPageModel } from './useEnhancementPage';
 
@@ -32,6 +33,11 @@ const EnhancementCharacterSection: React.FC<{ model: EnhancementPageModel }> = (
     handleAdvTargetChange,
     hasAnyAdvSlotAvailable,
   } = model;
+  const showsAdvancedLevel = (slot: SlotName): boolean =>
+    supportsAdvancedHoning(slot) && !slotInheritedMap[slot] && slotHasData[slot];
+  // 조회 후 카드마다 아이콘/상급 단계 줄 유무가 달라 목표 선택 위치가 어긋나지 않도록 빈 줄을 예약한다.
+  const reserveIconRow = ALL_SLOTS.some((slot) => Boolean(slotIconMap[slot]));
+  const reserveAdvancedLevelRow = ALL_SLOTS.some(showsAdvancedLevel);
   return (
     <>
         {/* ── 헤더 ── */}
@@ -80,26 +86,33 @@ const EnhancementCharacterSection: React.FC<{ model: EnhancementPageModel }> = (
           )}
 
           {/* 슬롯 카드 - 현재 강화 수치 표시 */}
-          <div className="grid grid-cols-2 sm:grid-cols-7 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
             {ALL_SLOTS.map((slot) => {
               const hasData = slotHasData[slot];
               const level = slotCurrentLevel[slot];
-              const isActive = targetMap[slot] != null;
+              const isActive = targetMap[slot] != null || advTargetMap[slot] != null;
+              const targetOptions = Array.from({ length: 25 - level }, (_, i) => ({
+                value: level + i + 1,
+                label: `${level + i + 1}강`,
+              }));
+              const advancedAvailable = hasAnyAdvSlotAvailable && supportsAdvancedHoning(slot) && !slotInheritedMap[slot];
               return (
                 <div
                   key={slot}
+                  role="group"
+                  aria-label={`${slot} 재련 설정`}
                   className={`flex flex-col items-center gap-1 p-2 rounded-xl border text-center transition-all duration-200 ${
                     isActive
                       ? 'border-la-gold/60 bg-la-gold/10 dark:bg-la-gold/10'
                       : hasData
                         ? 'border-gray-200/60 dark:border-white/10 bg-gray-50/60 dark:bg-white/5'
-                        : 'border-gray-100 dark:border-white/5 bg-gray-50/30 dark:bg-white/3 opacity-40'
+                        : 'border-gray-100 dark:border-white/5 bg-gray-50/30 dark:bg-white/[0.03]'
                   }`}
                 >
                   {slotIconMap[slot]
                     ? (
                       <div className="relative w-8 h-8">
-                        <img src={slotIconMap[slot]} alt={slot} className="w-8 h-8 rounded-lg" />
+                        <img src={slotIconMap[slot]} alt="" className="w-8 h-8 rounded-lg" />
                         {slotInheritedMap[slot] && (
                           <img
                             src="https://cdn-lostark.game.onstove.com/2018/obt/assets/images/common/game/bg_equipment_petBorder.png?cf40f871847e238f7644"
@@ -109,18 +122,21 @@ const EnhancementCharacterSection: React.FC<{ model: EnhancementPageModel }> = (
                         )}
                       </div>
                     )
-                    : <span className="text-xs text-gray-500 dark:text-gray-400">{slot}</span>
+                    : reserveIconRow
+                      ? <div data-slot-spacer="icon" aria-hidden="true" className="w-8 h-8" />
+                      : null
                   }
+                  <span className="text-xs text-gray-500 dark:text-gray-400">{slot}</span>
                   <span className={`text-sm font-bold leading-none ${
                     isActive
                       ? 'text-la-gold-dark dark:text-la-gold'
                       : hasData
                         ? 'text-gray-900 dark:text-white'
-                        : 'text-gray-300 dark:text-gray-600'
+                        : 'text-gray-500 dark:text-gray-400'
                   }`}>
                     {hasData ? `+${level}` : '—'}
                   </span>
-                  {supportsAdvancedHoning(slot) && !slotInheritedMap[slot] && hasData && (
+                  {showsAdvancedLevel(slot) ? (
                     <span className={`text-[10px] leading-none ${
                       advTargetMap[slot] != null
                         ? 'text-purple-500 dark:text-purple-400'
@@ -128,18 +144,54 @@ const EnhancementCharacterSection: React.FC<{ model: EnhancementPageModel }> = (
                     }`}>
                       {advLevelMap[slot] ? `상급 ${advLevelMap[slot]}` : '상급 —'}
                     </span>
+                  ) : reserveAdvancedLevelRow ? (
+                    <span data-slot-spacer="advanced-level" aria-hidden="true" className="h-2.5" />
+                  ) : null}
+                  <div className="mt-1 w-full">
+                    <SelectMenu
+                      value={targetMap[slot]}
+                      options={targetOptions}
+                      className="[&>button]:min-h-11 lg:[&>button]:min-h-0"
+                      placeholder="일반 목표"
+                      ariaLabel={`${slot} 일반 재련 목표 선택`}
+                      panelTitle={`${slot} 일반 재련 목표`}
+                      onChange={(val) => handleTargetChange(slot, val === undefined ? undefined : Number(val))}
+                      fullWidth
+                      compact
+                      align="center"
+                      clearable
+                    />
+                  </div>
+                  {advancedAvailable && (
+                    <div className="w-full">
+                      <SelectMenu
+                        value={advTargetMap[slot]}
+                        options={ADV_TARGET_OPTIONS.filter((option) => option.value > (advLevelMap[slot] ?? 0))}
+                        className="[&>button]:min-h-11 lg:[&>button]:min-h-0"
+                        placeholder="상급 목표"
+                        ariaLabel={`${slot} 상급 재련 목표 선택`}
+                        panelTitle={`${slot} 상급 재련 목표`}
+                        onChange={(val) => handleAdvTargetChange(slot, val === undefined ? undefined : Number(val))}
+                        variant="purple"
+                        fullWidth
+                        compact
+                        align="center"
+                        clearable
+                      />
+                    </div>
                   )}
                 </div>
               );
             })}
           </div>
 
-          {/* 일반 재련 일괄 + 목표 선택 */}
+          {/* 일반 재련 일괄 설정 */}
           <div className="flex items-center gap-2 mt-2 mb-1">
             <span className="text-xs text-gray-400 dark:text-gray-500 w-8">일괄</span>
             <SelectMenu
               value={undefined}
               options={NORMAL_BULK_TARGET_OPTIONS}
+              className="[&>button]:min-h-11 lg:[&>button]:min-h-0"
               placeholder="일반 재련 일괄"
               ariaLabel="일반 재련 일괄 목표 선택"
               panelTitle="일반 재련 일괄 목표"
@@ -152,30 +204,6 @@ const EnhancementCharacterSection: React.FC<{ model: EnhancementPageModel }> = (
               }}
             />
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-7 gap-2">
-            {ALL_SLOTS.map((slot) => {
-              const currentLvl = slotCurrentLevel[slot];
-              const targetOptions = Array.from({ length: 25 - currentLvl }, (_, i) => {
-                const level = currentLvl + i + 1;
-                return { value: level, label: `${level}강` };
-              });
-              return (
-                <SelectMenu
-                  key={slot}
-                  value={targetMap[slot]}
-                  options={targetOptions}
-                  placeholder="목표"
-                  ariaLabel={`${slot} 일반 재련 목표 선택`}
-                  panelTitle={`${slot} 일반 재련 목표`}
-                  onChange={(val) => handleTargetChange(slot, val === undefined ? undefined : Number(val))}
-                  fullWidth
-                  compact
-                  align="center"
-                  clearable
-                />
-              );
-            })}
-          </div>
 
           {hasAnyAdvSlotAvailable && (
             <>
@@ -184,6 +212,7 @@ const EnhancementCharacterSection: React.FC<{ model: EnhancementPageModel }> = (
                 <SelectMenu
                   value={undefined}
                   options={ADV_TARGET_OPTIONS}
+                  className="[&>button]:min-h-11 lg:[&>button]:min-h-0"
                   placeholder="상급 재련 일괄"
                   ariaLabel="상급 재련 일괄 목표 선택"
                   panelTitle="상급 재련 일괄 목표"
@@ -198,31 +227,6 @@ const EnhancementCharacterSection: React.FC<{ model: EnhancementPageModel }> = (
                     });
                   }}
                 />
-              </div>
-              <div className="grid grid-cols-2 sm:grid-cols-7 gap-2">
-                {ALL_SLOTS.map((slot) => {
-                  if (!supportsAdvancedHoning(slot) || slotInheritedMap[slot]) {
-                    return <div key={slot} />;
-                  }
-                  const currentAdv = advLevelMap[slot] ?? 0;
-                  const availableTargets = ADV_TARGET_OPTIONS.filter((option) => option.value > currentAdv);
-                  return (
-                    <SelectMenu
-                      key={slot}
-                      value={advTargetMap[slot]}
-                      options={availableTargets}
-                      placeholder="상급"
-                      ariaLabel={`${slot} 상급 재련 목표 선택`}
-                      panelTitle={`${slot} 상급 재련 목표`}
-                      onChange={(val) => handleAdvTargetChange(slot, val === undefined ? undefined : Number(val))}
-                      variant="purple"
-                      fullWidth
-                      compact
-                      align="center"
-                      clearable
-                    />
-                  );
-                })}
               </div>
             </>
           )}

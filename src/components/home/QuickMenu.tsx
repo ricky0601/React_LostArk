@@ -66,7 +66,7 @@ const REORDER_COOLDOWN_MS = 120;
 
 const CardContents: React.FC<{ readonly action: QuickAction }> = ({ action }) => (
   <>
-    <div className="mb-3 flex items-center gap-3">
+    <div className="flex items-center gap-3 sm:mb-2">
       <div className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl ${action.iconBg}`}>
         <svg className={`h-5 w-5 ${action.iconText}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
           <path strokeLinecap="round" strokeLinejoin="round" d={action.path} />
@@ -74,8 +74,8 @@ const CardContents: React.FC<{ readonly action: QuickAction }> = ({ action }) =>
       </div>
       <h3 className="text-base font-bold text-gray-900 dark:text-white">{action.title}</h3>
     </div>
-    <p className="break-keep text-sm leading-relaxed text-gray-500 dark:text-gray-400">{action.description}</p>
-    <div className={`mt-3 flex items-center gap-1 text-sm font-medium opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100 ${action.ctaText}`}>
+    <p className="sr-only text-sm leading-relaxed text-gray-500 dark:text-gray-400 sm:not-sr-only">{action.description}</p>
+    <div className={`sr-only mt-2 items-center gap-1 text-sm font-medium sm:not-sr-only sm:flex ${action.ctaText}`}>
       <span>{action.action}</span>
       <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
         <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
@@ -363,7 +363,7 @@ const QuickMenu: React.FC = () => {
       </div>
       <nav
         aria-label={isEditing ? '빠른 메뉴 편집' : '빠른 메뉴'}
-        className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4"
+        className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3 lg:grid-cols-4"
         onPointerMove={handlePointerMove}
         onPointerUp={stopDragging}
         onPointerCancel={stopDragging}
@@ -372,7 +372,7 @@ const QuickMenu: React.FC = () => {
           const action = ACTIONS_BY_ID.get(id);
           if (!action) return null;
           const isVisible = visibleSet.has(id);
-          const cardClassName = `glass-card group p-5 text-left transition-all duration-300 ${action.featured ? 'ring-1 ring-la-gold/20' : ''}`;
+          const cardClassName = `glass-card group p-3 sm:p-4 text-left transition-all duration-300 ${action.featured ? 'ring-1 ring-la-gold/20' : ''}`;
 
           if (!isEditing) {
             return (
@@ -411,7 +411,7 @@ const QuickMenu: React.FC = () => {
                 aria-pressed={isVisible}
                 title={isVisible ? '빠른 메뉴에서 숨기기' : '빠른 메뉴에 표시하기'}
                 onClick={() => toggleVisibility(id)}
-                className={`absolute right-3 top-3 inline-flex h-9 w-9 items-center justify-center rounded-lg border focus:outline-none focus:ring-2 focus:ring-la-gold ${
+                className={`absolute right-2 top-2 inline-flex h-11 w-11 items-center justify-center rounded-lg border focus:outline-none focus:ring-2 focus:ring-la-gold ${
                   isVisible
                     ? 'border-la-gold/40 bg-la-gold/15 text-la-gold-dark dark:text-la-gold'
                     : 'border-gray-300 bg-gray-100 text-gray-400 dark:border-gray-600 dark:bg-white/5 dark:text-gray-500'
